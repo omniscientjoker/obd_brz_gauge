@@ -14,3 +14,9 @@ pid_can_summary.csv
 tools/probe_log
 tools/elm_pids
 tools/pids_full.csv
+/build.arch
+/build.arch
+/build.arch
+/build.arch
+/.playwright-cli
+/build.arch
