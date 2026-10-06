@@ -1,0 +1,58 @@
+- main [ref=f11e2]:
+  - region "OBD 仪表 UI 模拟器" [ref=f11e3]:
+    - generic "仪表屏幕：左右滑动切换页面，上滑显示页面列表" [ref=f11e7]:
+      - generic [ref=f11e8]:
+        - generic [ref=f11e9]: OBD / RPM
+        - generic [ref=f11e10]: 00:04
+      - generic [ref=f11e12]:
+        - generic [ref=f11e13]:
+          - generic [ref=f11e14]: ENGINE RPM
+          - strong [ref=f11e15]: "3280"
+          - generic [ref=f11e16]: rpm
+        - generic [ref=f11e17]:
+          - generic [ref=f11e18]: COOLANT 92 C
+          - generic [ref=f11e19]: VOLT 13.8 V
+    - paragraph [ref=f11e20]: 左右滑动切换页面；上滑显示页面列表。
+  - complementary "模拟数据与状态" [ref=f11e21]:
+    - generic [ref=f11e22]:
+      - generic [ref=f11e23]:
+        - paragraph [ref=f11e24]: DESKTOP PREVIEW
+        - heading "OBD Gauge" [level=1] [ref=f11e25]
+      - button "重置模拟器" [ref=f11e26] [cursor=pointer]: ↻
+    - generic [ref=f11e27]:
+      - heading "实时数据" [level=2] [ref=f11e28]
+      - generic [ref=f11e29]:
+        - text: 转速
+        - status "转速 3280" [ref=f11e30]: 3280 rpm
+        - slider [ref=f11e31]: "3280"
+      - generic [ref=f11e32]:
+        - text: 车速
+        - status "车速 86" [ref=f11e33]: 86 km/h
+        - slider [ref=f11e34]: "86"
+      - generic [ref=f11e35]:
+        - text: 冷却液
+        - status "冷却液 92" [ref=f11e36]: 92 C
+        - slider [ref=f11e37]: "92"
+      - generic [ref=f11e38]:
+        - text: 电压
+        - status "电压 13.8" [ref=f11e39]: 13.8 V
+        - slider [ref=f11e40]: "13.8"
+    - generic [ref=f11e41]:
+      - heading "轮胎压力" [level=2] [ref=f11e42]
+      - generic [ref=f11e43]:
+        - text: 前左
+        - spinbutton "前左" [ref=f11e44]: "2.4"
+      - generic [ref=f11e45]:
+        - text: 前右
+        - spinbutton "前右" [ref=f11e46]: "2.4"
+      - generic [ref=f11e47]:
+        - text: 后左
+        - spinbutton "后左" [ref=f11e48]: "2.3"
+      - generic [ref=f11e49]:
+        - text: 后右
+        - spinbutton "后右" [ref=f11e50]: "2.3"
+    - generic [ref=f11e51]:
+      - generic [ref=f11e52]:
+        - heading "OBD 连接" [level=2] [ref=f11e53]
+        - paragraph [ref=f11e54]: Vgate vLinker FD+ 模拟连接
+      - button [pressed] [ref=f11e55] [cursor=pointer]

@@ -1,0 +1,28 @@
+Command: cmake -G Ninja -DPYTHON_DEPS_CHECKED=1 -DPYTHON=/Users/jiangmiao/.espressif/python_env/idf5.5_py3.14_env/bin/python -DESP_PLATFORM=1 -DCCACHE_ENABLE=0 /Users/jiangmiao/work_dict/aicode/shcode/obd_brz_gauge
+CMake Deprecation Warning at CMakeLists.txt:5 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+Submodule 'components/protobuf-c/protobuf-c' (https://github.com/protobuf-c/protobuf-c.git) registered for path 'components/protobuf-c/protobuf-c'
+Cloning into '/Users/jiangmiao/.espressif/v5.5.3/esp-idf/components/protobuf-c/protobuf-c'...
+Submodule 'components/spiffs/spiffs' (https://github.com/pellepl/spiffs.git) registered for path 'components/spiffs/spiffs'
+Cloning into '/Users/jiangmiao/.espressif/v5.5.3/esp-idf/components/spiffs/spiffs'...
+Submodule 'components/unity/unity' (https://github.com/ThrowTheSwitch/Unity.git) registered for path 'components/unity/unity'
+Cloning into '/Users/jiangmiao/.espressif/v5.5.3/esp-idf/components/unity/unity'...
+fatal: unable to access 'https://github.com/ThrowTheSwitch/Unity.git/': LibreSSL SSL_connect: SSL_ERROR_SYSCALL in connection to github.com:443 
+fatal: clone of 'https://github.com/ThrowTheSwitch/Unity.git' into submodule path '/Users/jiangmiao/.espressif/v5.5.3/esp-idf/components/unity/unity' failed
+Failed to clone 'components/unity/unity'. Retry scheduled
+Cloning into '/Users/jiangmiao/.espressif/v5.5.3/esp-idf/components/unity/unity'...
+warning: the value 'y' is invalid for SOC_SDM_GROUPS (defined at /Users/jiangmiao/.espressif/v5.5.3/esp-idf/./components/soc/esp32s3/include/soc/Kconfig.soc_caps.in:858), which has type int -- assignment ignored
+CMake Warning at /Users/jiangmiao/.espressif/v5.5.3/esp-idf/tools/cmake/component.cmake:301 (message):
+  No source files found for SRC_DIRS entry 'export_path/theme_assets'.
+Call Stack (most recent call first):
+  /Users/jiangmiao/.espressif/v5.5.3/esp-idf/tools/cmake/component.cmake:458 (__component_add_sources)
+  main/CMakeLists.txt:75 (idf_component_register)
+
+

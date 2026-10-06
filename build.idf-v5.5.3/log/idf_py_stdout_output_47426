@@ -1,0 +1,4 @@
+Command: cmake -G Ninja -DPYTHON_DEPS_CHECKED=1 -DPYTHON=/Users/jiangmiao/.espressif/python_env/idf5.5_py3.14_env/bin/python -DESP_PLATFORM=1 -DCCACHE_ENABLE=0 /Users/jiangmiao/work_dict/aicode/shcode/obd_brz_gauge
+-- IDF_TARGET is not set, guessed 'esp32s3' from sdkconfig '/Users/jiangmiao/work_dict/aicode/shcode/obd_brz_gauge/sdkconfig'
+-- Found Git: /opt/homebrew/bin/git (found version "2.52.0")
+-- Initialising new submodule components/openthread/openthread...

@@ -1,0 +1,58 @@
+- main [ref=f12e2]:
+  - region "OBD 仪表 UI 模拟器" [ref=f12e3]:
+    - generic "仪表屏幕：左右滑动切换页面，上滑显示页面列表" [ref=f12e7]:
+      - generic [ref=f12e8]:
+        - generic [ref=f12e9]: OBD / 转速
+        - generic [ref=f12e10]: 00:16
+      - generic [ref=f12e12]:
+        - generic [ref=f12e13]:
+          - generic [ref=f12e14]: 发动机转速
+          - strong [ref=f12e15]: "3280"
+          - generic [ref=f12e16]: rpm
+        - generic [ref=f12e17]:
+          - generic [ref=f12e18]: 水温 92 C
+          - generic [ref=f12e19]: 电压 13.8 V
+    - paragraph [ref=f12e20]: 左右滑动切换页面；上滑显示页面列表。
+  - complementary "模拟数据与状态" [ref=f12e21]:
+    - generic [ref=f12e22]:
+      - generic [ref=f12e23]:
+        - paragraph [ref=f12e24]: 桌面预览
+        - heading "OBD 仪表" [level=1] [ref=f12e25]
+      - button "重置模拟器" [ref=f12e26] [cursor=pointer]: ↻
+    - generic [ref=f12e27]:
+      - heading "实时数据" [level=2] [ref=f12e28]
+      - generic [ref=f12e29]:
+        - text: 转速
+        - status "转速 3280" [ref=f12e30]: 3280 rpm
+        - slider [ref=f12e31]: "3280"
+      - generic [ref=f12e32]:
+        - text: 车速
+        - status "车速 86" [ref=f12e33]: 86 km/h
+        - slider [ref=f12e34]: "86"
+      - generic [ref=f12e35]:
+        - text: 冷却液
+        - status "冷却液 92" [ref=f12e36]: 92 C
+        - slider [ref=f12e37]: "92"
+      - generic [ref=f12e38]:
+        - text: 电压
+        - status "电压 13.8" [ref=f12e39]: 13.8 V
+        - slider [ref=f12e40]: "13.8"
+    - generic [ref=f12e41]:
+      - heading "轮胎压力" [level=2] [ref=f12e42]
+      - generic [ref=f12e43]:
+        - text: 前左
+        - spinbutton "前左" [ref=f12e44]: "2.4"
+      - generic [ref=f12e45]:
+        - text: 前右
+        - spinbutton "前右" [ref=f12e46]: "2.4"
+      - generic [ref=f12e47]:
+        - text: 后左
+        - spinbutton "后左" [ref=f12e48]: "2.3"
+      - generic [ref=f12e49]:
+        - text: 后右
+        - spinbutton "后右" [ref=f12e50]: "2.3"
+    - generic [ref=f12e51]:
+      - generic [ref=f12e52]:
+        - heading "OBD 连接" [level=2] [ref=f12e53]
+        - paragraph [ref=f12e54]: Vgate vLinker FD+ 模拟已连接
+      - button [pressed] [ref=f12e55] [cursor=pointer]

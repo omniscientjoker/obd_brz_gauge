@@ -1,0 +1,80 @@
+- main [ref=f7e2]:
+  - region "OBD 仪表 UI 模拟器" [ref=f7e3]:
+    - generic [ref=f7e7]:
+      - generic [ref=f7e8]:
+        - generic [ref=f7e9]: OBD / TPMS
+        - generic [ref=f7e10]: 23:22
+      - generic [ref=f7e71]:
+        - generic [ref=f7e72]:
+          - text: TPMS
+          - generic [ref=f7e73]: SAFE 2.0-3.2 BAR
+        - generic [ref=f7e74]:
+          - generic [ref=f7e75]: FL
+          - generic [ref=f7e76]: "2.4"
+          - generic [ref=f7e77]: bar
+        - generic [ref=f7e78]:
+          - generic [ref=f7e79]: FR
+          - generic [ref=f7e80]: "2.4"
+          - generic [ref=f7e81]: bar
+        - generic [ref=f7e82]:
+          - generic [ref=f7e83]: RL
+          - generic [ref=f7e84]: "2.3"
+          - generic [ref=f7e85]: bar
+        - generic [ref=f7e86]:
+          - generic [ref=f7e87]: RR
+          - generic [ref=f7e88]: "2.3"
+          - generic [ref=f7e89]: bar
+        - generic [ref=f7e90]:
+          - generic [ref=f7e91]: BATTERY
+          - generic [ref=f7e92]:
+            - text: "13.8"
+            - emphasis [ref=f7e93]: V
+          - generic [ref=f7e94]: ECU VOLTAGE
+      - navigation "页面导航" [ref=f7e20]:
+        - button "上一页" [ref=f7e21] [cursor=pointer]: ‹
+        - button "打开页面菜单" [ref=f7e22] [cursor=pointer]: ●
+        - button "下一页" [ref=f7e23] [cursor=pointer]: ›
+    - paragraph [ref=f7e24]: 拖动屏幕左右切换页面，或使用下方圆点打开页面菜单。
+  - complementary "模拟数据与状态" [ref=f7e25]:
+    - generic [ref=f7e26]:
+      - generic [ref=f7e27]:
+        - paragraph [ref=f7e28]: DESKTOP PREVIEW
+        - heading "OBD Gauge" [level=1] [ref=f7e29]
+      - button "重置模拟器" [ref=f7e30] [cursor=pointer]: ↻
+    - generic [ref=f7e31]:
+      - heading "实时数据" [level=2] [ref=f7e32]
+      - generic [ref=f7e33]:
+        - text: 转速
+        - status "转速 3280" [ref=f7e34]: 3280 rpm
+        - slider [ref=f7e35]: "3280"
+      - generic [ref=f7e36]:
+        - text: 车速
+        - status "车速 86" [ref=f7e37]: 86 km/h
+        - slider [ref=f7e38]: "86"
+      - generic [ref=f7e39]:
+        - text: 冷却液
+        - status "冷却液 92" [ref=f7e40]: 92 C
+        - slider [ref=f7e41]: "92"
+      - generic [ref=f7e42]:
+        - text: 电压
+        - status "电压 13.8" [ref=f7e43]: 13.8 V
+        - slider [ref=f7e44]: "13.8"
+    - generic [ref=f7e45]:
+      - heading "轮胎压力" [level=2] [ref=f7e46]
+      - generic [ref=f7e47]:
+        - text: 前左
+        - spinbutton "前左" [ref=f7e48]: "2.4"
+      - generic [ref=f7e49]:
+        - text: 前右
+        - spinbutton "前右" [ref=f7e50]: "2.4"
+      - generic [ref=f7e51]:
+        - text: 后左
+        - spinbutton "后左" [ref=f7e52]: "2.3"
+      - generic [ref=f7e53]:
+        - text: 后右
+        - spinbutton "后右" [ref=f7e54]: "2.3"
+    - generic [ref=f7e55]:
+      - generic [ref=f7e56]:
+        - heading "OBD 连接" [level=2] [ref=f7e57]
+        - paragraph [ref=f7e58]: Vgate vLinker FD+ 模拟连接
+      - button [pressed] [ref=f7e59] [cursor=pointer]

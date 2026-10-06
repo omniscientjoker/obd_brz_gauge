@@ -1,0 +1,64 @@
+- main [ref=f10e2]:
+  - region "OBD 仪表 UI 模拟器" [ref=f10e3]:
+    - generic [ref=f10e7]:
+      - generic [ref=f10e8]:
+        - generic [ref=f10e9]: OBD / MENU
+        - generic [ref=f10e10]: 23:48
+      - generic [ref=f10e61]:
+        - heading "SELECT PAGE" [level=2] [ref=f10e62]
+        - button "RPM" [ref=f10e63] [cursor=pointer]
+        - button "SPEED" [ref=f10e64] [cursor=pointer]
+        - button "TEMP" [ref=f10e65] [cursor=pointer]
+        - button "INFO" [ref=f10e66] [cursor=pointer]
+        - button "NEEDLE" [ref=f10e67] [cursor=pointer]
+        - button "TPMS" [ref=f10e68] [cursor=pointer]
+        - button "MULTI" [ref=f10e69] [cursor=pointer]
+        - button "SETTINGS" [ref=f10e70] [cursor=pointer]
+      - navigation "页面导航" [ref=f10e20]:
+        - button "上一页" [ref=f10e21] [cursor=pointer]: ‹
+        - button "打开页面菜单" [active] [ref=f10e22] [cursor=pointer]: ●
+        - button "下一页" [ref=f10e23] [cursor=pointer]: ›
+    - paragraph [ref=f10e24]: 拖动屏幕左右切换页面，或使用下方圆点打开页面菜单。
+  - complementary "模拟数据与状态" [ref=f10e25]:
+    - generic [ref=f10e26]:
+      - generic [ref=f10e27]:
+        - paragraph [ref=f10e28]: DESKTOP PREVIEW
+        - heading "OBD Gauge" [level=1] [ref=f10e29]
+      - button "重置模拟器" [ref=f10e30] [cursor=pointer]: ↻
+    - generic [ref=f10e31]:
+      - heading "实时数据" [level=2] [ref=f10e32]
+      - generic [ref=f10e33]:
+        - text: 转速
+        - status "转速 3280" [ref=f10e34]: 3280 rpm
+        - slider [ref=f10e35]: "3280"
+      - generic [ref=f10e36]:
+        - text: 车速
+        - status "车速 86" [ref=f10e37]: 86 km/h
+        - slider [ref=f10e38]: "86"
+      - generic [ref=f10e39]:
+        - text: 冷却液
+        - status "冷却液 92" [ref=f10e40]: 92 C
+        - slider [ref=f10e41]: "92"
+      - generic [ref=f10e42]:
+        - text: 电压
+        - status "电压 13.8" [ref=f10e43]: 13.8 V
+        - slider [ref=f10e44]: "13.8"
+    - generic [ref=f10e45]:
+      - heading "轮胎压力" [level=2] [ref=f10e46]
+      - generic [ref=f10e47]:
+        - text: 前左
+        - spinbutton "前左" [ref=f10e48]: "2.4"
+      - generic [ref=f10e49]:
+        - text: 前右
+        - spinbutton "前右" [ref=f10e50]: "2.4"
+      - generic [ref=f10e51]:
+        - text: 后左
+        - spinbutton "后左" [ref=f10e52]: "2.3"
+      - generic [ref=f10e53]:
+        - text: 后右
+        - spinbutton "后右" [ref=f10e54]: "2.3"
+    - generic [ref=f10e55]:
+      - generic [ref=f10e56]:
+        - heading "OBD 连接" [level=2] [ref=f10e57]
+        - paragraph [ref=f10e58]: Vgate vLinker FD+ 模拟连接
+      - button [pressed] [ref=f10e59] [cursor=pointer]

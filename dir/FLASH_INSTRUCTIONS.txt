@@ -1,0 +1,12 @@
+ESP32-S3 16 MB 固件安装包
+
+首次安装（擦除全部旧数据）：
+  ./flash_firmware.sh --erase
+
+后续更新（保留 NVS 设置）：
+  ./flash_firmware.sh
+
+使用单文件工厂固件，从地址 0x0 烧录：
+  ./flash_firmware.sh --factory --erase
+
+脚本会自动列出可烧录串口并要求选择。请使用可传输数据的 Type-C 线。

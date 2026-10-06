@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+/Users/jiangmiao/work_dict/aicode/shcode/obd_brz_gauge/build.idf-v5.5.3/CMakeFiles/bootloader
+/Users/jiangmiao/work_dict/aicode/shcode/obd_brz_gauge/build.idf-v5.5.3/CMakeFiles/bootloader.rule
+/Users/jiangmiao/work_dict/aicode/shcode/obd_brz_gauge/build.idf-v5.5.3/CMakeFiles/bootloader-complete.rule
+/Users/jiangmiao/work_dict/aicode/shcode/obd_brz_gauge/build.idf-v5.5.3/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+/Users/jiangmiao/work_dict/aicode/shcode/obd_brz_gauge/build.idf-v5.5.3/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+/Users/jiangmiao/work_dict/aicode/shcode/obd_brz_gauge/build.idf-v5.5.3/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+/Users/jiangmiao/work_dict/aicode/shcode/obd_brz_gauge/build.idf-v5.5.3/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+/Users/jiangmiao/work_dict/aicode/shcode/obd_brz_gauge/build.idf-v5.5.3/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+/Users/jiangmiao/work_dict/aicode/shcode/obd_brz_gauge/build.idf-v5.5.3/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+/Users/jiangmiao/work_dict/aicode/shcode/obd_brz_gauge/build.idf-v5.5.3/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule

@@ -132,6 +132,10 @@ lv_obj_t * ui_ScreenPageOilPressure;
 void ui_ScreenPageInfo_screen_init(void);
 extern lv_obj_t * ui_ScreenPageInfo;
 
+// SCREEN: ui_ScreenPageTpms
+void ui_ScreenPageTpms_screen_init(void);
+extern lv_obj_t * ui_ScreenPageTpms;
+
 // SCREEN: ui_ScreenPageInfoCustom
 void ui_ScreenPageInfoCustom_screen_init(void);
 lv_obj_t * ui_ScreenPageInfoCustom;
@@ -437,7 +441,7 @@ static uint32_t ui_refresh_period_ms_for_screen(lv_obj_t *scr,
         scr == ui_ScreenPageThemeGauge) {
         return 16;
     }
-    if (scr == ui_ScreenPageTemp || scr == ui_ScreenPageInfo ||
+    if (scr == ui_ScreenPageTemp || scr == ui_ScreenPageInfo || scr == ui_ScreenPageTpms ||
         scr == ui_ScreenPageOilPressure || scr == ui_ScreenPageLogo ||
         scr == ui_ScreenPageIntro) {
         return 33;
@@ -458,7 +462,7 @@ static bool ui_screen_updates_live_data(lv_obj_t *scr)
     return scr == ui_ScreenPageGear || scr == ui_ScreenPageRpm ||
            scr == ui_ScreenPageSpeed || scr == ui_ScreenPageNeedle ||
            scr == ui_ScreenPageTemp || scr == ui_ScreenPageOilPressure ||
-           scr == ui_ScreenPageInfo || scr == ui_ScreenPageThemeGauge;
+           scr == ui_ScreenPageInfo || scr == ui_ScreenPageTpms || scr == ui_ScreenPageThemeGauge;
 }
 
 // Converts the core firmware's live OBD snapshot into the ABI-stable struct
@@ -547,6 +551,10 @@ void my_timerMain(lv_timer_t * timer)
     int32_t bat_mv = 0;
     int16_t boost_x10 = 0;
     int16_t afr_x100 = 0;
+    int16_t tpms_fl_x10 = -1;
+    int16_t tpms_fr_x10 = -1;
+    int16_t tpms_rl_x10 = -1;
+    int16_t tpms_rr_x10 = -1;
 
     /* ---- Sweep trigger ----
        Master: triggered the instant the ELM327 BLE connects and advances the animation itself;
@@ -576,6 +584,10 @@ void my_timerMain(lv_timer_t * timer)
         bat_mv    = obd.bat_mv;
         boost_x10 = obd.boost_x10; // boost gauge pressure 0.1bar, -32768=invalid
         afr_x100  = obd.afr_x100;   // air-fuel ratio ×100, -1=invalid
+        tpms_fl_x10 = obd.tpms_fl_x10;
+        tpms_fr_x10 = obd.tpms_fr_x10;
+        tpms_rl_x10 = obd.tpms_rl_x10;
+        tpms_rr_x10 = obd.tpms_rr_x10;
         usRpm     = obd.rpm;
         ucSpeed   = obd.speed;
         int8_t decoded_gear = obd.gear;
@@ -663,6 +675,23 @@ void my_timerMain(lv_timer_t * timer)
     if (scr == ui_ScreenPageNeedle) {
         ui_needle_page_update(sweep_ratio, clt, iat, oil, load_pct, tps, bat_mv,
                               oilp_x10, brake_x10, usRpm, ucSpeed, boost_x10, afr_x100);
+    }
+
+    if (scr == ui_ScreenPageTpms && ui_LabelTpmsValue[0] && ui_LabelTpmsVoltage) {
+        const int16_t pressures[4] = {tpms_fl_x10, tpms_fr_x10, tpms_rl_x10, tpms_rr_x10};
+        for (int i = 0; i < 4; ++i) {
+            if (pressures[i] >= 0) {
+                lv_label_set_text_fmt(ui_LabelTpmsValue[i], "%d.%d", pressures[i] / 10, pressures[i] % 10);
+            } else {
+                lv_label_set_text(ui_LabelTpmsValue[i], "--.-");
+            }
+        }
+        if (bat_mv > 0) {
+            lv_label_set_text_fmt(ui_LabelTpmsVoltage, "%ld.%01ld V", (long)(bat_mv / 1000),
+                                  (long)((bat_mv % 1000) / 100));
+        } else {
+            lv_label_set_text(ui_LabelTpmsVoltage, "--.- V");
+        }
     }
 
     /*Temp page*/
@@ -1007,7 +1036,7 @@ void ui_event_speed_background(lv_event_t * e)
         }
     }
 }
-// Carousel order: Gear → RPM → Speed → Temp → Info → Needle → OilPressure → BrakeTemp → version page → back to Gear
+// Carousel order: Gear → RPM → Speed → Temp → Info → TPMS → Needle → Chart → version page → back to Gear
 // Swipe left = next page, swipe right = previous page
 void ui_event_temp_background(lv_event_t * e)
 {
@@ -1114,8 +1143,8 @@ void ui_event_rpm_warn_background(lv_event_t * e)
     }
 }
 
-// Needle page (gauge): sits between Info and OilPressure (before the two chart pages)
-//  swipe right → Info, swipe left → OilPressure, swipe down → data-source selection
+// Needle page (gauge): sits between TPMS and the chart page.
+// Swipe right → TPMS, swipe left → chart, swipe down → data-source selection.
 void ui_event_needle_background(lv_event_t * e)
 {
     lv_event_code_t code = lv_event_get_code(e);
@@ -1127,7 +1156,7 @@ void ui_event_needle_background(lv_event_t * e)
         }
         else if(dir == LV_DIR_RIGHT){
             lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageInfo, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageInfo_screen_init);
+            _ui_screen_change(&ui_ScreenPageTpms, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageTpms_screen_init);
         }
         else if(dir == LV_DIR_LEFT){
             lv_indev_wait_release(lv_indev_get_act());
@@ -1157,12 +1186,26 @@ void ui_event_info_background(lv_event_t * e)
         }
         else if(dir == LV_DIR_LEFT) {
             lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageNeedle, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageNeedle_screen_init);
+            _ui_screen_change(&ui_ScreenPageTpms, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageTpms_screen_init);
         }
         else if(dir == LV_DIR_BOTTOM) {
             lv_indev_wait_release(lv_indev_get_act());
             _ui_screen_change(&ui_ScreenPageInfoCustom, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageInfoCustom_screen_init);
         }
+    }
+}
+
+void ui_event_tpms_background(lv_event_t * e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_GESTURE) return;
+
+    lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
+    if (dir == LV_DIR_RIGHT) {
+        lv_indev_wait_release(lv_indev_get_act());
+        _ui_screen_change(&ui_ScreenPageInfo, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageInfo_screen_init);
+    } else if (dir == LV_DIR_LEFT) {
+        lv_indev_wait_release(lv_indev_get_act());
+        _ui_screen_change(&ui_ScreenPageNeedle, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageNeedle_screen_init);
     }
 }
 
@@ -1308,6 +1351,7 @@ void ui_init(void)
     ui_ScreenPageODBProtocal_screen_init();
     // The Info page is lazy-loaded on demand; its screen pointer must be initialized to NULL
     ui_ScreenPageInfo = NULL;
+    ui_ScreenPageTpms = NULL;
     ui_ScreenPageTempCustom = NULL;
     ui_ScreenPageInfoCustom = NULL;
     ui_ScreenPageNeedleConfig = NULL;   // config page lazy-loaded
@@ -1319,9 +1363,12 @@ void ui_init(void)
     ui____initial_actions0 = lv_obj_create(NULL);
 
     // Pre-create the default boot page: build it before the boot switch so it isn't created synchronously mid-transition and cause a stutter.
-    // The other default pages (Temp/Brake/OilP/Needle/Gear/Rpm/Speed) were eagerly created above; only Info is lazy-loaded.
+    // The other default pages (Temp/Chart/Needle/Gear/Rpm/Speed) were eagerly created above; Info and TPMS are lazy-loaded.
     if (nvs_cfg_get()->default_page == 1 && ui_ScreenPageInfo == NULL) {
         ui_ScreenPageInfo_screen_init();
+    }
+    if (nvs_cfg_get()->default_page == 7 && ui_ScreenPageTpms == NULL) {
+        ui_ScreenPageTpms_screen_init();
     }
 
     lv_timer_create(my_timerMain,

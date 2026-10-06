@@ -42,6 +42,10 @@ typedef struct {
     int16_t  brake_temp_x10;
     int8_t   gear;
     int16_t  afr_x100;
+    int16_t  tpms_fl_x10;
+    int16_t  tpms_fr_x10;
+    int16_t  tpms_rl_x10;
+    int16_t  tpms_rr_x10;
     brake_rs485_status_t brake_rs485_status;
 } obd_data_snapshot_t;
 
@@ -63,6 +67,8 @@ void obd_data_set_brake_temp_x10(int16_t temp_x10); // brake temp, 0.1°C
 void obd_data_set_gear(int8_t gear);               // direct gear value: -1=R, 0=N, 1+=forward gear, 127=invalid
 void obd_data_set_brake_rs485_status(brake_rs485_status_t status);
 void obd_data_set_afr_x100(int16_t afr_x100);      // air-fuel ratio AFR, ×100 (1470=14.7:1), -1=invalid
+// Tire pressure in 0.1 bar. Set all wheels to -1 when TPMS data is unavailable.
+void obd_data_set_tpms_x10(int16_t fl, int16_t fr, int16_t rl, int16_t rr);
 uint16_t obd_data_get_rpm(void);
 uint8_t  obd_data_get_speed(void);
 int16_t  obd_data_get_coolant_temp(void);

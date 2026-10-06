@@ -45,6 +45,7 @@ This repository has two main branches with **incompatible partition layouts**:
 | Document | What it covers / 内容 |
 |----------|----------------------|
 | [docs/README.zh-CN.md](docs/README.zh-CN.md) | **完整中文说明** — 功能、依赖、编译烧录、适配要点 |
+| [docs/FLASHING.zh-CN.md](docs/FLASHING.zh-CN.md) | **一键打包与 Type-C 烧录** — 生成安装包、首次烧录和后续更新 |
 | [docs/README.en.md](docs/README.en.md) | **Full English guide** — features, requirements, build and flash |
 | [docs/BRANCH_COMPARISON.md](docs/BRANCH_COMPARISON.md) | **Branch differences** — main vs theme-upgrade partition layouts / 分支差异对比 |
 | [docs/APP_INTEGRATION.md](docs/APP_INTEGRATION.md) | App/device manifest, firmware validation, single-slot boot animation / App 对接、硬件校验、单槽开机动画 |

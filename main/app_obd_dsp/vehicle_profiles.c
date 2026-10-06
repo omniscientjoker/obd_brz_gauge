@@ -386,6 +386,27 @@ static const vehicle_profile_t s_profiles[] = {
         .obd_29bit_functional = true,      // 29-bit functional broadcast address (18DB33F1, not 7DF)
         .obd_timeout = 0x19,               // default timeout; adjust if responses are slow
     },
+    {
+        // 2014 Ford Mondeo 2.0T / CD391 TPMS candidate.
+        // The override adds the candidate Ford BCM Mode 22 TPMS rules from
+        // the public Fusion profile; validate before treating them as final.
+        .name = "Mondeo 2.0T TPMS (candidate)",
+        .final_drive_ratio = 3.150f,
+        .tire_rolling_radius_m = 0.335f,
+        .gear_count = 6,
+        .gear_ratios = {0, 4.584f, 2.964f, 1.912f, 1.446f, 1.000f, 0.746f},
+        .gear_tolerance = 0.15f,
+        .oil_temp_strategy = {
+            .primary = OIL_TEMP_MODE_PID_5C,
+            .secondary = OIL_TEMP_MODE_NONE,
+            .tertiary = OIL_TEMP_MODE_NONE,
+            .quaternary = OIL_TEMP_MODE_NONE,
+        },
+        .has_boost = true,
+        .forced_protocol = 6,
+        .obd_timeout = 0x19,
+        .poll_gap_ms = 30,
+    },
 };
 
 #define PROFILE_COUNT (sizeof(s_profiles) / sizeof(s_profiles[0]))

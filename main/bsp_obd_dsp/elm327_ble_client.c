@@ -142,6 +142,23 @@ static struct {
 static int8_t s_oil_temp_offset = 0;  // user calibration offset, in °C
 static volatile int64_t s_can_oil_last_us = 0;      // last CAN oil-temp sample time
 static volatile int64_t s_can_coolant_last_us = 0;  // last CAN coolant-temp sample time
+#define CAN_TPMS_STALE_US 30000000LL
+static int16_t s_can_tpms_x10[4] = {-1, -1, -1, -1};
+static int64_t s_can_tpms_last_us[4] = {0};
+static const vehicle_profile_t *s_can_tpms_profile = NULL;
+
+// Pending Ford BCM diagnostic TPMS request. The ELM327 link is single-flight,
+// so one pending wheel is sufficient and avoids mixing responses with other
+// Mode 22 consumers.
+static int8_t s_tpms_pending_wheel = -1;
+static uint16_t s_tpms_pending_did = 0;
+static int64_t s_tpms_last_poll_us = 0;
+static int64_t s_tpms_pending_since_us = 0;
+static int64_t s_tpms_last_response_us[4] = {0};
+static const vehicle_profile_t *s_tpms_uds_profile = NULL;
+static uint8_t s_tpms_poll_wheel = 0;
+#define TPMS_UDS_STALE_US 30000000LL
+#define TPMS_UDS_PENDING_TIMEOUT_US 3000000LL
 
 // Global ready flag
 static volatile bool s_elm_ready = true; // initially true so the first ATZ can be sent
@@ -583,6 +600,144 @@ static void default_on_parsed_manifold_pressure(uint32_t map_kpa) {
     obd_data_set_boost_x10(boost_x10);
 }
 
+// TPMS rules express pressure in bar. A single CAN frame may contain only one
+// wheel, so retain the other fresh values until their own frames arrive.
+static void can_publish_tpms_channels(const float channels[CH_COUNT])
+{
+    static const uint8_t tpms_channels[4] = {
+        CH_TPMS_FL, CH_TPMS_FR, CH_TPMS_RL, CH_TPMS_RR,
+    };
+    const vehicle_profile_t *profile = vehicle_profile_get_active();
+    const vehicle_override_t *ov = vehicle_profile_get_override();
+    int64_t now_us;
+    bool has_tpms_rule = false;
+
+    if (!channels || !profile || !ov) return;
+    for (uint8_t i = 0; i < 4; ++i) {
+        if (can_rules_have_channel(ov, tpms_channels[i])) {
+            has_tpms_rule = true;
+            break;
+        }
+    }
+    if (!has_tpms_rule) return;
+
+    if (s_can_tpms_profile != profile) {
+        memset(s_can_tpms_x10, 0xFF, sizeof(s_can_tpms_x10));
+        memset(s_can_tpms_last_us, 0, sizeof(s_can_tpms_last_us));
+        s_can_tpms_profile = profile;
+    }
+
+    now_us = esp_timer_get_time();
+    for (uint8_t i = 0; i < 4; ++i) {
+        float bar = channels[tpms_channels[i]];
+        if (bar >= 0.0f && bar <= 10.0f) {
+            s_can_tpms_x10[i] = (int16_t)(bar * 10.0f + 0.5f);
+            s_can_tpms_last_us[i] = now_us;
+        }
+        if (s_can_tpms_last_us[i] > 0 && now_us - s_can_tpms_last_us[i] > CAN_TPMS_STALE_US) {
+            s_can_tpms_x10[i] = -1;
+            s_can_tpms_last_us[i] = 0;
+        }
+    }
+
+    obd_data_set_tpms_x10(s_can_tpms_x10[0], s_can_tpms_x10[1],
+                          s_can_tpms_x10[2], s_can_tpms_x10[3]);
+}
+
+static const tpms_did_rule_t *get_tpms_did_rule(uint8_t wheel)
+{
+    const vehicle_override_t *ov = vehicle_profile_get_override();
+    if (!ov || !ov->tpms_did_rules || wheel >= ov->tpms_did_count) return NULL;
+    return &ov->tpms_did_rules[wheel];
+}
+
+static bool tpms_uds_enabled(void)
+{
+    const vehicle_override_t *ov = vehicle_profile_get_override();
+    return ov && ov->tpms_did_rules && ov->tpms_did_count >= 4;
+}
+
+static void tpms_uds_expire(void)
+{
+    const vehicle_override_t *ov = vehicle_profile_get_override();
+    const vehicle_profile_t *profile = vehicle_profile_get_active();
+    int16_t p[4];
+    int64_t now_us;
+    if (!ov || !ov->tpms_did_rules || ov->tpms_did_count < 4) return;
+    if (s_tpms_uds_profile != profile) return;
+    now_us = esp_timer_get_time();
+    obd_data_snapshot_t snap;
+    obd_data_get_snapshot(&snap);
+    p[0] = snap.tpms_fl_x10; p[1] = snap.tpms_fr_x10;
+    p[2] = snap.tpms_rl_x10; p[3] = snap.tpms_rr_x10;
+    // A missing response is represented by -1. This keeps a valid wheel alive
+    // while another wheel is being retried.
+    for (uint8_t i = 0; i < 4; ++i) {
+        if (p[i] >= 0 && (s_tpms_last_response_us[i] == 0 ||
+            now_us - s_tpms_last_response_us[i] > TPMS_UDS_STALE_US)) {
+            p[i] = -1;
+        }
+    }
+    obd_data_set_tpms_x10(p[0], p[1], p[2], p[3]);
+}
+
+static void tpms_uds_schedule(void)
+{
+    const vehicle_override_t *ov = vehicle_profile_get_override();
+    const vehicle_profile_t *profile = vehicle_profile_get_active();
+    const tpms_did_rule_t *rule;
+    int64_t now_us;
+    char cmd[20];
+    uint32_t period_ms;
+
+    if (!ov || !ov->tpms_did_rules || ov->tpms_did_count < 4) return;
+    now_us = esp_timer_get_time();
+    if (s_tpms_uds_profile != profile) {
+        s_tpms_uds_profile = profile;
+        s_tpms_pending_wheel = -1;
+        s_tpms_pending_did = 0;
+        s_tpms_last_poll_us = 0;
+        s_tpms_pending_since_us = 0;
+        memset(s_tpms_last_response_us, 0, sizeof(s_tpms_last_response_us));
+        s_tpms_poll_wheel = 0;
+        obd_data_set_tpms_x10(-1, -1, -1, -1);
+    }
+    if (s_tpms_pending_wheel >= 0 &&
+        now_us - s_tpms_pending_since_us > TPMS_UDS_PENDING_TIMEOUT_US) {
+        ESP_LOGW(TAG, "[TPMS] timeout wheel=%d DID=%04X", s_tpms_pending_wheel,
+                 s_tpms_pending_did);
+        s_tpms_pending_wheel = -1;
+        s_tpms_pending_did = 0;
+        s_tpms_pending_since_us = 0;
+    }
+    tpms_uds_expire();
+    period_ms = ov->tpms_poll_period_ms ? ov->tpms_poll_period_ms : 1000;
+    if (s_tpms_pending_wheel >= 0 ||
+        (s_tpms_last_poll_us > 0 && now_us - s_tpms_last_poll_us < (int64_t)period_ms * 1000LL)) {
+        return;
+    }
+    if (s_tpms_poll_wheel >= ov->tpms_did_count) s_tpms_poll_wheel = 0;
+    rule = get_tpms_did_rule(s_tpms_poll_wheel);
+    if (!rule || rule->did == 0) return;
+    if (ov->tpms_header_cmd) elm327_ble_send_ascii_blocking(ov->tpms_header_cmd);
+    snprintf(cmd, sizeof(cmd), "22 %02X %02X\r", (rule->did >> 8) & 0xFF, rule->did & 0xFF);
+    s_tpms_pending_wheel = (int8_t)s_tpms_poll_wheel;
+    s_tpms_pending_did = rule->did;
+    s_tpms_pending_since_us = now_us;
+    if (elm327_ble_send_ascii_blocking(cmd)) {
+        s_tpms_poll_wheel++;
+        s_tpms_last_poll_us = now_us;
+        ESP_LOGD(TAG, "[TPMS] request wheel=%d DID=%04X", s_tpms_pending_wheel, rule->did);
+    } else {
+        s_tpms_pending_wheel = -1;
+        s_tpms_pending_did = 0;
+        s_tpms_pending_since_us = 0;
+    }
+    // The BCM header is only needed for the diagnostic request. Restore the
+    // normal vehicle header before the next standard OBD command.
+    elm327_ble_send_ascii_blocking(get_vehicle_fixed_header_cmd());
+}
+
 static void can_expire_stale_temp_channels(void)
 {
     const vehicle_profile_t *profile = vehicle_profile_get_active();
@@ -607,6 +762,12 @@ static void can_expire_stale_temp_channels(void)
         (now_us - s_can_coolant_last_us) > ZC6_CAN_TEMP_STALE_US) {
         obd_data_set_coolant_temp(-40);
         s_can_coolant_last_us = 0;
+    }
+
+    if (s_can_tpms_profile == profile) {
+        float unavailable[CH_COUNT];
+        for (uint8_t i = 0; i < CH_COUNT; ++i) unavailable[i] = -32768.0f;
+        can_publish_tpms_channels(unavailable);
     }
 }
 
@@ -824,6 +985,7 @@ static bool zc6_can_monitor_parse_line(const char *line)
         s_cbs.on_parsed_throttle_position((uint32_t)channels[CH_TPS]);
     if (channels[CH_GEAR] > 0 && channels[CH_GEAR] < 127 && s_cbs.on_parsed_gear)
         s_cbs.on_parsed_gear((int8_t)channels[CH_GEAR]);
+    can_publish_tpms_channels(channels);
 
     mark_obd_data_valid();
     return true;
@@ -910,6 +1072,16 @@ static void do_elm_init(void) {
     // ---- Init the oil-temp query strategy (based on vehicle profile config) ----
     init_oil_temp_strategy();
     obd_data_reset_temp_cache();
+    // A reconnect invalidates any BCM TPMS values collected on the previous
+    // ELM session; the scheduler will repopulate them wheel by wheel.
+    s_tpms_pending_wheel = -1;
+    s_tpms_pending_did = 0;
+    s_tpms_last_poll_us = 0;
+    s_tpms_pending_since_us = 0;
+    memset(s_tpms_last_response_us, 0, sizeof(s_tpms_last_response_us));
+    s_tpms_uds_profile = NULL;
+    s_tpms_poll_wheel = 0;
+    obd_data_set_tpms_x10(-1, -1, -1, -1);
     s_zc_can_obd_phase = false;
     s_zc_can_obd_round_started = false;
     s_zc6_can_temp_probe_last_us = 0;
@@ -990,7 +1162,11 @@ static void obd_poll_task(void *arg) {
         bool can_has_coolant = can_rules_have_channel(ov_poll, CH_COOLANT);
         bool can_has_tps = can_rules_have_channel(ov_poll, CH_TPS);
         bool can_has_oil = can_rules_have_channel(ov_poll, CH_OIL_TEMP);
-        bool can_needs_monitor_probe = can_has_coolant || can_has_tps || can_has_oil;
+        bool can_has_tpms = can_rules_have_channel(ov_poll, CH_TPMS_FL) ||
+                            can_rules_have_channel(ov_poll, CH_TPMS_FR) ||
+                            can_rules_have_channel(ov_poll, CH_TPMS_RL) ||
+                            can_rules_have_channel(ov_poll, CH_TPMS_RR);
+        bool can_needs_monitor_probe = can_has_coolant || can_has_tps || can_has_oil || can_has_tpms;
         bool can_obd_primary = can_broadcast && !can_has_rpm;
         uint32_t can_obd_interval = can_has_rpm ? ZC6_CAN_OBD_INTERVAL : 1;
         uint32_t can_atma_delay_ms = can_has_rpm ? 120u : 30u;
@@ -1197,6 +1373,14 @@ static void obd_poll_task(void *arg) {
             tick_count = 0;
         }
         } // end standard OBD poll block
+
+        // Ford BCM TPMS uses a separate Mode 22 DID sequence. Keep it outside
+        // the twelve standard OBD slots so adding TPMS does not alter RPM/PID
+        // cadence; the scheduler enforces one in-flight request and its own
+        // period.
+        if (tpms_uds_enabled()) {
+            tpms_uds_schedule();
+        }
 
         if (can_obd_primary && can_needs_monitor_probe && completed_obd_round) {
             int64_t now_us = esp_timer_get_time();
@@ -1923,6 +2107,7 @@ static void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_
                     s_cbs.on_parsed_gear((int8_t)channels[CH_GEAR]);
                 if (channels[CH_LOAD] >= 0 && s_cbs.on_parsed_load_pct)
                     s_cbs.on_parsed_load_pct((int16_t)channels[CH_LOAD]);
+                can_publish_tpms_channels(channels);
 
                 mark_obd_data_valid();
             }
@@ -2036,8 +2221,64 @@ static void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_
             }
             uint32_t mode22 = 0, ph = 0, pl = 0, d0 = 0, d1 = 0;
             int values = sscanf(p62, "%x %x %x %x %x", &mode22, &ph, &pl, &d0, &d1);
-            if (values >= 4 && mode22 == 0x62 && s_cbs.on_parsed_oil_temp) {
+            if (values >= 4 && mode22 == 0x62) {
                 uint32_t pid16 = (ph << 8) | pl;
+                if (s_tpms_pending_wheel >= 0) {
+                    ESP_LOGD(TAG, "[TPMS] response wheel=%d text=%.48s",
+                             s_tpms_pending_wheel, p62);
+                }
+
+                // ---- Ford BCM TPMS candidate (Mode 22, one DID per wheel) ----
+                // This path is intentionally independent of the oil-temp
+                // callback: a TPMS-only profile must still consume 62 DID data.
+                if (s_tpms_pending_wheel >= 0 &&
+                    pid16 == s_tpms_pending_did) {
+                    const tpms_did_rule_t *tpms_rule =
+                        get_tpms_did_rule((uint8_t)s_tpms_pending_wheel);
+                    uint8_t data_len = (values >= 3) ? (uint8_t)(values - 3) : 0;
+                    bool valid = false;
+                    if (tpms_rule && tpms_rule->resp_bytes >= 1 &&
+                        tpms_rule->resp_bytes <= 2 &&
+                        tpms_rule->resp_byte < data_len &&
+                        tpms_rule->resp_byte + tpms_rule->resp_bytes <= data_len) {
+                        uint32_t raw = d0;
+                        if (tpms_rule->resp_byte == 1) raw = d1;
+                        if (tpms_rule->resp_bytes == 2) {
+                            if (tpms_rule->resp_byte == 0) raw = (d0 << 8) | d1;
+                            else raw = 0; // only two response bytes are currently parsed
+                        }
+                        float bar = (float)raw * tpms_rule->scale_bar + tpms_rule->offset_bar;
+                        if (bar >= 0.0f && bar <= 10.0f) {
+                            obd_data_snapshot_t snap;
+                            int16_t p[4];
+                            obd_data_get_snapshot(&snap);
+                            p[0] = snap.tpms_fl_x10;
+                            p[1] = snap.tpms_fr_x10;
+                            p[2] = snap.tpms_rl_x10;
+                            p[3] = snap.tpms_rr_x10;
+                            p[s_tpms_pending_wheel] = (int16_t)(bar * 10.0f + 0.5f);
+                            obd_data_set_tpms_x10(p[0], p[1], p[2], p[3]);
+                            s_tpms_last_response_us[s_tpms_pending_wheel] = esp_timer_get_time();
+                            ESP_LOGD(TAG, "[TPMS] wheel=%d DID=%04X raw=%lu bar=%.2f",
+                                     s_tpms_pending_wheel, pid16, (unsigned long)raw, bar);
+                            valid = true;
+                        }
+                    }
+                    if (!valid) {
+                        ESP_LOGW(TAG, "[TPMS] invalid response wheel=%d DID=%04X values=%d",
+                                 s_tpms_pending_wheel, pid16, values);
+                    }
+                    // A matching response, including an invalid payload, ends
+                    // this single-flight request and allows the next wheel.
+                    s_tpms_pending_wheel = -1;
+                    s_tpms_pending_did = 0;
+                    s_tpms_pending_since_us = 0;
+                    goto oil_temp_done;
+                }
+
+                // Mode 22 oil/gear consumers below require the normal oil
+                // callback. TPMS above must remain usable without it.
+                if (!s_cbs.on_parsed_oil_temp) goto oil_temp_done;
 
                 // ---- Engine oil pressure (Mode 22 DID, per-profile: 4436=B58, 586F=N55; absolute hPa, 16-bit) ----
                 {

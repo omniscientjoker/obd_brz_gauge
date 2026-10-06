@@ -76,7 +76,24 @@ static const can_rule_t can_rules_mycar[] = {
 - `scale/offset`: 最终值 = raw × scale + offset
 
 **可用通道 / Available channels:**
-`CH_RPM`, `CH_SPEED`, `CH_OIL_TEMP`, `CH_COOLANT`, `CH_TPS`, `CH_LOAD`, `CH_INTAKE`, `CH_BOOST`
+`CH_RPM`, `CH_SPEED`, `CH_OIL_TEMP`, `CH_COOLANT`, `CH_TPS`, `CH_LOAD`, `CH_INTAKE`, `CH_BOOST`,
+`CH_TPMS_FL`, `CH_TPMS_FR`, `CH_TPMS_RL`, `CH_TPMS_RR`
+
+### 四轮胎压 CAN 规则 / TPMS CAN rules
+
+TPMS 规则的最终值单位必须是 `bar`。四个轮位可以来自同一帧或不同帧；解码器会保留已收到的轮位，直到它们超时失效。
+
+```c
+// 以下 CAN ID、字节位置与公式仅是结构示例，不能直接用于任何福特车辆。
+static const can_rule_t can_rules_ford_tpms[] = {
+    { 0x000, 0, 8, 0.01f, 0.0f, CH_TPMS_FL },
+    { 0x000, 8, 8, 0.01f, 0.0f, CH_TPMS_FR },
+    { 0x000, 16, 8, 0.01f, 0.0f, CH_TPMS_RL },
+    { 0x000, 24, 8, 0.01f, 0.0f, CH_TPMS_RR },
+};
+```
+
+在把 Ford 规则加入车型表前，必须通过实车 CAN 日志确认 CAN ID、轮位和换算公式。不要用猜测的 ID 启用 CAN 监听。
 
 #### 2b. 油温公式 / Oil Temperature Formula
 
@@ -105,7 +122,17 @@ static const oil_formula_t oil_uds_2byte = {
 | `OIL_UDS_22` | UDS Mode 22 | `22 XX XX\r` |
 | `OIL_SPECIAL` | 特殊解析 (需额外代码) | 自定义 / Custom |
 
-#### 2c. 注册覆盖 / Register Override
+#### 2c. Ford BCM Mode 22 胎压候选 / Ford BCM Mode 22 TPMS candidate
+
+当前工程的 `Mondeo 2.0T TPMS (candidate)` 配置先采用公开 Fusion Hybrid 资料作为待验证方案：请求头为 `ATSH726`，每次发送一个 `22 DID`，压力原始值为响应中的两个大端字节，公式为：
+
+```text
+pressure_bar = raw_u16 × 0.05 × 0.0689475729
+```
+
+轮位与 DID 映射为：`FL=2813`、`FR=2814`、`RL=2816`、`RR=2815`。例如 `62 28 13 02 80` 中 `raw=0x0280=640`，结果约为 `2.21 bar`。该映射和公式来自北美/欧洲 Fusion 资料，尚未证明适用于中国版 2014 Mondeo；实车验证时应记录 FORScan BCMii 的 DID、响应字节和机械表压力，再替换 `tpms_fusion_candidate[]`。
+
+#### 2d. 注册覆盖 / Register Override
 
 在 `s_vehicle_overrides[]` 数组中添加：
 

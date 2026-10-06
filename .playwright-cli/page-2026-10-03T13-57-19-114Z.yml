@@ -1,0 +1,93 @@
+- main [ref=f6e2]:
+  - region "OBD 仪表 UI 模拟器" [ref=f6e3]:
+    - generic [ref=f6e7]:
+      - generic [ref=f6e8]:
+        - generic [ref=f6e9]: OBD / SETTINGS
+        - generic [ref=f6e10]: 21:57
+      - generic [ref=f6e71]:
+        - heading "SETTINGS" [level=2] [ref=f6e72]
+        - generic [ref=f6e73]:
+          - text: BOOT PAGE
+          - combobox "BOOT PAGE" [ref=f6e74]:
+            - option "RPM" [selected]
+            - option "SPEED"
+            - option "TEMP"
+            - option "INFO"
+            - option "NEEDLE"
+            - option "TPMS"
+            - option "MULTI"
+        - generic [ref=f6e75]:
+          - text: VEHICLE
+          - combobox "VEHICLE" [ref=f6e76]:
+            - option "FORD MONDEO" [selected]
+            - option "SUBARU BRZ"
+            - option "BMW X1 F48"
+        - generic [ref=f6e77]:
+          - text: THEME
+          - combobox "THEME" [ref=f6e78]:
+            - option "CYAN" [selected]
+            - option "AMBER"
+            - option "ROSE"
+        - generic [ref=f6e79]:
+          - generic [ref=f6e80]: TPMS LIMIT
+          - generic [ref=f6e81]:
+            - generic [ref=f6e82]:
+              - text: MIN
+              - spinbutton "最低胎压" [ref=f6e83]: "2.0"
+            - generic [ref=f6e84]:
+              - text: MAX
+              - spinbutton "最高胎压" [ref=f6e85]: "3.2"
+        - generic [ref=f6e86]:
+          - text: BRIGHTNESS
+          - slider "BRIGHTNESS" [ref=f6e87]: "82"
+        - generic [ref=f6e88]:
+          - generic [ref=f6e89]: RACECHRONO
+          - button "OFF" [ref=f6e90] [cursor=pointer]
+      - navigation "页面导航" [ref=f6e20]:
+        - button "上一页" [ref=f6e21] [cursor=pointer]: ‹
+        - button "打开页面菜单" [ref=f6e22] [cursor=pointer]: ●
+        - button "下一页" [ref=f6e23] [cursor=pointer]: ›
+    - paragraph [ref=f6e24]: 拖动屏幕左右切换页面，或使用下方圆点打开页面菜单。
+  - complementary "模拟数据与状态" [ref=f6e25]:
+    - generic [ref=f6e26]:
+      - generic [ref=f6e27]:
+        - paragraph [ref=f6e28]: DESKTOP PREVIEW
+        - heading "OBD Gauge" [level=1] [ref=f6e29]
+      - button "重置模拟器" [ref=f6e30] [cursor=pointer]: ↻
+    - generic [ref=f6e31]:
+      - heading "实时数据" [level=2] [ref=f6e32]
+      - generic [ref=f6e33]:
+        - text: 转速
+        - status "转速 3280" [ref=f6e34]: 3280 rpm
+        - slider [ref=f6e35]: "3280"
+      - generic [ref=f6e36]:
+        - text: 车速
+        - status "车速 86" [ref=f6e37]: 86 km/h
+        - slider [ref=f6e38]: "86"
+      - generic [ref=f6e39]:
+        - text: 冷却液
+        - status "冷却液 92" [ref=f6e40]: 92 C
+        - slider [ref=f6e41]: "92"
+      - generic [ref=f6e42]:
+        - text: 电压
+        - status "电压 13.8" [ref=f6e43]: 13.8 V
+        - slider [ref=f6e44]: "13.8"
+    - generic [ref=f6e45]:
+      - heading "轮胎压力" [level=2] [ref=f6e46]
+      - generic [ref=f6e47]:
+        - text: 前左
+        - spinbutton "前左" [ref=f6e48]: "2.4"
+      - generic [ref=f6e49]:
+        - text: 前右
+        - spinbutton "前右" [ref=f6e50]: "2.4"
+      - generic [ref=f6e51]:
+        - text: 后左
+        - spinbutton "后左" [ref=f6e52]: "2.3"
+      - generic [ref=f6e53]:
+        - text: 后右
+        - spinbutton "后右" [ref=f6e54]: "2.3"
+    - generic [ref=f6e55]:
+      - generic [ref=f6e56]:
+        - heading "OBD 连接" [level=2] [ref=f6e57]
+        - paragraph [ref=f6e58]: Vgate vLinker FD+ 模拟连接
+      - button [pressed] [ref=f6e59] [cursor=pointer]

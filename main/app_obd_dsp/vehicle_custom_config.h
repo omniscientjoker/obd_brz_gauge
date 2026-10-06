@@ -20,7 +20,9 @@ extern "C" {
 // ---- Data channels ----
 enum {
     CH_RPM = 0, CH_SPEED, CH_OIL_TEMP, CH_COOLANT,
-    CH_TPS, CH_LOAD, CH_INTAKE, CH_BOOST, CH_GEAR, CH_COUNT
+    CH_TPS, CH_LOAD, CH_INTAKE, CH_BOOST, CH_GEAR,
+    // Tire pressures are stored in bar. Rules may be spread across multiple CAN frames.
+    CH_TPMS_FL, CH_TPMS_FR, CH_TPMS_RL, CH_TPMS_RR, CH_COUNT
 };
 
 // ---- CAN frame decode rules ----
@@ -53,6 +55,16 @@ typedef struct {
     uint8_t  special_id;   // for OIL_SPECIAL: 0=Toyota21, reserved for future special cases
 } oil_formula_t;
 
+// Ford BCM TPMS Mode 22 rule. The response payload starts after 62 DID;
+// scale/offset convert the raw integer to bar.
+typedef struct {
+    uint16_t did;
+    uint8_t  resp_byte;
+    uint8_t  resp_bytes;
+    float    scale_bar;
+    float    offset_bar;
+} tpms_did_rule_t;
+
 // ---- Vehicle override configuration ----
 typedef struct {
     const char          *match_name;     // matches the name in vehicle_profiles
@@ -69,6 +81,10 @@ typedef struct {
     const char          *obd_gear_header_cmd; // ATSH header temporarily switched to before querying the gear DID (e.g. BMW "ATSH6F1\r" for the EGS), restored afterwards; NULL=fall back to uds_header_cmd then 7E0 physical
     const char          *obd_gear_rx_filter_cmd; // receive filter set for the gear query (e.g. BMW EGS replies on 0x618: "ATCRA618\r"), reset with ATCRA afterwards; NULL=ELM327 default filter
     const char          *obd_gear_raw_frame;  // raw CAN payload sent with ATCAF0 instead of "22 HH LL", for extended addressing (BMW: target byte 0x18 + ISO-TP PCI); NULL=normal auto-formatted request
+    const tpms_did_rule_t *tpms_did_rules; // four Ford BCM TPMS Mode 22 rules; NULL=disabled
+    uint8_t              tpms_did_count;
+    const char           *tpms_header_cmd; // BCM request header, e.g. "ATSH726\r"
+    uint32_t             tpms_poll_period_ms;
 } vehicle_override_t;
 
 // ================================================================
@@ -143,6 +159,17 @@ static const oil_formula_t oil_mini_5822 = {
 // BMW 22 11 1F (single byte: A - 50)
 static const oil_formula_t oil_bmw_111f = {
     OIL_UDS_22, {0x11,0x1F}, 2, 0, 1, 1.0f, -50.0f, 0
+};
+
+// Public 2015 Fusion BCM profile used as the initial North-American/European
+// candidate for CD391/Mondeo. Source reports 22 2813..2816, raw*0.05 psi.
+// Wheel order in that profile is FL, FR, RR, RL. Keep this isolated so the
+// vehicle-specific DID/scale can be replaced after FORScan validation.
+static const tpms_did_rule_t tpms_fusion_candidate[] = {
+    { 0x2813, 0, 2, 0.05f * 0.0689475729f, 0.0f }, // FL
+    { 0x2814, 0, 2, 0.05f * 0.0689475729f, 0.0f }, // FR
+    { 0x2816, 0, 2, 0.05f * 0.0689475729f, 0.0f }, // RL (source lists RR before RL)
+    { 0x2815, 0, 2, 0.05f * 0.0689475729f, 0.0f }, // RR
 };
 
 // ================================================================
@@ -259,6 +286,19 @@ static const vehicle_override_t s_vehicle_overrides[] = {
         .has_boost       = true,
         .poll_gap_ms     = 50,
         .uds_header_cmd  = "ATSH18DA10F1\r",
+    },
+    {
+        // Initial Ford Fusion/Mondeo candidate. The four DIDs and formula are
+        // intentionally marked as unverified until the owner's BCMii values
+        // are compared with FORScan and a mechanical gauge.
+        .match_name          = "Mondeo 2.0T TPMS (candidate)",
+        .forced_protocol     = 6,
+        .obd_timeout         = 0x19,
+        .poll_gap_ms         = 30,
+        .tpms_did_rules      = tpms_fusion_candidate,
+        .tpms_did_count      = 4,
+        .tpms_header_cmd     = "ATSH726\r",
+        .tpms_poll_period_ms = 1000,
     },
     // OBD2 Generic: not in the table = pure standard protocol
 };

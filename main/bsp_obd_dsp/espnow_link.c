@@ -26,7 +26,7 @@ extern int  ui_intro_get_step(void);
 
 #define ESPNOW_CHANNEL          1       // master and slaves must share a channel (fixed here when STA is not connected to an AP)
 #define ESPNOW_MAGIC            0x4F42  // 'OB' packet-header magic
-#define ESPNOW_VER              5       // v5: added afr_x100 (air-fuel ratio)
+#define ESPNOW_VER              6       // v6: added four TPMS pressures
 #define MASTER_NAME_LEN         12
 static const char MASTER_NAME[] = "SkyGauge";   // name the master broadcasts (shown on slaves); could become configurable later
 #define BROADCAST_INTERVAL_MS   100     // master broadcast period (10Hz, plenty for gauges)
@@ -101,6 +101,10 @@ typedef struct __attribute__((packed)) {
     int16_t  tps;
     int32_t  bat_mv;
     int16_t  afr_x100;          // air-fuel ratio AFR, x100 (1470=14.7:1), -1=invalid
+    int16_t  tpms_fl_x10;       // tire pressures, 0.1 bar, -1=unavailable
+    int16_t  tpms_fr_x10;
+    int16_t  tpms_rl_x10;
+    int16_t  tpms_rr_x10;
     char     name[MASTER_NAME_LEN];  // master name (shown on the slave info page as "SLAVE: <name>")
 } espnow_obd_packet_t;
 
@@ -150,6 +154,10 @@ static void master_pack(espnow_obd_packet_t *p) {
     p->tps              = snap.tps;
     p->bat_mv           = snap.bat_mv;
     p->afr_x100         = snap.afr_x100;
+    p->tpms_fl_x10      = snap.tpms_fl_x10;
+    p->tpms_fr_x10      = snap.tpms_fr_x10;
+    p->tpms_rl_x10      = snap.tpms_rl_x10;
+    p->tpms_rr_x10      = snap.tpms_rr_x10;
     strncpy(p->name, MASTER_NAME, MASTER_NAME_LEN);   // broadcast the master name
 }
 
@@ -225,6 +233,7 @@ static void apply_packet(const espnow_obd_packet_t *p) {
     obd_data_set_tps(p->tps);
     obd_data_set_bat_mv(p->bat_mv);
     obd_data_set_afr_x100(p->afr_x100);
+    obd_data_set_tpms_x10(p->tpms_fl_x10, p->tpms_fr_x10, p->tpms_rl_x10, p->tpms_rr_x10);
     // Notify the UI task via the event queue (avoids races from direct cross-task calls)
     app_event_send(APP_EVT_ESPNOW_SYNC_SLOT, p->sweep_step);
     app_event_send(APP_EVT_ESPNOW_INTRO_STEP, p->intro_step);

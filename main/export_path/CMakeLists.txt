@@ -1,6 +1,7 @@
 SET(SOURCES screens/ui_ScreenPageEasterEgg.c
     screens/ui_ScreenPageODBProtocal.c
     screens/ui_ScreenPageInfo.c
+    screens/ui_ScreenPageTpms.c
     ui.c
     components/ui_comp_hook.c
     ui_helpers.c

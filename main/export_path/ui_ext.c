@@ -284,7 +284,7 @@ static void boot_enter_default_page(void)
 
     lv_obj_t **target_scr = NULL;
     void (*target_init)(void) = NULL;
-    // Default page: 0=Temp,1=Info,2=Chart,3=Needle,4=Gear,5=Rpm,6=Speed
+    // Default page: 0=Temp,1=Info,2=Chart,3=Needle,4=Gear,5=Rpm,6=Speed,7=TPMS
     switch(pg_cfg->default_page) {
         case 0: target_scr = &ui_ScreenPageTemp;  target_init = ui_ScreenPageTemp_screen_init;  break;
         case 1: target_scr = &ui_ScreenPageInfo;  target_init = ui_ScreenPageInfo_screen_init;  break;
@@ -293,6 +293,7 @@ static void boot_enter_default_page(void)
         case 4: target_scr = &ui_ScreenPageGear;  target_init = ui_ScreenPageGear_screen_init;  break;
         case 5: target_scr = &ui_ScreenPageRpm;   target_init = ui_ScreenPageRpm_screen_init;   break;
         case 6: target_scr = &ui_ScreenPageSpeed; target_init = ui_ScreenPageSpeed_screen_init; break;
+        case 7: target_scr = &ui_ScreenPageTpms; target_init = ui_ScreenPageTpms_screen_init; break;
         default: target_scr = &ui_ScreenPageTemp; target_init = ui_ScreenPageTemp_screen_init;  break;
     }
     if(*target_scr == NULL) target_init();
@@ -695,7 +696,7 @@ void ui_ext_no_signal_update(bool signal_ok)
     lv_obj_t *act = lv_scr_act();
     // only warn on the pages that actually display gauge data; settings/scan/boot-animation pages don't need it
     bool on_gauge_page = (act == ui_ScreenPageTemp || act == ui_ScreenPageInfo ||
-                           act == ui_ScreenPageOilPressure || act == ui_ScreenPageNeedle ||
+                           act == ui_ScreenPageTpms || act == ui_ScreenPageOilPressure || act == ui_ScreenPageNeedle ||
                            act == ui_ScreenPageGear || act == ui_ScreenPageRpm ||
                            act == ui_ScreenPageSpeed);
     bool show = s_boot_done && on_gauge_page && !signal_ok;

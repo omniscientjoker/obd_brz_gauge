@@ -184,6 +184,13 @@ extern lv_obj_t * ui_LabelInfoUnit[5];
 void ui_event_info_background(lv_event_t * e);
 // CUSTOM VARIABLES
 
+// SCREEN: ui_ScreenPageTpms
+void ui_ScreenPageTpms_screen_init(void);
+extern lv_obj_t * ui_ScreenPageTpms;
+extern lv_obj_t * ui_LabelTpmsValue[4];
+extern lv_obj_t * ui_LabelTpmsVoltage;
+void ui_event_tpms_background(lv_event_t * e);
+
 // SCREEN: ui_ScreenPageInfoCustom
 void ui_ScreenPageInfoCustom_screen_init(void);
 extern lv_obj_t * ui_ScreenPageInfoCustom;

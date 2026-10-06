@@ -19,6 +19,10 @@ static int16_t  s_brake_temp_x10 = -1000;
 static int16_t  s_boost_x10 = -32768;
 static int8_t   s_gear = 127;
 static int16_t  s_afr_x100 = -1;
+static int16_t  s_tpms_fl_x10 = -1;
+static int16_t  s_tpms_fr_x10 = -1;
+static int16_t  s_tpms_rl_x10 = -1;
+static int16_t  s_tpms_rr_x10 = -1;
 static brake_rs485_status_t s_brake_rs485_status = BRAKE_RS485_IDLE;
 static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
 
@@ -291,6 +295,20 @@ int16_t obd_data_get_afr_x100(void)
     return val;
 }
 
+void obd_data_set_tpms_x10(int16_t fl, int16_t fr, int16_t rl, int16_t rr)
+{
+    // A real value is 0.0-10.0 bar; -1 represents unavailable data.
+    if ((fl < -1 || fl > 100) || (fr < -1 || fr > 100) ||
+        (rl < -1 || rl > 100) || (rr < -1 || rr > 100)) return;
+
+    portENTER_CRITICAL(&s_mux);
+    s_tpms_fl_x10 = fl;
+    s_tpms_fr_x10 = fr;
+    s_tpms_rl_x10 = rl;
+    s_tpms_rr_x10 = rr;
+    portEXIT_CRITICAL(&s_mux);
+}
+
 void obd_data_get_snapshot(obd_data_snapshot_t *out)
 {
     if (!out) return;
@@ -309,6 +327,10 @@ void obd_data_get_snapshot(obd_data_snapshot_t *out)
     out->brake_temp_x10 = s_brake_temp_x10;
     out->gear = s_gear;
     out->afr_x100 = s_afr_x100;
+    out->tpms_fl_x10 = s_tpms_fl_x10;
+    out->tpms_fr_x10 = s_tpms_fr_x10;
+    out->tpms_rl_x10 = s_tpms_rl_x10;
+    out->tpms_rr_x10 = s_tpms_rr_x10;
     out->brake_rs485_status = s_brake_rs485_status;
     portEXIT_CRITICAL(&s_mux);
 }
