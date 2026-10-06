@@ -64,6 +64,7 @@ void ui_ScreenPageNeedle_screen_init(void)
     lv_obj_set_style_radius(ui_ScreenPageNeedle, 360, LV_PART_MAIN);
     ui_helpers_style_screen_bg(ui_ScreenPageNeedle);
     lv_obj_set_style_bg_opa(ui_ScreenPageNeedle, 255, LV_PART_MAIN);
+    ui_helpers_create_statusbar(ui_ScreenPageNeedle, "BOOST");
     lv_obj_set_style_border_width(ui_ScreenPageNeedle, 0, LV_PART_MAIN);  // disable the default theme border, use a white ring instead
     lv_obj_set_style_pad_all(ui_ScreenPageNeedle, 0, LV_PART_MAIN);
     lv_obj_set_style_outline_width(ui_ScreenPageNeedle, 0, LV_PART_MAIN);
@@ -71,14 +72,36 @@ void ui_ScreenPageNeedle_screen_init(void)
     // ====== Outer white ring (consistent with other pages) ======
     lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageNeedle, 8);   // white ring: static circular border, replaces the rotating spinner, removes the arc seam gap
 
+    // Simulator-compatible primary gauge ring; the selected live data source
+    // still drives the value and range.
+    ui_NeedleArc = lv_arc_create(ui_ScreenPageNeedle);
+    lv_obj_set_size(ui_NeedleArc, 230, 230);
+    lv_obj_center(ui_NeedleArc);
+    lv_arc_set_range(ui_NeedleArc, 0, 100);
+    lv_arc_set_rotation(ui_NeedleArc, 135);
+    lv_arc_set_bg_angles(ui_NeedleArc, 0, 270);
+    lv_arc_set_value(ui_NeedleArc, 0);
+    lv_obj_clear_flag(ui_NeedleArc, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_arc_width(ui_NeedleArc, 11, LV_PART_MAIN);
+    lv_obj_set_style_arc_color(ui_NeedleArc, ui_theme_color_lv(UI_COLOR_ARC_TRACK), LV_PART_MAIN);
+    lv_obj_set_style_arc_width(ui_NeedleArc, 11, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(ui_NeedleArc, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_opa(ui_NeedleArc, LV_OPA_COVER, LV_PART_MAIN | LV_PART_INDICATOR);
+    lv_obj_set_style_arc_rounded(ui_NeedleArc, false, LV_PART_MAIN | LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(ui_NeedleArc, 0, LV_PART_KNOB);
+
     // ====== Needle dial ======
     ui_NeedleMeter = lv_meter_create(ui_ScreenPageNeedle);
-    lv_obj_set_size(ui_NeedleMeter, 320, 320);
+    lv_obj_set_size(ui_NeedleMeter, 230, 230);
     lv_obj_center(ui_NeedleMeter);
     lv_obj_clear_flag(ui_NeedleMeter, LV_OBJ_FLAG_CLICKABLE);
     // Dial background transparent, blends into the black page
     lv_obj_set_style_bg_opa(ui_NeedleMeter, 0, LV_PART_MAIN);
     lv_obj_set_style_border_width(ui_NeedleMeter, 0, LV_PART_MAIN);
+    // The simulator uses a clean progress ring rather than a second tick
+    // dial. Keep the meter object alive for the existing data/range logic but
+    // hide its visual layer.
+    lv_obj_add_flag(ui_NeedleMeter, LV_OBJ_FLAG_HIDDEN);
     // Tick number font
     lv_obj_set_style_text_font(ui_NeedleMeter, &ui_font_FontTypoderSize16, LV_PART_TICKS);
     lv_obj_set_style_text_color(ui_NeedleMeter, lv_color_hex(0x666666), LV_PART_TICKS);
@@ -114,15 +137,15 @@ void ui_ScreenPageNeedle_screen_init(void)
     lv_obj_set_style_text_font(ui_NeedleNameLabel, &ui_font_FontTypoderSize24, LV_PART_MAIN);
     lv_obj_set_style_text_color(ui_NeedleNameLabel, lv_color_hex(0xAAAAAA), LV_PART_MAIN);
     lv_obj_set_style_text_align(ui_NeedleNameLabel, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_align(ui_NeedleNameLabel, LV_ALIGN_CENTER, 0, -52);
+    lv_obj_align(ui_NeedleNameLabel, LV_ALIGN_CENTER, 0, -35);
 
     // ====== Value label (bottom, in the opening at the bottom of the 270° dial; the needle never sweeps here, so no overlap) ======
     ui_NeedleValueLabel = lv_label_create(ui_ScreenPageNeedle);
     lv_label_set_text(ui_NeedleValueLabel, "--");
-    lv_obj_set_style_text_font(ui_NeedleValueLabel, &ui_font_FontTypoderSize40, LV_PART_MAIN);
+    lv_obj_set_style_text_font(ui_NeedleValueLabel, &ui_font_FontTypoderSize56, LV_PART_MAIN);
     lv_obj_set_style_text_color(ui_NeedleValueLabel, ui_theme_color_lv(UI_COLOR_TEXT_PRIMARY), LV_PART_MAIN);
     lv_obj_set_style_text_align(ui_NeedleValueLabel, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_align(ui_NeedleValueLabel, LV_ALIGN_CENTER, 0, 54);
+    lv_obj_align(ui_NeedleValueLabel, LV_ALIGN_CENTER, 0, 0);
 
     // ====== Unit label (below the value) ======
     ui_NeedleUnitLabel = lv_label_create(ui_ScreenPageNeedle);
@@ -130,7 +153,15 @@ void ui_ScreenPageNeedle_screen_init(void)
     lv_obj_set_style_text_font(ui_NeedleUnitLabel, &ui_font_FontTypoderSize20, LV_PART_MAIN);
     lv_obj_set_style_text_color(ui_NeedleUnitLabel, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
     lv_obj_set_style_text_align(ui_NeedleUnitLabel, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_align(ui_NeedleUnitLabel, LV_ALIGN_CENTER, 0, 94);
+    lv_obj_align(ui_NeedleUnitLabel, LV_ALIGN_CENTER, 0, 38);
+
+    ui_NeedleSourceLabel = lv_label_create(ui_ScreenPageNeedle);
+    lv_label_set_text(ui_NeedleSourceLabel, "SOURCE");
+    lv_obj_set_width(ui_NeedleSourceLabel, 250);
+    lv_obj_set_style_text_align(ui_NeedleSourceLabel, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_text_font(ui_NeedleSourceLabel, &ui_font_FontTypoderSize16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(ui_NeedleSourceLabel, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
+    lv_obj_align(ui_NeedleSourceLabel, LV_ALIGN_CENTER, 0, 126);
 
     // Apply the current data source (set range/name/unit)
     ui_needle_apply_source();

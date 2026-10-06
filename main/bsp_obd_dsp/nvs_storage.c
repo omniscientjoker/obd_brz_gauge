@@ -18,7 +18,7 @@
 #define CHART_ALARM_OFF       32767 // "off" sentinel for alarm thresholds (unreachable, avoids false alarms)
 #define KEY_MG_EXTRA          "mgextra"   // multi-gauge boot animation settings
 #define KEY_CFG_VERSION       "cfgver"    // config version (missing = v0)
-#define CFG_VERSION_CURRENT   3           // current version; bump on field add/semantic change (migration in nvs_storage_init)
+#define CFG_VERSION_CURRENT   4           // current version; bump on field add/semantic change (migration in nvs_storage_init)
 
 static nvs_user_cfg_t s_cfg =   {
                         .protocol = 0, // OBD protocol select: 0=auto, 1~9=fixed, default auto
@@ -26,14 +26,17 @@ static nvs_user_cfg_t s_cfg =   {
                         .theme_cfg.user_theme_domiant_color = COLOR_DOMIANT_PINK,// legacy, unused (kept for struct layout)
                         .theme_cfg.user_theme_secondary_color = COLOR_SECONDARY_PINK,// legacy, unused
                         .ble_device_name = "", // empty = use default "OBDII"
-                        .temp_display_map = {0, 1, 2}, // CLT, IAT, OIL
-                        .info_display_map = {0, 2, 3, 4, 1}, // CLT, OIL, LOAD, TPS, IAT
+                        .temp_display_map = {0, 2, 1}, // CLT, OIL, IAT (simulator order)
+                        .info_display_map = {5, 6, 0, 7, 1}, // RPM, SPEED, CLT, BAT, IAT
                         .brake_temp_warn_c = 600,
                         .oil_pressure_warn_x10 = 80,
                         .device_role = ESPNOW_ROLE_STANDALONE, // new devices (no cfg in NVS) default to standalone (no WiFi/ESP-NOW); existing devices are overridden by load_blob
                         .rpm_warn_threshold = 6000,
                         .rpm_warn_anim_en = 0,
                         .rpm_warn_linked_en = 0,
+                        .tpms_pressure_min_bar_x100 = 200,
+                        .tpms_pressure_max_bar_x100 = 320,
+                        .tpms_voltage_min_mv = 12000,
                     };
 static nvs_stat_t     s_stat = {0};   // runtime-only stats, not persisted (reset every boot to save flash)
 static SemaphoreHandle_t s_mux;
@@ -133,7 +136,20 @@ esp_err_t nvs_storage_init(void)
                 }
                 save_blob(NS_CFG, KEY_MG_EXTRA, &s_mg, sizeof(s_mg));
             }
-            // Future: if (stored_ver < 4) { ... migrate v3→v4 fields ... }
+            // v3 → v4: align the built-in TEMP/INFO defaults with the
+            // simulator layout. Preserve deliberate user mappings; only the
+            // previous untouched defaults are rewritten.
+            if (stored_ver < 4) {
+                static const uint8_t old_temp[3] = {0, 1, 2};
+                static const uint8_t old_info[5] = {0, 2, 3, 4, 1};
+                if (memcmp(s_cfg.temp_display_map, old_temp, sizeof(old_temp)) == 0) {
+                    memcpy(s_cfg.temp_display_map, (uint8_t[]){0, 2, 1}, 3);
+                }
+                if (memcmp(s_cfg.info_display_map, old_info, sizeof(old_info)) == 0) {
+                    memcpy(s_cfg.info_display_map, (uint8_t[]){5, 6, 0, 7, 1}, 5);
+                }
+                save_blob(NS_CFG, KEY_CFG, &s_cfg, sizeof(s_cfg));
+            }
             // Write the new version number
             if (nvs_open(NS_CFG, NVS_READWRITE, &h) == ESP_OK) {
                 nvs_set_u8(h, KEY_CFG_VERSION, CFG_VERSION_CURRENT);
@@ -158,6 +174,21 @@ esp_err_t nvs_storage_init(void)
     if(s_cfg.oil_pressure_warn_x10 > 100) s_cfg.oil_pressure_warn_x10 = 80;
     // 0=unset/legacy out-of-range -> default 6000; clamped here centrally so callers (ui.c / ui_ScreenPageRpmWarn.c) don't repeat the check
     if(s_cfg.rpm_warn_threshold < 1000) s_cfg.rpm_warn_threshold = 6000;
+    // TPMS limits are appended fields, so zero values identify old NVS blobs.
+    // Keep them in a useful range even if a partially written/invalid blob is found.
+    if (s_cfg.tpms_pressure_min_bar_x100 < 100 ||
+        s_cfg.tpms_pressure_min_bar_x100 > 400) {
+        s_cfg.tpms_pressure_min_bar_x100 = 200;
+    }
+    if (s_cfg.tpms_pressure_max_bar_x100 < 100 ||
+        s_cfg.tpms_pressure_max_bar_x100 > 400 ||
+        s_cfg.tpms_pressure_max_bar_x100 <= s_cfg.tpms_pressure_min_bar_x100) {
+        s_cfg.tpms_pressure_max_bar_x100 = 320;
+        if (s_cfg.tpms_pressure_max_bar_x100 <= s_cfg.tpms_pressure_min_bar_x100)
+            s_cfg.tpms_pressure_min_bar_x100 = 200;
+    }
+    if (s_cfg.tpms_voltage_min_mv < 10000 || s_cfg.tpms_voltage_min_mv > 15000)
+        s_cfg.tpms_voltage_min_mv = 12000;
 
     // Validate TEMP/INFO custom display-item maps: 0..(DISP_ITEM_COUNT-1)
     for (int i = 0; i < 3; ++i) {

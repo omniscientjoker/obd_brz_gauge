@@ -16,16 +16,18 @@ void ui_ScreenPageODBProtocal_screen_init(void)
     ui_helpers_style_screen_bg(ui_ScreenPageODBProtocal);
     lv_obj_set_style_bg_opa(ui_ScreenPageODBProtocal, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_SpinnerODBProtocalEgg = lv_obj_create(ui_ScreenPageODBProtocal);   // white ring: static circular border, replaces the rotating spinner, removes the arc seam gap
+    // Keep the generated object for compatibility, but do not draw the old
+    // full-screen white ring.  All pages use the borderless screen contract.
+    ui_SpinnerODBProtocalEgg = lv_obj_create(ui_ScreenPageODBProtocal);
     lv_obj_set_size(ui_SpinnerODBProtocalEgg, 360, 360);
     lv_obj_set_align(ui_SpinnerODBProtocalEgg, LV_ALIGN_CENTER);
     lv_obj_clear_flag(ui_SpinnerODBProtocalEgg, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_radius(ui_SpinnerODBProtocalEgg, LV_RADIUS_CIRCLE, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(ui_SpinnerODBProtocalEgg, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(ui_SpinnerODBProtocalEgg, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_color(ui_SpinnerODBProtocalEgg, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-    lv_obj_set_style_border_width(ui_SpinnerODBProtocalEgg, 10, LV_PART_MAIN);
-    lv_obj_set_style_border_opa(ui_SpinnerODBProtocalEgg, 255, LV_PART_MAIN);
+    lv_obj_set_style_border_width(ui_SpinnerODBProtocalEgg, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_opa(ui_SpinnerODBProtocalEgg, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_add_flag(ui_SpinnerODBProtocalEgg, LV_OBJ_FLAG_HIDDEN);
 
     lv_obj_set_style_arc_color(ui_SpinnerODBProtocalEgg, lv_color_hex(0xFFFFFF), LV_PART_INDICATOR | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_opa(ui_SpinnerODBProtocalEgg, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);

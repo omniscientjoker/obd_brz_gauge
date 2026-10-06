@@ -5,6 +5,7 @@
 
 #include "ui_helpers.h"
 #include "ui_theme.h"
+#include <stdio.h>
 
 void _ui_bar_set_property(lv_obj_t * target, int id, int val)
 {
@@ -340,12 +341,14 @@ void _ui_switch_theme(int val)
 // ==================== Project-custom helpers (not SquareLine generated) ====================
 // Hand-written style code repeated across multiple screens, extracted here for sharing.
 
-// Outer bezel ring (360x360, centered, static circular border; replaces the
-// rotating spinner to avoid an arc seam gap). Ring COLOR comes from the active
-// UI theme; border_width stays caller-supplied (most pages use 10, a few use 8).
-// Callers keep their own lv_obj_move_foreground() after this.
+// Compatibility object for the former outer bezel ring. The physical 1.85"
+// bezel already provides the outer boundary; the simulator/data layouts do
+// not draw another white circle. Keep returning an object so generated pages
+// can retain their existing move-to-foreground calls without changing event
+// or ownership behavior.
 lv_obj_t * ui_helpers_create_ring(lv_obj_t * parent, uint8_t border_width)
 {
+    (void)border_width;
     const ui_theme_t *th = ui_theme_active();
 
     // Themed bezel artwork: any shape (notches, tick marks, gradients) instead
@@ -354,6 +357,7 @@ lv_obj_t * ui_helpers_create_ring(lv_obj_t * parent, uint8_t border_width)
         lv_obj_t *ring = lv_img_create(parent);
         lv_img_set_src(ring, th->ring_img);
         lv_obj_set_align(ring, LV_ALIGN_CENTER);
+        lv_obj_add_flag(ring, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(ring, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
         return ring;
     }
@@ -365,20 +369,48 @@ lv_obj_t * ui_helpers_create_ring(lv_obj_t * parent, uint8_t border_width)
     lv_obj_set_style_radius(ring, LV_RADIUS_CIRCLE, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(ring, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(ring, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_color(ring, ui_theme_color_lv(UI_COLOR_RING), LV_PART_MAIN);
-    lv_obj_set_style_border_width(ring, border_width, LV_PART_MAIN);
-    lv_obj_set_style_border_opa(ring, 255, LV_PART_MAIN);
+    lv_obj_set_style_border_width(ring, 0, LV_PART_MAIN);
+    lv_obj_add_flag(ring, LV_OBJ_FLAG_HIDDEN);
     return ring;
 }
 
 void ui_helpers_style_screen_bg(lv_obj_t * scr)
 {
     const ui_theme_t *th = ui_theme_active();
+    // Screens inherit the LVGL default object style.  Clear all decoration
+    // here so every page uses the full display area without an outer white
+    // frame; page-local cards and controls keep their own borders.
+    lv_obj_set_style_border_width(scr, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_opa(scr, LV_OPA_TRANSP, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_width(scr, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_opa(scr, LV_OPA_TRANSP, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_shadow_width(scr, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(scr, ui_theme_color_lv(UI_COLOR_BG),
                               LV_PART_MAIN | LV_STATE_DEFAULT);
     // Always assign, NULL included: screens are reused and the RPM warning
     // swaps the background image out, so it must be able to swap back.
     lv_obj_set_style_bg_img_src(scr, th->dial_face, LV_PART_MAIN | LV_STATE_DEFAULT);
+}
+
+void ui_helpers_create_statusbar(lv_obj_t * parent, const char *page_name)
+{
+    lv_obj_t *left = lv_label_create(parent);
+    char text[32];
+    snprintf(text, sizeof(text), "OBD / %s", page_name ? page_name : "READY");
+    lv_label_set_text(left, text);
+    lv_obj_set_width(left, 130);
+    lv_obj_set_style_text_align(left, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
+    lv_obj_set_style_text_font(left, &ui_font_FontTypoderSize16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(left, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
+    lv_obj_align(left, LV_ALIGN_CENTER, -96, -116);
+
+    lv_obj_t *right = lv_label_create(parent);
+    lv_label_set_text(right, "READY");
+    lv_obj_set_width(right, 70);
+    lv_obj_set_style_text_align(right, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
+    lv_obj_set_style_text_font(right, &ui_font_FontTypoderSize16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(right, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
+    lv_obj_align(right, LV_ALIGN_CENTER, 96, -116);
 }
 
 // Dark roller shared colors/border/rounded corners (selected state: black text on white); caller only passes the font.
@@ -397,5 +429,3 @@ void ui_helpers_style_dark_roller(lv_obj_t * r, const lv_font_t * font)
     lv_obj_set_style_bg_color(r, lv_color_hex(0xFFFFFF), LV_PART_SELECTED);
     lv_obj_set_style_bg_opa(r, 255, LV_PART_SELECTED);
 }
-
-

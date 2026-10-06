@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OBD 仪表模拟器</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23111819' stroke='%2342d1d4' stroke-width='4'/%3E%3Cpath d='M32 10v22l15 10' stroke='%2342d1d4' stroke-width='5' fill='none'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="workspace">
+    <section class="simulator" aria-label="OBD 仪表 UI 模拟器">
+      <div class="device">
+        <div class="speaker" aria-hidden="true"></div>
+        <div class="screen-shell">
+          <div class="screen" id="screen" data-theme="cyan" aria-label="仪表屏幕：左右滑动切换页面，上滑显示页面列表">
+            <div class="statusbar"><span id="connectionState">OBD 就绪</span><span id="clock">12:48</span></div>
+            <div class="page" id="page" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+      <p class="gesture-hint">左右滑动切换页面；上滑显示页面列表。</p>
+    </section>
+
+    <aside class="control-panel" aria-label="模拟数据与状态">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">桌面预览</p>
+          <h1>OBD 仪表</h1>
+        </div>
+        <button class="icon-button" id="resetSimulation" title="重置模拟器" aria-label="重置模拟器">&#8635;</button>
+      </div>
+
+      <section class="control-section">
+        <h2>实时数据</h2>
+        <label>转速 <output id="rpmOutput">3280 rpm</output><input id="rpmInput" type="range" min="0" max="8000" step="10" value="3280"></label>
+        <label>车速 <output id="speedOutput">86 km/h</output><input id="speedInput" type="range" min="0" max="260" step="1" value="86"></label>
+        <label>冷却液 <output id="tempOutput">92 C</output><input id="tempInput" type="range" min="40" max="125" step="1" value="92"></label>
+        <label>电压 <output id="voltageOutput">13.8 V</output><input id="voltageInput" type="range" min="10.5" max="15.5" step="0.1" value="13.8"></label>
+      </section>
+
+      <section class="control-section split-controls">
+        <h2>轮胎压力</h2>
+        <label>前左 <input id="flInput" type="number" min="0" max="4" step="0.1" value="2.4"></label>
+        <label>前右 <input id="frInput" type="number" min="0" max="4" step="0.1" value="2.4"></label>
+        <label>后左 <input id="rlInput" type="number" min="0" max="4" step="0.1" value="2.3"></label>
+        <label>后右 <input id="rrInput" type="number" min="0" max="4" step="0.1" value="2.3"></label>
+      </section>
+
+      <section class="control-section connection-row">
+        <div><h2>OBD 连接</h2><p id="connectionDetail">Vgate vLinker FD+ 模拟已连接</p></div>
+        <button class="toggle on" id="connectionToggle" aria-pressed="true"><span></span></button>
+      </section>
+    </aside>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

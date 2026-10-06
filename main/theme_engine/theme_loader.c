@@ -1147,6 +1147,15 @@ static lv_obj_t* theme_create_custom_page(const char *page_id) {
     lv_obj_set_style_bg_color(page, theme_get_color(UI_COLOR_BG), 0);
     lv_obj_set_style_bg_opa(page, LV_OPA_COVER, 0);
 
+    // Theme pages follow the same borderless full-screen contract as the
+    // built-in pages.  Without these overrides the LVGL default object style
+    // can leave a white frame around the circular display.
+    lv_obj_set_style_border_width(page, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_opa(page, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_outline_width(page, 0, LV_PART_MAIN);
+    lv_obj_set_style_outline_opa(page, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(page, 0, LV_PART_MAIN);
+
     // Remove default padding - LVGL objects have default padding that offsets
     // child positions. Without this, Arc and Label elements appear at wrong
     // positions even though lv_obj_set_pos() is called with correct coordinates.

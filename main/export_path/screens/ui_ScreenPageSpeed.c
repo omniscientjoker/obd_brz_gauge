@@ -12,6 +12,7 @@ void ui_ScreenPageSpeed_screen_init(void)
     lv_obj_set_style_radius(ui_ScreenPageSpeed, 360, LV_PART_MAIN | LV_STATE_DEFAULT);
     ui_helpers_style_screen_bg(ui_ScreenPageSpeed);
     lv_obj_set_style_bg_opa(ui_ScreenPageSpeed, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_helpers_create_statusbar(ui_ScreenPageSpeed, "SPEED");
 
     // Bezel ring (color from the active theme)
     ui_SpinnerSpeedPage = ui_helpers_create_ring(ui_ScreenPageSpeed, 10);
@@ -21,8 +22,8 @@ void ui_ScreenPageSpeed_screen_init(void)
     lv_obj_set_style_arc_width(ui_SpinnerSpeedPage, 10, LV_PART_INDICATOR | LV_STATE_DEFAULT);
 
     ui_SpeedPageArcSpeedBack = lv_arc_create(ui_ScreenPageSpeed);
-    lv_obj_set_width(ui_SpeedPageArcSpeedBack,340);
-    lv_obj_set_height(ui_SpeedPageArcSpeedBack,340);
+    // Match the simulator's 230px primary gauge ring on the 360px display.
+    lv_obj_set_size(ui_SpeedPageArcSpeedBack, 230, 230);
     lv_obj_set_align(ui_SpeedPageArcSpeedBack, LV_ALIGN_CENTER);
     lv_obj_clear_flag(ui_SpeedPageArcSpeedBack, LV_OBJ_FLAG_CLICKABLE);      /// Flags
     lv_arc_set_value(ui_SpeedPageArcSpeedBack, 0);
@@ -30,22 +31,28 @@ void ui_ScreenPageSpeed_screen_init(void)
     lv_arc_set_rotation(ui_SpeedPageArcSpeedBack, 0);
     lv_obj_set_style_arc_color(ui_SpeedPageArcSpeedBack, ui_theme_color_lv(UI_COLOR_ARC_TRACK), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_opa(ui_SpeedPageArcSpeedBack, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_width(ui_SpeedPageArcSpeedBack, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_width(ui_SpeedPageArcSpeedBack, 11, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_rounded(ui_SpeedPageArcSpeedBack, false, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_set_style_arc_color(ui_SpeedPageArcSpeedBack, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_INDICATOR | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_opa(ui_SpeedPageArcSpeedBack, 255, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_width(ui_SpeedPageArcSpeedBack, 20, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_width(ui_SpeedPageArcSpeedBack, 11, LV_PART_INDICATOR | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_rounded(ui_SpeedPageArcSpeedBack, false, LV_PART_INDICATOR | LV_STATE_DEFAULT);
 
     lv_obj_set_style_bg_color(ui_SpeedPageArcSpeedBack, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_KNOB | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_SpeedPageArcSpeedBack, 0, LV_PART_KNOB | LV_STATE_DEFAULT);
 
+    ui_LabelSpeedTitle = lv_label_create(ui_ScreenPageSpeed);
+    lv_label_set_text(ui_LabelSpeedTitle, "VEHICLE SPEED");
+    lv_obj_set_style_text_font(ui_LabelSpeedTitle, &ui_font_FontTypoderSize16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(ui_LabelSpeedTitle, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_MAIN);
+    lv_obj_align(ui_LabelSpeedTitle, LV_ALIGN_CENTER, 0, -35);
+
     ui_SpeedPageArcLabelSpeedText = lv_label_create(ui_ScreenPageSpeed);
     lv_obj_set_width(ui_SpeedPageArcLabelSpeedText, 280);
     lv_obj_set_height(ui_SpeedPageArcLabelSpeedText, LV_SIZE_CONTENT);    /// 60
     lv_obj_set_x(ui_SpeedPageArcLabelSpeedText, 0);
-    lv_obj_set_y(ui_SpeedPageArcLabelSpeedText, -10);
+    lv_obj_set_y(ui_SpeedPageArcLabelSpeedText, 0);
     lv_obj_set_align(ui_SpeedPageArcLabelSpeedText, LV_ALIGN_CENTER);
     lv_label_set_long_mode(ui_SpeedPageArcLabelSpeedText, LV_LABEL_LONG_CLIP);
     lv_label_set_text(ui_SpeedPageArcLabelSpeedText, "0");
@@ -58,12 +65,28 @@ void ui_ScreenPageSpeed_screen_init(void)
     lv_obj_set_width(ui_SpeedPageArcLabelSpeedUnit, LV_SIZE_CONTENT);   /// 60
     lv_obj_set_height(ui_SpeedPageArcLabelSpeedUnit, LV_SIZE_CONTENT);    /// 60
     lv_obj_set_x(ui_SpeedPageArcLabelSpeedUnit, 0);
-    lv_obj_set_y(ui_SpeedPageArcLabelSpeedUnit, 46);
+    lv_obj_set_y(ui_SpeedPageArcLabelSpeedUnit, 38);
     lv_obj_set_align(ui_SpeedPageArcLabelSpeedUnit, LV_ALIGN_CENTER);
     lv_label_set_text(ui_SpeedPageArcLabelSpeedUnit, "km/h");
     lv_obj_set_style_text_color(ui_SpeedPageArcLabelSpeedUnit, ui_theme_color_lv(UI_COLOR_TEXT_PRIMARY), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_SpeedPageArcLabelSpeedUnit, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_SpeedPageArcLabelSpeedUnit, &ui_font_FontTypoderSize40, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_SpeedPageArcLabelSpeedUnit, &ui_font_FontTypoderSize16, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_LabelSpeedMiniGear = lv_label_create(ui_ScreenPageSpeed);
+    lv_label_set_text(ui_LabelSpeedMiniGear, "GEAR --");
+    lv_obj_set_width(ui_LabelSpeedMiniGear, 142);
+    lv_obj_set_style_text_align(ui_LabelSpeedMiniGear, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_text_font(ui_LabelSpeedMiniGear, &ui_font_FontTypoderSize16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(ui_LabelSpeedMiniGear, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
+    lv_obj_align(ui_LabelSpeedMiniGear, LV_ALIGN_CENTER, -72, 126);
+
+    ui_LabelSpeedMiniRpm = lv_label_create(ui_ScreenPageSpeed);
+    lv_label_set_text(ui_LabelSpeedMiniRpm, "RPM ----");
+    lv_obj_set_width(ui_LabelSpeedMiniRpm, 142);
+    lv_obj_set_style_text_align(ui_LabelSpeedMiniRpm, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_text_font(ui_LabelSpeedMiniRpm, &ui_font_FontTypoderSize16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(ui_LabelSpeedMiniRpm, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
+    lv_obj_align(ui_LabelSpeedMiniRpm, LV_ALIGN_CENTER, 72, 126);
 
     ui_ImageSpeedBlackEar = lv_img_create(ui_ScreenPageSpeed);
     lv_img_set_src(ui_ImageSpeedBlackEar, &ui_img_pngblackear_png);

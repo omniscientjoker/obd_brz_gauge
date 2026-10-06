@@ -12,6 +12,7 @@ void ui_ScreenPageRpm_screen_init(void)
     lv_obj_set_style_radius(ui_ScreenPageRpm, 360, LV_PART_MAIN | LV_STATE_DEFAULT);
     ui_helpers_style_screen_bg(ui_ScreenPageRpm);
     lv_obj_set_style_bg_opa(ui_ScreenPageRpm, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_helpers_create_statusbar(ui_ScreenPageRpm, "RPM");
 
     // Bezel ring (color from the active theme)
     ui_SpinnerRpmPage = ui_helpers_create_ring(ui_ScreenPageRpm, 10);
@@ -21,8 +22,8 @@ void ui_ScreenPageRpm_screen_init(void)
     lv_obj_set_style_arc_width(ui_SpinnerRpmPage, 10, LV_PART_INDICATOR | LV_STATE_DEFAULT);
 
     ui_RpmPageArcRpmBack = lv_arc_create(ui_ScreenPageRpm);
-    lv_obj_set_width(ui_RpmPageArcRpmBack,340);
-    lv_obj_set_height(ui_RpmPageArcRpmBack,340);
+    // The simulator's primary gauge is a 230px ring on the 360px display.
+    lv_obj_set_size(ui_RpmPageArcRpmBack, 230, 230);
     lv_obj_set_align(ui_RpmPageArcRpmBack, LV_ALIGN_CENTER);
     lv_obj_clear_flag(ui_RpmPageArcRpmBack, LV_OBJ_FLAG_CLICKABLE);      /// Flags
     lv_arc_set_value(ui_RpmPageArcRpmBack, 0);
@@ -30,22 +31,28 @@ void ui_ScreenPageRpm_screen_init(void)
     lv_arc_set_rotation(ui_RpmPageArcRpmBack, 90);
     lv_obj_set_style_arc_color(ui_RpmPageArcRpmBack, ui_theme_color_lv(UI_COLOR_ARC_TRACK), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_opa(ui_RpmPageArcRpmBack, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_width(ui_RpmPageArcRpmBack, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_width(ui_RpmPageArcRpmBack, 11, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_rounded(ui_RpmPageArcRpmBack, false, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_set_style_arc_color(ui_RpmPageArcRpmBack, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_INDICATOR | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_opa(ui_RpmPageArcRpmBack, 255, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_width(ui_RpmPageArcRpmBack, 20, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_width(ui_RpmPageArcRpmBack, 11, LV_PART_INDICATOR | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_rounded(ui_RpmPageArcRpmBack, false, LV_PART_INDICATOR | LV_STATE_DEFAULT);
 
     lv_obj_set_style_bg_color(ui_RpmPageArcRpmBack, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_KNOB | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_RpmPageArcRpmBack, 0, LV_PART_KNOB | LV_STATE_DEFAULT);
 
+    ui_LabelRpmTitle = lv_label_create(ui_ScreenPageRpm);
+    lv_label_set_text(ui_LabelRpmTitle, "ENGINE RPM");
+    lv_obj_set_style_text_font(ui_LabelRpmTitle, &ui_font_FontTypoderSize16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(ui_LabelRpmTitle, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_MAIN);
+    lv_obj_align(ui_LabelRpmTitle, LV_ALIGN_CENTER, 0, -35);
+
     ui_RpmPageArcLabelRpmText = lv_label_create(ui_ScreenPageRpm);
     lv_obj_set_width(ui_RpmPageArcLabelRpmText, 300);
     lv_obj_set_height(ui_RpmPageArcLabelRpmText, LV_SIZE_CONTENT);    /// 60
     lv_obj_set_x(ui_RpmPageArcLabelRpmText, 0);
-    lv_obj_set_y(ui_RpmPageArcLabelRpmText, -10);
+    lv_obj_set_y(ui_RpmPageArcLabelRpmText, 0);
     lv_obj_set_align(ui_RpmPageArcLabelRpmText, LV_ALIGN_CENTER);
     lv_label_set_long_mode(ui_RpmPageArcLabelRpmText, LV_LABEL_LONG_CLIP);
     lv_label_set_text(ui_RpmPageArcLabelRpmText, "0");
@@ -58,12 +65,28 @@ void ui_ScreenPageRpm_screen_init(void)
     lv_obj_set_width(ui_RpmPageArcLabelRpmUnit, LV_SIZE_CONTENT);   /// 60
     lv_obj_set_height(ui_RpmPageArcLabelRpmUnit, LV_SIZE_CONTENT);    /// 60
     lv_obj_set_x(ui_RpmPageArcLabelRpmUnit, 0);
-    lv_obj_set_y(ui_RpmPageArcLabelRpmUnit, 46);
+    lv_obj_set_y(ui_RpmPageArcLabelRpmUnit, 38);
     lv_obj_set_align(ui_RpmPageArcLabelRpmUnit, LV_ALIGN_CENTER);
     lv_label_set_text(ui_RpmPageArcLabelRpmUnit, "rpm");
     lv_obj_set_style_text_color(ui_RpmPageArcLabelRpmUnit, ui_theme_color_lv(UI_COLOR_TEXT_PRIMARY), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_RpmPageArcLabelRpmUnit, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_RpmPageArcLabelRpmUnit, &ui_font_FontTypoderSize40, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_RpmPageArcLabelRpmUnit, &ui_font_FontTypoderSize16, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_LabelRpmMiniTemp = lv_label_create(ui_ScreenPageRpm);
+    lv_label_set_text(ui_LabelRpmMiniTemp, "CLT --'C");
+    lv_obj_set_width(ui_LabelRpmMiniTemp, 142);
+    lv_obj_set_style_text_align(ui_LabelRpmMiniTemp, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_text_font(ui_LabelRpmMiniTemp, &ui_font_FontTypoderSize16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(ui_LabelRpmMiniTemp, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
+    lv_obj_align(ui_LabelRpmMiniTemp, LV_ALIGN_CENTER, -72, 126);
+
+    ui_LabelRpmMiniVoltage = lv_label_create(ui_ScreenPageRpm);
+    lv_label_set_text(ui_LabelRpmMiniVoltage, "BAT --.-V");
+    lv_obj_set_width(ui_LabelRpmMiniVoltage, 142);
+    lv_obj_set_style_text_align(ui_LabelRpmMiniVoltage, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_text_font(ui_LabelRpmMiniVoltage, &ui_font_FontTypoderSize16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(ui_LabelRpmMiniVoltage, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
+    lv_obj_align(ui_LabelRpmMiniVoltage, LV_ALIGN_CENTER, 72, 126);
 
     ui_ImageRpmBlackEar = lv_img_create(ui_ScreenPageRpm);
     lv_img_set_src(ui_ImageRpmBlackEar, &ui_img_pngblackear_png);

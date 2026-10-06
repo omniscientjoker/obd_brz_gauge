@@ -148,6 +148,9 @@ lv_obj_t * ui_helpers_create_ring(lv_obj_t * parent, uint8_t border_width);
 // themed dial face reaches all pages from one place.
 void ui_helpers_style_screen_bg(lv_obj_t * scr);
 
+// Compact status row used by the simulator-compatible primary pages.
+void ui_helpers_create_statusbar(lv_obj_t * parent, const char *page_name);
+
 void ui_helpers_style_dark_roller(lv_obj_t * r, const lv_font_t * font);
 
 #ifdef __cplusplus

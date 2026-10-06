@@ -30,20 +30,19 @@ void ui_ScreenPageGear_screen_init(void)
     lv_obj_set_style_text_font(ui_GearPageArcLabelGearNumText, &ui_font_FontTypoderSize140, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_GearPageArcGearNumBack = lv_arc_create(ui_ScreenPageGear);
-    lv_obj_set_width(ui_GearPageArcGearNumBack,340);
-    lv_obj_set_height(ui_GearPageArcGearNumBack,340);
+    lv_obj_set_size(ui_GearPageArcGearNumBack, 250, 250);
     lv_obj_set_align(ui_GearPageArcGearNumBack, LV_ALIGN_CENTER);
     lv_obj_clear_flag(ui_GearPageArcGearNumBack, LV_OBJ_FLAG_CLICKABLE);      /// Flags
     lv_arc_set_value(ui_GearPageArcGearNumBack, 0);
     lv_arc_set_bg_angles(ui_GearPageArcGearNumBack, 0, 360);
     lv_obj_set_style_arc_color(ui_GearPageArcGearNumBack, ui_theme_color_lv(UI_COLOR_ARC_TRACK), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_opa(ui_GearPageArcGearNumBack, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_width(ui_GearPageArcGearNumBack, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_width(ui_GearPageArcGearNumBack, 11, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_rounded(ui_GearPageArcGearNumBack, false, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_set_style_arc_color(ui_GearPageArcGearNumBack, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_INDICATOR | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_opa(ui_GearPageArcGearNumBack, 255, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_width(ui_GearPageArcGearNumBack, 20, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_arc_width(ui_GearPageArcGearNumBack, 11, LV_PART_INDICATOR | LV_STATE_DEFAULT);
     lv_obj_set_style_arc_rounded(ui_GearPageArcGearNumBack, false, LV_PART_INDICATOR | LV_STATE_DEFAULT);
 
     lv_obj_set_style_bg_color(ui_GearPageArcGearNumBack, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_KNOB | LV_STATE_DEFAULT);

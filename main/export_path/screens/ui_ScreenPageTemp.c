@@ -1,123 +1,141 @@
-// Temperature Monitor Page
-// CLT / IAT / OIL(SSM 22 10 17) - 3-row layout
+// Temperature page. The simulator presents one primary gauge with two
+// secondary readings; the three slots remain configurable through NVS.
 
 #include "../ui.h"
 
-// Value labels (externally accessible from timer callback)
 lv_obj_t *ui_LabelCoolantTempText = NULL;
-lv_obj_t *ui_LabelOilTempText     = NULL;  // real oil temp °C (SSM 22 10 17, A-40)
-lv_obj_t *ui_LabelIntakeTempText  = NULL;
-lv_obj_t *ui_LabelTempValue[3]    = {NULL, NULL, NULL};
-lv_obj_t *ui_LabelTempName[3]     = {NULL, NULL, NULL};
-lv_obj_t *ui_LabelTempUnit[3]     = {NULL, NULL, NULL};
-lv_obj_t *ui_LabelTempDot[3]      = {NULL, NULL, NULL};  // colored dot at row start (color refreshed per data item)
+lv_obj_t *ui_LabelOilTempText = NULL;
+lv_obj_t *ui_LabelIntakeTempText = NULL;
+lv_obj_t *ui_LabelTempValue[3] = {NULL, NULL, NULL};
+lv_obj_t *ui_LabelTempName[3] = {NULL, NULL, NULL};
+lv_obj_t *ui_LabelTempUnit[3] = {NULL, NULL, NULL};
+lv_obj_t *ui_LabelTempDot[3] = {NULL, NULL, NULL};
+lv_obj_t *ui_TempArc = NULL;
 
-// Helper: colored circle dot
-static lv_obj_t *create_color_dot(lv_obj_t *parent, lv_color_t color, lv_coord_t x, lv_coord_t y)
+static lv_obj_t *create_color_dot(lv_obj_t *parent, lv_coord_t x, lv_coord_t y)
 {
     lv_obj_t *dot = lv_obj_create(parent);
     lv_obj_remove_style_all(dot);
-    lv_obj_set_size(dot, 10, 10);
+    lv_obj_set_size(dot, 7, 7);
     lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, LV_PART_MAIN);
-    lv_obj_set_style_bg_color(dot, color, LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(dot, 255, LV_PART_MAIN);
-    lv_obj_align(dot, LV_ALIGN_LEFT_MID, x, y);
+    lv_obj_set_style_bg_color(dot, lv_color_hex(0x44AAFF), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_align(dot, LV_ALIGN_CENTER, x, y);
     lv_obj_clear_flag(dot, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
     return dot;
 }
 
-// Helper: create one data row (dot + name + value label + unit)
-static void make_row(lv_obj_t *parent, lv_obj_t **name_out, lv_obj_t **val_out, lv_obj_t **unit_out,
-                     lv_obj_t **dot_out, lv_coord_t cy, lv_color_t color,
-                     const char *name_str, const char *unit_str)
+static void create_temp_slot(lv_obj_t *parent, uint8_t index, lv_coord_t x,
+                             lv_coord_t name_y, lv_coord_t value_y,
+                             lv_coord_t unit_y, const char *name,
+                             const char *unit)
 {
-    // Left column: value
-    // Left boundary = 70px (matches divider line edge, safe for all row Y positions)
-    *val_out = lv_label_create(parent);
-    lv_label_set_long_mode(*val_out, LV_LABEL_LONG_CLIP);   // no wrap for overly long values
-    lv_label_set_text(*val_out, "--");
-    lv_obj_set_style_text_font(*val_out, &ui_font_FontTypoderSize40, LV_PART_MAIN);
-    lv_obj_set_style_text_color(*val_out, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-    lv_obj_set_width(*val_out, 110);
-    lv_obj_set_style_text_align(*val_out, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
-    lv_obj_align(*val_out, LV_ALIGN_LEFT_MID, 70, cy);
+    if (index > 0) {
+        // Secondary readings are a single compact bottom row in the
+        // simulator. Keep separate labels for the data updater, but place
+        // them side by side rather than stacking three rows vertically.
+        ui_LabelTempName[index] = lv_label_create(parent);
+        lv_label_set_text(ui_LabelTempName[index], name);
+        lv_obj_set_width(ui_LabelTempName[index], 54);
+        lv_obj_set_style_text_align(ui_LabelTempName[index], LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
+        lv_obj_set_style_text_font(ui_LabelTempName[index], &ui_font_FontTypoderSize16, LV_PART_MAIN);
+        lv_obj_set_style_text_color(ui_LabelTempName[index], lv_color_hex(0x777777), LV_PART_MAIN);
+        lv_obj_align(ui_LabelTempName[index], LV_ALIGN_CENTER, x - 38, 126);
 
-    // Right column: dot + name + unit
-    // Right boundary = 290px (x=360-70, matches divider line edge)
-    // dot left=185, name left=200..244, unit right=290
-    *dot_out = create_color_dot(parent, color, 185, cy);
+        ui_LabelTempValue[index] = lv_label_create(parent);
+        lv_label_set_text(ui_LabelTempValue[index], "--");
+        lv_obj_set_width(ui_LabelTempValue[index], 42);
+        lv_obj_set_style_text_align(ui_LabelTempValue[index], LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+        lv_obj_set_style_text_font(ui_LabelTempValue[index], &ui_font_FontTypoderSize16, LV_PART_MAIN);
+        lv_obj_set_style_text_color(ui_LabelTempValue[index], lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+        lv_obj_align(ui_LabelTempValue[index], LV_ALIGN_CENTER, x + 2, 126);
 
-    *name_out = lv_label_create(parent);
-    lv_label_set_long_mode(*name_out, LV_LABEL_LONG_CLIP);   // no wrap
-    lv_label_set_text(*name_out, name_str);
-    lv_obj_set_style_text_font(*name_out, &ui_font_FontTypoderSize20, LV_PART_MAIN);
-    lv_obj_set_style_text_color(*name_out, color, LV_PART_MAIN);
-    lv_obj_set_width(*name_out, LV_SIZE_CONTENT);            // width follows the text, long names (BOOST/SPEED) don't wrap
-    lv_obj_set_style_text_align(*name_out, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
-    lv_obj_align(*name_out, LV_ALIGN_LEFT_MID, 200, cy);
+        ui_LabelTempUnit[index] = lv_label_create(parent);
+        lv_label_set_text(ui_LabelTempUnit[index], unit);
+        lv_obj_set_width(ui_LabelTempUnit[index], 28);
+        lv_obj_set_style_text_align(ui_LabelTempUnit[index], LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
+        lv_obj_set_style_text_font(ui_LabelTempUnit[index], &ui_font_FontTypoderSize16, LV_PART_MAIN);
+        lv_obj_set_style_text_color(ui_LabelTempUnit[index], lv_color_hex(0x777777), LV_PART_MAIN);
+        lv_obj_align(ui_LabelTempUnit[index], LV_ALIGN_CENTER, x + 33, 126);
+        ui_LabelTempDot[index] = create_color_dot(parent, x - 61, 126);
+        lv_obj_add_flag(ui_LabelTempDot[index], LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
 
-    *unit_out = lv_label_create(parent);
-    lv_label_set_long_mode(*unit_out, LV_LABEL_LONG_CLIP);   // no wrap
-    lv_label_set_text(*unit_out, unit_str);
-    lv_obj_set_style_text_font(*unit_out, &ui_font_FontTypoderSize20, LV_PART_MAIN);
-    lv_obj_set_style_text_color(*unit_out, lv_color_hex(0x666666), LV_PART_MAIN);
-    lv_obj_set_width(*unit_out, LV_SIZE_CONTENT);            // width follows the text (km/h etc.)
-    lv_obj_set_style_text_align(*unit_out, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN);
-    lv_obj_align(*unit_out, LV_ALIGN_RIGHT_MID, -70, cy);
-}
+    ui_LabelTempName[index] = lv_label_create(parent);
+    lv_label_set_text(ui_LabelTempName[index], name);
+    lv_obj_set_style_text_font(ui_LabelTempName[index],
+                               index == 0 ? &ui_font_FontTypoderSize20 : &ui_font_FontTypoderSize16,
+                               LV_PART_MAIN);
+    lv_obj_set_style_text_color(ui_LabelTempName[index], lv_color_hex(0x44AAFF), LV_PART_MAIN);
+    lv_obj_set_width(ui_LabelTempName[index], index == 0 ? 170 : 120);
+    lv_obj_set_style_text_align(ui_LabelTempName[index], LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_align(ui_LabelTempName[index], LV_ALIGN_CENTER, x, name_y);
 
-// Helper: horizontal divider line
-static void make_hdiv(lv_obj_t *parent, lv_coord_t y, lv_coord_t w)
-{
-    lv_obj_t *div = lv_obj_create(parent);
-    lv_obj_remove_style_all(div);
-    lv_obj_set_size(div, w, 1);
-    lv_obj_align(div, LV_ALIGN_CENTER, 0, y);
-    lv_obj_set_style_bg_color(div, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(div, 50, LV_PART_MAIN);
-    lv_obj_clear_flag(div, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    ui_LabelTempValue[index] = lv_label_create(parent);
+    lv_label_set_text(ui_LabelTempValue[index], "--");
+    lv_label_set_long_mode(ui_LabelTempValue[index], LV_LABEL_LONG_CLIP);
+    lv_obj_set_width(ui_LabelTempValue[index], index == 0 ? 190 : 120);
+    lv_obj_set_style_text_align(ui_LabelTempValue[index], LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_text_font(ui_LabelTempValue[index],
+                               index == 0 ? &ui_font_FontTypoderSize56 : &ui_font_FontTypoderSize20,
+                               LV_PART_MAIN);
+    lv_obj_set_style_text_color(ui_LabelTempValue[index], lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_align(ui_LabelTempValue[index], LV_ALIGN_CENTER, x, value_y);
+
+    ui_LabelTempUnit[index] = lv_label_create(parent);
+    lv_label_set_text(ui_LabelTempUnit[index], unit);
+    lv_obj_set_width(ui_LabelTempUnit[index], index == 0 ? 170 : 120);
+    lv_obj_set_style_text_align(ui_LabelTempUnit[index], LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_text_font(ui_LabelTempUnit[index], &ui_font_FontTypoderSize16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(ui_LabelTempUnit[index], lv_color_hex(0x777777), LV_PART_MAIN);
+    lv_obj_align(ui_LabelTempUnit[index], LV_ALIGN_CENTER, x, unit_y);
+
+    ui_LabelTempDot[index] = create_color_dot(parent, x - (index == 0 ? 0 : 54), name_y);
 }
 
 void ui_ScreenPageTemp_screen_init(void)
 {
     ui_ScreenPageTemp = lv_obj_create(NULL);
     lv_obj_clear_flag(ui_ScreenPageTemp, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_radius(ui_ScreenPageTemp, 360, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(ui_ScreenPageTemp, 360, LV_PART_MAIN);
     ui_helpers_style_screen_bg(ui_ScreenPageTemp);
-    lv_obj_set_style_bg_opa(ui_ScreenPageTemp, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_ScreenPageTemp, 255, LV_PART_MAIN);
+    ui_helpers_create_statusbar(ui_ScreenPageTemp, "TEMP");
 
-    // White border ring (restore original spinner@360)
-    lv_obj_t *spinner_ring = ui_helpers_create_ring(ui_ScreenPageTemp, 10);   // white ring: static circular border, replaces the rotating spinner, removes the arc seam gap
+    lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageTemp, 10);
 
+    ui_TempArc = lv_arc_create(ui_ScreenPageTemp);
+    // Match the simulator's 230px primary gauge ring on the 360px display.
+    lv_obj_set_size(ui_TempArc, 230, 230);
+    lv_obj_center(ui_TempArc);
+    lv_arc_set_range(ui_TempArc, 0, 100);
+    lv_arc_set_bg_angles(ui_TempArc, 0, 360);
+    lv_arc_set_value(ui_TempArc, 0);
+    lv_obj_clear_flag(ui_TempArc, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_arc_width(ui_TempArc, 11, LV_PART_MAIN);
+    lv_obj_set_style_arc_color(ui_TempArc, ui_theme_color_lv(UI_COLOR_ARC_TRACK), LV_PART_MAIN);
+    lv_obj_set_style_arc_width(ui_TempArc, 11, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(ui_TempArc, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_rounded(ui_TempArc, false, LV_PART_MAIN | LV_PART_INDICATOR);
+    lv_obj_set_style_arc_opa(ui_TempArc, LV_OPA_COVER, LV_PART_MAIN | LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(ui_TempArc, 0, LV_PART_KNOB);
 
-    // ====== Row 1 (cy=-65): CLT - Blue ======
-    make_row(ui_ScreenPageTemp, &ui_LabelTempName[0], &ui_LabelTempValue[0], &ui_LabelTempUnit[0], &ui_LabelTempDot[0], -65, lv_color_hex(0x44AAFF), "CLT", "'C");
-    make_hdiv(ui_ScreenPageTemp, -30, 220);
+    create_temp_slot(ui_ScreenPageTemp, 0, 0, -35, 0, 38, "CLT", "'C");
+    create_temp_slot(ui_ScreenPageTemp, 1, -72, 101, 119, 141, "OIL", "'C");
+    create_temp_slot(ui_ScreenPageTemp, 2, 72, 101, 119, 141, "IAT", "'C");
 
-    // ====== Row 2 (cy=+5): IAT - Green ======
-    make_row(ui_ScreenPageTemp, &ui_LabelTempName[1], &ui_LabelTempValue[1], &ui_LabelTempUnit[1], &ui_LabelTempDot[1], +5, lv_color_hex(0x44FF88), "IAT", "'C");
-    make_hdiv(ui_ScreenPageTemp, +40, 220);
-
-    // ====== Row 3 (cy=+75): OIL - Amber (SSM 22 10 17) ======
-    make_row(ui_ScreenPageTemp, &ui_LabelTempName[2], &ui_LabelTempValue[2], &ui_LabelTempUnit[2], &ui_LabelTempDot[2], +75, lv_color_hex(0xFF7722), "OIL", "'C");
-
-    // Backward compatibility for existing update code
     ui_LabelCoolantTempText = ui_LabelTempValue[0];
-    ui_LabelIntakeTempText = ui_LabelTempValue[1];
-    ui_LabelOilTempText = ui_LabelTempValue[2];
+    ui_LabelOilTempText = ui_LabelTempValue[1];
+    ui_LabelIntakeTempText = ui_LabelTempValue[2];
 
-    // Black ear image at top
-    lv_obj_t *black_ear = lv_img_create(ui_ScreenPageTemp);
-    lv_img_set_src(black_ear, &ui_img_pngblackear_png);
-    lv_obj_set_width(black_ear, LV_SIZE_CONTENT);
-    lv_obj_set_height(black_ear, LV_SIZE_CONTENT);
-    lv_obj_set_x(black_ear, 0);
-    lv_obj_set_y(black_ear, -142);
-    lv_obj_set_align(black_ear, LV_ALIGN_CENTER);
-    lv_obj_add_flag(black_ear, LV_OBJ_FLAG_ADV_HITTEST);
-    lv_obj_clear_flag(black_ear, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t *ear = lv_img_create(ui_ScreenPageTemp);
+    lv_img_set_src(ear, &ui_img_pngblackear_png);
+    lv_obj_set_size(ear, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_align(ear, LV_ALIGN_CENTER, 0, -142);
+    lv_obj_add_flag(ear, LV_OBJ_FLAG_ADV_HITTEST);
+    lv_obj_clear_flag(ear, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Events
-    lv_obj_move_foreground(spinner_ring);   // bring the ring to the front
+    lv_obj_move_foreground(ring);
     lv_obj_add_event_cb(ui_ScreenPageTemp, ui_event_temp_background, LV_EVENT_GESTURE, NULL);
 }

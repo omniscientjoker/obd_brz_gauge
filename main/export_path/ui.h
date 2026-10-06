@@ -78,6 +78,9 @@ extern lv_obj_t * ui_RpmPageArcRpmBack;
 extern lv_obj_t * ui_RpmPageArcLabelRpmText;
 extern lv_obj_t * ui_RpmPageArcLabelRpmUnit;
 extern lv_obj_t * ui_ImageRpmBlackEar;
+extern lv_obj_t * ui_LabelRpmTitle;
+extern lv_obj_t * ui_LabelRpmMiniTemp;
+extern lv_obj_t * ui_LabelRpmMiniVoltage;
 // CUSTOM VARIABLES
 
 // SCREEN: ui_ScreenPageSpeed
@@ -88,6 +91,9 @@ extern lv_obj_t * ui_SpeedPageArcSpeedBack;
 extern lv_obj_t * ui_SpeedPageArcLabelSpeedText;
 extern lv_obj_t * ui_SpeedPageArcLabelSpeedUnit;
 extern lv_obj_t * ui_ImageSpeedBlackEar;
+extern lv_obj_t * ui_LabelSpeedTitle;
+extern lv_obj_t * ui_LabelSpeedMiniGear;
+extern lv_obj_t * ui_LabelSpeedMiniRpm;
 // CUSTOM VARIABLES
 // SCREEN: ui_ScreenPageODBProtocal
 void ui_ScreenPageODBProtocal_screen_init(void);
@@ -133,14 +139,20 @@ extern lv_obj_t * ui_LabelTempValue[3];
 extern lv_obj_t * ui_LabelTempName[3];
 extern lv_obj_t * ui_LabelTempUnit[3];
 extern lv_obj_t * ui_LabelTempDot[3];
+extern lv_obj_t * ui_TempArc;
 void ui_event_temp_background(lv_event_t * e);
 
 // SCREEN: ui_ScreenPageTpms
 void ui_ScreenPageTpms_screen_init(void);
 extern lv_obj_t * ui_ScreenPageTpms;
+void ui_ScreenPageTpmsConfig_screen_init(void);
+extern lv_obj_t * ui_ScreenPageTpmsConfig;
 extern lv_obj_t * ui_LabelTpmsValue[4];
-extern lv_obj_t * ui_LabelTpmsName[4];
+extern lv_obj_t * ui_LabelTpmsVoltage;
+extern lv_obj_t * ui_LabelTpmsHeader;
+extern lv_obj_t * ui_TpmsCard[4];
 void ui_event_tpms_background(lv_event_t * e);
+void ui_event_tpms_config_background(lv_event_t * e);
 
 // SCREEN: ui_ScreenPageTempCustom
 void ui_ScreenPageTempCustom_screen_init(void);
@@ -223,6 +235,8 @@ extern lv_meter_indicator_t * ui_NeedleIndic;
 extern lv_obj_t * ui_NeedleValueLabel;
 extern lv_obj_t * ui_NeedleNameLabel;
 extern lv_obj_t * ui_NeedleUnitLabel;
+extern lv_obj_t * ui_NeedleArc;
+extern lv_obj_t * ui_NeedleSourceLabel;
 
 // SCREEN: ui_ScreenPageNeedleConfig (data-source selection entered by swiping down)
 void ui_ScreenPageNeedleConfig_screen_init(void);
@@ -233,6 +247,8 @@ void ui_event_needle_config_background(lv_event_t * e);
 void ui_ScreenPageMultiGauge_screen_init(void);
 extern lv_obj_t * ui_ScreenPageMultiGauge;
 void ui_event_multi_gauge_background(lv_event_t * e);
+extern lv_obj_t * ui_LabelMultiValue[3];
+extern lv_obj_t * ui_LabelMultiRole;
 
 // Needle page runtime interface (implemented in ui.c, reuses the disp_item system)
 void ui_needle_page_update(float sweep_ratio, int16_t clt, int16_t iat, int16_t oil,

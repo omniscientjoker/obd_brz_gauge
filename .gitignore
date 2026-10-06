@@ -15,8 +15,11 @@ tools/probe_log
 tools/elm_pids
 tools/pids_full.csv
 /build.arch
-/build.arch
-/build.arch
-/build.arch
+/build.flash
 /.playwright-cli
 /build.arch
+/build.verify3
+/build.verify4
+/build.verify5
+/build.verify6
+/output

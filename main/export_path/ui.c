@@ -85,6 +85,9 @@ lv_obj_t * ui_RpmPageArcRpmBack;
 lv_obj_t * ui_RpmPageArcLabelRpmText;
 lv_obj_t * ui_RpmPageArcLabelRpmUnit;
 lv_obj_t * ui_ImageRpmBlackEar;
+lv_obj_t * ui_LabelRpmTitle;
+lv_obj_t * ui_LabelRpmMiniTemp;
+lv_obj_t * ui_LabelRpmMiniVoltage;
 // CUSTOM VARIABLES
 
 
@@ -96,6 +99,9 @@ lv_obj_t * ui_SpeedPageArcSpeedBack;
 lv_obj_t * ui_SpeedPageArcLabelSpeedText;
 lv_obj_t * ui_SpeedPageArcLabelSpeedUnit;
 lv_obj_t * ui_ImageSpeedBlackEar;
+lv_obj_t * ui_LabelSpeedTitle;
+lv_obj_t * ui_LabelSpeedMiniGear;
+lv_obj_t * ui_LabelSpeedMiniRpm;
 // CUSTOM VARIABLES
 
 
@@ -124,6 +130,8 @@ lv_obj_t * ui_ScreenPageTemp;
 // SCREEN: ui_ScreenPageTpms
 void ui_ScreenPageTpms_screen_init(void);
 lv_obj_t * ui_ScreenPageTpms;
+void ui_ScreenPageTpmsConfig_screen_init(void);
+extern lv_obj_t * ui_ScreenPageTpmsConfig;
 
 // SCREEN: ui_ScreenPageTempCustom
 void ui_ScreenPageTempCustom_screen_init(void);
@@ -164,6 +172,8 @@ lv_obj_t * ui_NeedleMeter;
 lv_obj_t * ui_NeedleValueLabel;
 lv_obj_t * ui_NeedleNameLabel;
 lv_obj_t * ui_NeedleUnitLabel;
+lv_obj_t * ui_NeedleArc;
+lv_obj_t * ui_NeedleSourceLabel;
 // SCREEN: ui_ScreenPageNeedleConfig
 void ui_ScreenPageNeedleConfig_screen_init(void);
 lv_obj_t * ui_ScreenPageNeedleConfig;
@@ -171,6 +181,8 @@ lv_obj_t * ui_ScreenPageNeedleConfig;
 // SCREEN: ui_ScreenPageMultiGauge (triple-gauge settings: master/slave + master selection)
 void ui_ScreenPageMultiGauge_screen_init(void);
 lv_obj_t * ui_ScreenPageMultiGauge;
+lv_obj_t * ui_LabelMultiValue[3];
+lv_obj_t * ui_LabelMultiRole;
 
 // SCREEN: ui_ScreenPageChartConfig (chart data-source selection)
 void ui_ScreenPageChartConfig_screen_init(void);
@@ -261,6 +273,26 @@ static uint8_t needle_active_source(void)
     return src;
 }
 
+static void ui_temp_update_arc(disp_item_t item, int32_t raw_value, bool valid)
+{
+    if (!ui_TempArc) return;
+    if (!valid) {
+        lv_arc_set_value(ui_TempArc, 0);
+        return;
+    }
+
+    int32_t nmin, nmax, div;
+    ui_disp_item_range((uint8_t)item, &nmin, &nmax, &div);
+    if (div <= 0 || nmax <= nmin) return;
+
+    int64_t raw_min = (int64_t)nmin * div;
+    int64_t raw_max = (int64_t)nmax * div;
+    int64_t progress = ((int64_t)raw_value - raw_min) * 100 / (raw_max - raw_min);
+    if (progress < 0) progress = 0;
+    if (progress > 100) progress = 100;
+    lv_arc_set_value(ui_TempArc, (int16_t)progress);
+}
+
 void ui_needle_apply_source(void)
 {
     if (!ui_NeedleMeter || !ui_NeedleScale) return;
@@ -269,8 +301,10 @@ void ui_needle_apply_source(void)
     // 270° sweep, start angle 135° (gap centered at the bottom), matching classic mechanical gauges
     lv_meter_set_scale_range(ui_NeedleMeter, ui_NeedleScale, ns->nmin, ns->nmax, 270, 135);
     lv_meter_set_indicator_value(ui_NeedleMeter, ui_NeedleIndic, ns->nmin);
+    if (ui_NeedleArc) lv_arc_set_value(ui_NeedleArc, 0);
     if (ui_NeedleNameLabel) lv_label_set_text(ui_NeedleNameLabel, s_disp_meta[src].name);
     if (ui_NeedleUnitLabel) lv_label_set_text(ui_NeedleUnitLabel, s_disp_meta[src].unit);
+    if (ui_NeedleSourceLabel) lv_label_set_text_fmt(ui_NeedleSourceLabel, "SOURCE  %s", s_disp_meta[src].name);
 }
 
 void ui_needle_page_update(float sweep_ratio, int16_t clt, int16_t iat, int16_t oil,
@@ -292,6 +326,7 @@ void ui_needle_page_update(float sweep_ratio, int16_t clt, int16_t iat, int16_t 
             lv_meter_set_indicator_value(ui_NeedleMeter, ui_NeedleIndic, nval);
             s_last_needle_meter = nval;
         }
+        if (ui_NeedleArc) lv_arc_set_value(ui_NeedleArc, (int16_t)((int64_t)(nval - ns->nmin) * 100 / (ns->nmax - ns->nmin)));
         disp_item_set_text(ui_NeedleValueLabel, src, nval * ns->div, true);
         return;
     }
@@ -319,6 +354,12 @@ void ui_needle_page_update(float sweep_ratio, int16_t clt, int16_t iat, int16_t 
     if (nval != s_last_needle_meter) {
         lv_meter_set_indicator_value(ui_NeedleMeter, ui_NeedleIndic, nval);
         s_last_needle_meter = nval;
+    }
+    if (ui_NeedleArc) {
+        int32_t percent = (int32_t)((int64_t)(nval - ns->nmin) * 100 / (ns->nmax - ns->nmin));
+        if (percent < 0) percent = 0;
+        if (percent > 100) percent = 100;
+        lv_arc_set_value(ui_NeedleArc, (int16_t)percent);
     }
 }
 
@@ -452,7 +493,8 @@ static uint32_t ui_refresh_period_ms_for_screen(lv_obj_t *scr,
         scr == ui_ScreenPageTempCustom || scr == ui_ScreenPageInfoCustom ||
         scr == ui_ScreenPageNeedleConfig || scr == ui_ScreenPageChartConfig ||
         scr == ui_ScreenPageChartAlarm || scr == ui_ScreenPageOilWarn ||
-        scr == ui_ScreenPageRpmWarn || scr == ui_ScreenPageEasterEgg) {
+        scr == ui_ScreenPageRpmWarn || scr == ui_ScreenPageEasterEgg ||
+        scr == ui_ScreenPageTpmsConfig) {
         return 200;
     }
     return 50;
@@ -652,6 +694,18 @@ void my_timerMain(lv_timer_t * timer)
             lv_label_set_text_fmt(ui_RpmPageArcLabelRpmText, "%d", (int)usRpm);
             lv_arc_set_value(ui_RpmPageArcRpmBack, (uint32_t)usRpm*100/SWEEP_RPM_PEAK);
         }
+        if (ui_LabelRpmMiniTemp) {
+            if (clt > -40) lv_label_set_text_fmt(ui_LabelRpmMiniTemp, "CLT %d'C", (int)clt);
+            else lv_label_set_text(ui_LabelRpmMiniTemp, "CLT --'C");
+        }
+        if (ui_LabelRpmMiniVoltage) {
+            if (bat_mv > 0) {
+                lv_label_set_text_fmt(ui_LabelRpmMiniVoltage, "BAT %d.%dV",
+                                      (int)(bat_mv / 1000), (int)((bat_mv % 1000) / 100));
+            } else {
+                lv_label_set_text(ui_LabelRpmMiniVoltage, "BAT --.-V");
+            }
+        }
     }
     /*Speed page: same as above, refresh only while the page is active*/
     if (scr == ui_ScreenPageSpeed) {
@@ -663,6 +717,41 @@ void my_timerMain(lv_timer_t * timer)
             s_last_spd = s_disp_spd;
             lv_label_set_text_fmt(ui_SpeedPageArcLabelSpeedText, "%d", (int)s_disp_spd);
             lv_arc_set_value(ui_SpeedPageArcSpeedBack, (uint32_t)s_disp_spd*100/SWEEP_SPEED_PEAK);
+        }
+        if (ui_LabelSpeedMiniRpm) {
+            lv_label_set_text_fmt(ui_LabelSpeedMiniRpm, "RPM %d", (int)usRpm);
+        }
+        if (ui_LabelSpeedMiniGear) {
+            static int s_last_speed_gear = -2;
+            int gear_value = s_gear_unknown ? -2 : (int)eGear;
+            if (gear_value != s_last_speed_gear) {
+                s_last_speed_gear = gear_value;
+                if (s_gear_unknown) {
+                    lv_label_set_text(ui_LabelSpeedMiniGear, "GEAR --");
+                } else if (eGear == GEAR_NEUTRAL) {
+                    lv_label_set_text(ui_LabelSpeedMiniGear, "GEAR N");
+                } else {
+                    lv_label_set_text_fmt(ui_LabelSpeedMiniGear, "GEAR %d", gear_value);
+                }
+            }
+        }
+    }
+
+    if (scr == ui_ScreenPageMultiGauge && ui_LabelMultiValue[0]) {
+        char text[24];
+        lv_label_set_text_fmt(ui_LabelMultiValue[0], "%u", (unsigned)usRpm);
+        lv_label_set_text_fmt(ui_LabelMultiValue[1], "%u", (unsigned)ucSpeed);
+        if (bat_mv > 0) {
+            snprintf(text, sizeof(text), "%d.%d", (int)(bat_mv / 1000),
+                     (int)((bat_mv % 1000) / 100));
+            lv_label_set_text(ui_LabelMultiValue[2], text);
+        } else {
+            lv_label_set_text(ui_LabelMultiValue[2], "--.-");
+        }
+        if (ui_LabelMultiRole) {
+            const char *role = (user_cfg->device_role == ESPNOW_ROLE_SLAVE) ? "SLAVE" :
+                               (user_cfg->device_role == ESPNOW_ROLE_STANDALONE) ? "ALONE" : "MASTER";
+            lv_label_set_text_fmt(ui_LabelMultiRole, "%s / MULTI-GAUGE", role);
         }
     }
 
@@ -696,6 +785,7 @@ void my_timerMain(lv_timer_t * timer)
                 int32_t sw = disp_item_sweep_value(item, r);
                 disp_item_set_text(ui_LabelTempValue[i], item, sw, true);
                 disp_item_set_value_color(ui_LabelTempValue[i], item, sw, true);
+                if (i == 0) ui_temp_update_arc(item, sw, true);
             }
         } else {
             for (int i = 0; i < 3; ++i) {
@@ -711,6 +801,7 @@ void my_timerMain(lv_timer_t * timer)
                 int32_t value = 0;
                 bool valid = disp_item_read_value(item, clt, iat, oil, load_pct, tps, bat_mv, oilp_x10, brake_x10, usRpm, ucSpeed, boost_x10, afr_x100, &value);
                 disp_item_update(&s_disp_temp[i], ui_LabelTempValue[i], item, value, valid, ANIM_THRESH_TEMP);
+                if (i == 0) ui_temp_update_arc(item, s_disp_temp[i], valid);
             }
         }
     }
@@ -720,19 +811,55 @@ void my_timerMain(lv_timer_t * timer)
        legacy UI/ESP-NOW ABI for non-TPMS vehicles. */
     if (scr == ui_ScreenPageTpms && ui_LabelTpmsValue[0]) {
         obd_tpms_snapshot_t tpms;
+        obd_data_snapshot_t obd;
+        const nvs_user_cfg_t *tpms_cfg = nvs_cfg_get();
         char text[16];
+        if (ui_LabelTpmsHeader) {
+            lv_label_set_text_fmt(ui_LabelTpmsHeader, "SAFE PRESSURE\n%d.%d-%d.%d BAR",
+                                  tpms_cfg->tpms_pressure_min_bar_x100 / 100,
+                                  (tpms_cfg->tpms_pressure_min_bar_x100 % 100) / 10,
+                                  tpms_cfg->tpms_pressure_max_bar_x100 / 100,
+                                  (tpms_cfg->tpms_pressure_max_bar_x100 % 100) / 10);
+        }
         obd_tpms_cache_expire(esp_timer_get_time(), 4000000);
         obd_tpms_cache_get_snapshot(&tpms);
+        obd_data_get_snapshot(&obd);
         for (uint8_t i = 0; i < OBD_TPMS_WHEEL_COUNT; ++i) {
             if (tpms.valid[i]) {
                 int16_t pressure = tpms.pressure_bar_x100[i];
-                snprintf(text, sizeof(text), "%d.%02d", pressure / 100,
-                         pressure >= 0 ? pressure % 100 : -(pressure % 100));
+                snprintf(text, sizeof(text), "%d.%d", pressure / 100,
+                         pressure >= 0 ? (pressure % 100) / 10 : -(pressure % 100) / 10);
             } else {
-                snprintf(text, sizeof(text), "--");
+                snprintf(text, sizeof(text), "--.-");
             }
             if (strcmp(lv_label_get_text(ui_LabelTpmsValue[i]), text) != 0)
                 lv_label_set_text(ui_LabelTpmsValue[i], text);
+            bool out_of_range = tpms.valid[i] &&
+                (tpms.pressure_bar_x100[i] < (int16_t)tpms_cfg->tpms_pressure_min_bar_x100 ||
+                 tpms.pressure_bar_x100[i] > (int16_t)tpms_cfg->tpms_pressure_max_bar_x100);
+            lv_color_t value_color = out_of_range ? lv_color_hex(0xFF4545) : lv_color_hex(0xFFFFFF);
+            lv_obj_set_style_text_color(ui_LabelTpmsValue[i], value_color, LV_PART_MAIN);
+            if (ui_TpmsCard[i]) {
+                lv_obj_set_style_bg_color(ui_TpmsCard[i],
+                    out_of_range ? lv_color_hex(0xFFF1EF) : lv_color_hex(0x0B1F2F), LV_PART_MAIN);
+                lv_obj_set_style_border_color(ui_TpmsCard[i],
+                    out_of_range ? lv_color_hex(0xFF4545) : lv_color_hex(0x35CFE0), LV_PART_MAIN);
+                lv_obj_set_style_shadow_color(ui_TpmsCard[i],
+                    out_of_range ? lv_color_hex(0xFF3030) : lv_color_hex(0x25CDE3), LV_PART_MAIN);
+            }
+        }
+        if (ui_LabelTpmsVoltage) {
+            if (obd.bat_mv > 0) {
+                snprintf(text, sizeof(text), "%d.%d V", obd.bat_mv / 1000,
+                         (obd.bat_mv % 1000) / 100);
+            } else {
+                snprintf(text, sizeof(text), "--.- V");
+            }
+            if (strcmp(lv_label_get_text(ui_LabelTpmsVoltage), text) != 0)
+                lv_label_set_text(ui_LabelTpmsVoltage, text);
+            bool voltage_low = obd.bat_mv > 0 && obd.bat_mv < (int32_t)tpms_cfg->tpms_voltage_min_mv;
+            lv_obj_set_style_text_color(ui_LabelTpmsVoltage,
+                voltage_low ? lv_color_hex(0xFF4545) : lv_color_hex(0xFFFFFF), LV_PART_MAIN);
         }
     }
 
@@ -1069,7 +1196,19 @@ void ui_event_tpms_background(lv_event_t * e)
         lv_indev_wait_release(lv_indev_get_act());
         _ui_screen_change(&ui_ScreenPageInfo, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0,
                           &ui_ScreenPageInfo_screen_init);
+    } else if (dir == LV_DIR_BOTTOM) {
+        lv_indev_wait_release(lv_indev_get_act());
+        _ui_screen_change(&ui_ScreenPageTpmsConfig, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0,
+                          &ui_ScreenPageTpmsConfig_screen_init);
     }
+}
+
+void ui_event_tpms_config_background(lv_event_t * e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_GESTURE) return;
+    lv_indev_wait_release(lv_indev_get_act());
+    _ui_screen_change(&ui_ScreenPageTpms, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0,
+                      &ui_ScreenPageTpms_screen_init);
 }
 
 void ui_event_temp_custom_background(lv_event_t * e)
@@ -1353,6 +1492,7 @@ void ui_init(void)
     ui_ScreenPageInfo = NULL;
     ui_ScreenPageTempCustom = NULL;
     ui_ScreenPageTpms = NULL;
+    ui_ScreenPageTpmsConfig = NULL;
     ui_ScreenPageInfoCustom = NULL;
     ui_ScreenPageNeedleConfig = NULL;   // config page lazy-loaded
     ui_ScreenPageMultiGauge = NULL;     // triple-gauge settings page lazy-loaded

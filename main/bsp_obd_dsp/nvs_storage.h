@@ -39,6 +39,9 @@ typedef struct {
     uint8_t rc_enabled;          // RaceChrono BLE service: 0=off (minimal mode), 1=on (full RC+Pair+Info+OTA)
                                  // NOTE: new fields MUST be appended at the END of this struct;
                                  // see the load_blob grow logic comment in nvs_storage.c.
+    uint16_t tpms_pressure_min_bar_x100; // TPMS lower pressure limit, bar x100
+    uint16_t tpms_pressure_max_bar_x100; // TPMS upper pressure limit, bar x100
+    uint16_t tpms_voltage_min_mv;        // lower limit for the voltage shown on TPMS page, mV
 } nvs_user_cfg_t;
 
 /*------------------ Runtime statistics (persisted periodically) ------------------*/

@@ -87,6 +87,7 @@ void ui_ScreenPageSettings_screen_init(void)
     lv_obj_set_style_radius(ui_ScreenPageSettings, 360, LV_PART_MAIN);
     ui_helpers_style_screen_bg(ui_ScreenPageSettings);
     lv_obj_set_style_bg_opa(ui_ScreenPageSettings, 255, LV_PART_MAIN);
+    ui_helpers_create_statusbar(ui_ScreenPageSettings, "SETTINGS");
 
     // Bezel ring (color from the active theme)
     lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageSettings, 10);
@@ -105,16 +106,16 @@ void ui_ScreenPageSettings_screen_init(void)
     // ====== Title ======
     lv_obj_t *title = lv_label_create(ui_ScreenPageSettings);
     lv_label_set_text(title, "SETTINGS");
-    lv_obj_set_style_text_font(title, &ui_font_FontTypoderSize24, LV_PART_MAIN);
+    lv_obj_set_style_text_font(title, &ui_font_FontTypoderSize20, LV_PART_MAIN);
     lv_obj_set_style_text_color(title, ui_theme_color_lv(UI_COLOR_TEXT_PRIMARY), LV_PART_MAIN);
-    lv_obj_align(title, LV_ALIGN_CENTER, 0, -140);
+    lv_obj_align(title, LV_ALIGN_CENTER, 0, -72);
 
     // ====== Row 1: Default Page (Boot Page) ======
     lv_obj_t *label_page = lv_label_create(ui_ScreenPageSettings);
     lv_label_set_text(label_page, "BOOT PAGE");
     lv_obj_set_style_text_font(label_page, &ui_font_FontTypoderSize16, LV_PART_MAIN);
     lv_obj_set_style_text_color(label_page, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
-    lv_obj_align(label_page, LV_ALIGN_CENTER, 0, -110);
+    lv_obj_align(label_page, LV_ALIGN_CENTER, -84, -50);
 
     s_roller_page = lv_roller_create(ui_ScreenPageSettings);
     lv_obj_set_style_clip_corner(s_roller_page, true, 0);
@@ -122,10 +123,10 @@ void ui_ScreenPageSettings_screen_init(void)
     lv_roller_set_options(s_roller_page, page_names, LV_ROLLER_MODE_NORMAL);
     lv_roller_set_visible_row_count(s_roller_page, 1);
     lv_roller_set_selected(s_roller_page, (cfg->default_page < BOOT_PAGE_COUNT) ? cfg->default_page : 0, LV_ANIM_OFF);
-    lv_obj_set_width(s_roller_page, 140);
+    lv_obj_set_width(s_roller_page, 122);
     lv_obj_set_height(s_roller_page, 30);   // explicit: font is applied by style_dark_roller below
     ui_helpers_style_dark_roller(s_roller_page, &ui_font_FontTypoderSize20);
-    lv_obj_align(s_roller_page, LV_ALIGN_CENTER, 0, -84);
+    lv_obj_align(s_roller_page, LV_ALIGN_CENTER, 60, -50);
     lv_obj_add_event_cb(s_roller_page, on_page_roller_change, LV_EVENT_VALUE_CHANGED, NULL);
 
     // ====== Row 2: Vehicle ======
@@ -133,7 +134,7 @@ void ui_ScreenPageSettings_screen_init(void)
     lv_label_set_text(label_vehicle, "VEHICLE");
     lv_obj_set_style_text_font(label_vehicle, &ui_font_FontTypoderSize16, LV_PART_MAIN);
     lv_obj_set_style_text_color(label_vehicle, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
-    lv_obj_align(label_vehicle, LV_ALIGN_CENTER, 0, -57);
+    lv_obj_align(label_vehicle, LV_ALIGN_CENTER, -84, -18);
 
     // Build vehicle options dynamically from the profile table (newline separated).
     uint8_t vehicle_count = 0;
@@ -150,10 +151,10 @@ void ui_ScreenPageSettings_screen_init(void)
     lv_roller_set_options(s_roller_vehicle, vehicle_names, LV_ROLLER_MODE_NORMAL);
     lv_roller_set_visible_row_count(s_roller_vehicle, 1);
     lv_roller_set_selected(s_roller_vehicle, (cfg->vehicle_profile_idx < vehicle_count) ? cfg->vehicle_profile_idx : 0, LV_ANIM_OFF);
-    lv_obj_set_width(s_roller_vehicle, 210);   // wide enough for long names (e.g. "BMW X1 F48")
+    lv_obj_set_width(s_roller_vehicle, 122);   // compact form field; roller clips long profile names
     lv_obj_set_height(s_roller_vehicle, 30);   // explicit: font is applied by style_dark_roller below
     ui_helpers_style_dark_roller(s_roller_vehicle, &ui_font_FontTypoderSize20);
-    lv_obj_align(s_roller_vehicle, LV_ALIGN_CENTER, 0, -31);
+    lv_obj_align(s_roller_vehicle, LV_ALIGN_CENTER, 60, -18);
     lv_obj_add_event_cb(s_roller_vehicle, on_vehicle_roller_change, LV_EVENT_VALUE_CHANGED, NULL);
 
     // ====== Row 3: UI Theme ======
@@ -161,7 +162,7 @@ void ui_ScreenPageSettings_screen_init(void)
     lv_label_set_text(label_theme, "THEME");
     lv_obj_set_style_text_font(label_theme, &ui_font_FontTypoderSize16, LV_PART_MAIN);
     lv_obj_set_style_text_color(label_theme, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
-    lv_obj_align(label_theme, LV_ALIGN_CENTER, 0, -4);
+    lv_obj_align(label_theme, LV_ALIGN_CENTER, -84, 14);
 
     // Theme options come from the generated registry, joined into an exactly
     // sized buffer — a fixed local array here used to silently truncate the
@@ -177,7 +178,8 @@ void ui_ScreenPageSettings_screen_init(void)
     lv_obj_set_width(s_roller_theme, 160);
     lv_obj_set_height(s_roller_theme, 30);   // explicit: font is applied by style_dark_roller below
     ui_helpers_style_dark_roller(s_roller_theme, &ui_font_FontTypoderSize20);
-    lv_obj_align(s_roller_theme, LV_ALIGN_CENTER, 0, 22);
+    lv_obj_set_width(s_roller_theme, 122);
+    lv_obj_align(s_roller_theme, LV_ALIGN_CENTER, 60, 14);
     lv_obj_add_event_cb(s_roller_theme, on_theme_roller_change, LV_EVENT_VALUE_CHANGED, NULL);
 
     // ====== Row 4: Brightness ======
@@ -185,15 +187,15 @@ void ui_ScreenPageSettings_screen_init(void)
     lv_label_set_text(label_bright, "BRIGHTNESS");
     lv_obj_set_style_text_font(label_bright, &ui_font_FontTypoderSize16, LV_PART_MAIN);
     lv_obj_set_style_text_color(label_bright, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
-    lv_obj_align(label_bright, LV_ALIGN_CENTER, 0, 48);
+    lv_obj_align(label_bright, LV_ALIGN_CENTER, -84, 46);
 
     s_slider_bright = lv_slider_create(ui_ScreenPageSettings);
     lv_obj_set_style_clip_corner(s_slider_bright, true, 0);
     lv_slider_set_range(s_slider_bright, 10, 100);
     lv_slider_set_value(s_slider_bright, cfg->brightness_day, LV_ANIM_OFF);
-    lv_obj_set_width(s_slider_bright, 180);
+    lv_obj_set_width(s_slider_bright, 122);
     lv_obj_set_height(s_slider_bright, 10);
-    lv_obj_align(s_slider_bright, LV_ALIGN_CENTER, 0, 70);
+    lv_obj_align(s_slider_bright, LV_ALIGN_CENTER, 60, 46);
     lv_obj_set_style_bg_color(s_slider_bright, ui_theme_color_lv(UI_COLOR_ARC_TRACK), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(s_slider_bright, 255, LV_PART_MAIN);
     lv_obj_set_style_bg_color(s_slider_bright, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_INDICATOR);
@@ -207,20 +209,20 @@ void ui_ScreenPageSettings_screen_init(void)
     lv_label_set_text_fmt(s_label_bright_val, "%d%%", cfg->brightness_day);
     lv_obj_set_style_text_font(s_label_bright_val, &ui_font_FontTypoderSize24, LV_PART_MAIN);
     lv_obj_set_style_text_color(s_label_bright_val, ui_theme_color_lv(UI_COLOR_TEXT_PRIMARY), LV_PART_MAIN);
-    lv_obj_align(s_label_bright_val, LV_ALIGN_CENTER, 0, 95);
+    lv_obj_align(s_label_bright_val, LV_ALIGN_CENTER, 60, 70);
 
     // ====== Row 5: RaceChrono Toggle ======
     lv_obj_t *label_rc = lv_label_create(ui_ScreenPageSettings);
     lv_label_set_text(label_rc, "RACECHRONO");
     lv_obj_set_style_text_font(label_rc, &ui_font_FontTypoderSize16, LV_PART_MAIN);
     lv_obj_set_style_text_color(label_rc, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
-    lv_obj_align(label_rc, LV_ALIGN_CENTER, -40, 122);   // label + button share one row to save height
+    lv_obj_align(label_rc, LV_ALIGN_CENTER, -84, 101);   // label + button share one row to save height
 
     s_rc_enabled = cfg->rc_enabled;
     s_btn_rc = lv_btn_create(ui_ScreenPageSettings);
     lv_obj_set_style_clip_corner(s_btn_rc, true, 0);
     lv_obj_set_size(s_btn_rc, 60, 26);
-    lv_obj_align(s_btn_rc, LV_ALIGN_CENTER, 70, 122);
+    lv_obj_align(s_btn_rc, LV_ALIGN_CENTER, 60, 101);
     lv_obj_set_style_bg_color(s_btn_rc, s_rc_enabled ? lv_color_hex(0x00AA55) : lv_color_hex(0x333333), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(s_btn_rc, 255, LV_PART_MAIN);
     lv_obj_set_style_radius(s_btn_rc, 13, LV_PART_MAIN);
@@ -238,7 +240,7 @@ void ui_ScreenPageSettings_screen_init(void)
     lv_obj_set_style_text_font(hint, &lv_font_montserrat_12, LV_PART_MAIN);
     lv_obj_set_style_text_color(hint, lv_color_hex(0x555555), LV_PART_MAIN);
     lv_obj_set_style_text_align(hint, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_align(hint, LV_ALIGN_CENTER, 0, 152);
+    lv_obj_align(hint, LV_ALIGN_CENTER, 0, 132);
 
     // Events - swipe to go back / down to multi-gauge
     lv_obj_move_foreground(ring);   // ring on top
