@@ -535,11 +535,15 @@ bool ui_ext_boot_video_tick(void)
     bool want_video = (intro_val == 2);
     if (s_boot_done || s_showroom_active || s_boot_video_done || !want_video) return false;
 
-    // show the Logo for 1 second first, then enter the video
+    // The legacy Logo page is optional. When disabled, prepare the video immediately.
     static int64_t s_video_logo_start_us = 0;
+#if ENABLE_BOOT_LOGO_PAGE
     if (s_video_logo_start_us == 0) s_video_logo_start_us = esp_timer_get_time();
     int64_t logo_el_ms = (esp_timer_get_time() - s_video_logo_start_us) / 1000;
     if (logo_el_ms < 1000) return true;  // Logo still showing, skip
+#else
+    (void)s_video_logo_start_us;
+#endif
 
     // Phase 1: prepare the video (single app-flashed boot_block slot)
     if (!s_boot_video_ready && !s_boot_video_active && s_boot_video_screen == NULL) {
@@ -555,9 +559,9 @@ bool ui_ext_boot_video_tick(void)
             lv_obj_clear_flag(s_boot_video_screen, LV_OBJ_FLAG_SCROLLABLE);
             lv_obj_t *canvas = NULL;
             if (boot_block_player_create(s_boot_video_screen, &canvas)) {
-                // no lv_scr_load yet: keep the Logo screen, switch only when playback starts
+                // Delay the screen switch until the synchronized playback start.
                 s_boot_video_ready = true;
-                ESP_LOGI(TAG, "Boot video ready (logo kept)");
+                ESP_LOGI(TAG, "Boot video ready (legacy logo skipped)");
             } else {
                 ESP_LOGE(TAG, "boot_block_player_create() failed - boot animation will be skipped");
                 lv_obj_del(s_boot_video_screen);
@@ -608,7 +612,7 @@ bool ui_ext_boot_video_tick(void)
             }
         }
         if (should_start) {
-            lv_scr_load(s_boot_video_screen);  // switch screens only now, keeping the Logo until the last moment
+            lv_scr_load(s_boot_video_screen);
             s_boot_video_active = true;
             s_boot_video_start_us = esp_timer_get_time();
             s_boot_video_timer = lv_timer_create(boot_video_timer_cb, 33, NULL);

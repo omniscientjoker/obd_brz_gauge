@@ -1,5 +1,4 @@
 #include "bsp_obd_dsp/touch_driver/CST816.h"
-#include "bsp_obd_dsp/exio/TCA9554PWR.h"
 #include "bsp_obd_dsp/lcd_driver/ST77916.h"
 #include "bsp_obd_dsp/i2c_driver/I2C_Driver.h"
 
@@ -161,10 +160,12 @@ static esp_err_t del(esp_lcd_touch_handle_t tp)
 
 static esp_err_t reset(esp_lcd_touch_handle_t tp)
 {
-
-    Set_EXIO(TCA9554_EXIO1,false);
-    vTaskDelay(pdMS_TO_TICKS(10));
-    Set_EXIO(TCA9554_EXIO1,true);
+    /* On the 1.85B, TP_RST is GPIO1.  It is not connected to the TCA9554. */
+    if (tp->config.rst_gpio_num != GPIO_NUM_NC) {
+        gpio_set_level(tp->config.rst_gpio_num, 0);
+        vTaskDelay(pdMS_TO_TICKS(10));
+        gpio_set_level(tp->config.rst_gpio_num, 1);
+    }
     vTaskDelay(pdMS_TO_TICKS(50));
 
     return ESP_OK;
@@ -206,12 +207,22 @@ static esp_err_t i2c_write_bytes(esp_lcd_touch_handle_t tp, uint16_t reg, uint8_
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief Initialize touch I2C bus using new API
+ * @brief Select the board's touch I2C bus.
+ *
+ * The 1.85B shares GPIO10/11 with the other onboard I2C devices; other
+ * hardware variants retain the dedicated-bus path below.
  */
 static i2c_master_bus_handle_t s_touch_i2c_bus = NULL;
 
 static esp_err_t Touch_I2C_Init(void)
 {
+#if CONFIG_OBD_HW_VERSION_V1_WAVESHARE
+    /* Waveshare ESP32-S3-Touch-LCD-1.85B shares GPIO10/11 with the other
+     * onboard I2C peripherals.  Reuse the bus created by I2C_Init(); creating
+     * a second master on the same pins causes pin/bus conflicts. */
+    s_touch_i2c_bus = I2C_GetBusHandle();
+    return s_touch_i2c_bus ? ESP_OK : ESP_ERR_INVALID_STATE;
+#else
     i2c_master_bus_config_t bus_config = {
         .clk_source = I2C_CLK_SRC_DEFAULT,
         .i2c_port = -1,
@@ -222,11 +233,16 @@ static esp_err_t Touch_I2C_Init(void)
     };
 
     return i2c_new_master_bus(&bus_config, &s_touch_i2c_bus);
+#endif
 }
 
-void Touch_Init(void)
+esp_err_t Touch_Init(void)
 {
-    ESP_ERROR_CHECK(Touch_I2C_Init());
+    esp_err_t ret = Touch_I2C_Init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Touch I2C bus initialization failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
     ESP_LOGD(TAG, "I2C initialized successfully");
 
     esp_lcd_touch_config_t tp_cfg = {
@@ -243,5 +259,9 @@ void Touch_Init(void)
 
     /* Initialize touch directly via I2C master bus + device */
     ESP_LOGD(TAG, "Initialize touch controller CST816");
-    ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_cst816(s_touch_i2c_bus, &tp_cfg, &tp));
+    ret = esp_lcd_touch_new_i2c_cst816(s_touch_i2c_bus, &tp_cfg, &tp);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Touch controller unavailable: %s", esp_err_to_name(ret));
+    }
+    return ret;
 }

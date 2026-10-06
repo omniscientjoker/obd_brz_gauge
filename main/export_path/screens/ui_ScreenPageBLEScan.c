@@ -270,14 +270,9 @@ void ui_ScreenPageBLEScan_screen_init(void)
     lv_obj_set_style_text_color(label_title, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
     lv_obj_align(label_title, LV_ALIGN_TOP_MID, 0, 30);
 
-    // Scanning spinner (animated)
-    s_spinner = lv_spinner_create(ui_ScreenPageBLEScan, 1000, 60);
-    lv_obj_set_size(s_spinner, 24, 24);
-    lv_obj_align(s_spinner, LV_ALIGN_TOP_MID, 72, 20);
-    lv_obj_set_style_arc_color(s_spinner, lv_color_hex(0xFFFFFF), LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(s_spinner, 3, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(s_spinner, lv_color_hex(0x333333), LV_PART_MAIN);
-    lv_obj_set_style_arc_width(s_spinner, 3, LV_PART_MAIN);
+    // No animated spinner in the title area.  Status text below the title
+    // remains the scan/connection progress indicator.
+    s_spinner = NULL;
 
     // Status label
     s_label_status = lv_label_create(ui_ScreenPageBLEScan);
@@ -345,18 +340,20 @@ void ui_ScreenPageBLEScan_screen_init(void)
     lv_obj_set_style_bg_color(divider, lv_color_hex(0x444444), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(divider, 255, LV_PART_MAIN);
     lv_obj_clear_flag(divider, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    if (!has_saved) lv_obj_add_flag(divider, LV_OBJ_FLAG_HIDDEN);
 
     // ==== NEARBY SCAN SECTION ====
     lv_obj_t *label_nearby = lv_label_create(ui_ScreenPageBLEScan);
     lv_label_set_text(label_nearby, "NEARBY");
     lv_obj_set_style_text_font(label_nearby, &ui_font_FontTypoderSize16, LV_PART_MAIN);
     lv_obj_set_style_text_color(label_nearby, lv_color_hex(0x888888), LV_PART_MAIN);
-    lv_obj_align(label_nearby, LV_ALIGN_TOP_MID, 0, 134);
+    // If there is no saved device, collapse the unused saved-device section.
+    lv_obj_align(label_nearby, LV_ALIGN_TOP_MID, 0, has_saved ? 134 : 78);
 
     // Device list (scan results)
     s_list = lv_list_create(ui_ScreenPageBLEScan);
     lv_obj_set_size(s_list, 264, 145);
-    lv_obj_align(s_list, LV_ALIGN_TOP_MID, 0, 152);
+    lv_obj_align(s_list, LV_ALIGN_TOP_MID, 0, has_saved ? 152 : 96);
     lv_obj_set_style_bg_color(s_list, lv_color_hex(0x111111), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(s_list, 255, LV_PART_MAIN);
     lv_obj_set_style_border_width(s_list, 1, LV_PART_MAIN);
@@ -379,4 +376,3 @@ void ui_ScreenPageBLEScan_screen_init(void)
     // Start scanning
     start_scan();
 }
-

@@ -386,6 +386,24 @@ static const vehicle_profile_t s_profiles[] = {
         .obd_29bit_functional = true,      // 29-bit functional broadcast address (18DB33F1, not 7DF)
         .obd_timeout = 0x19,               // default timeout; adjust if responses are slow
     },
+    {
+        // Explicit candidate profile for the 2014 Mondeo 2.0T. The Ford BCM
+        // TPMS DID/header pack is opt-in and must be verified with FORScan.
+        .name = "Ford Mondeo 2014 TPMS candidate",
+        .final_drive_ratio = 3.070f,
+        .tire_rolling_radius_m = 0.327f,
+        .gear_count = 6,
+        .gear_ratios = {0, 4.580f, 2.960f, 1.910f, 1.450f, 1.000f, 0.750f},
+        .gear_tolerance = 0.18f,
+        .oil_temp_strategy = {
+            .primary = OIL_TEMP_MODE_PID_5C,
+            .secondary = OIL_TEMP_MODE_NONE,
+            .tertiary = OIL_TEMP_MODE_NONE,
+        },
+        .has_boost = true,
+        .obd_functional_addr = true,
+        .forced_protocol = 6,
+    },
 };
 
 #define PROFILE_COUNT (sizeof(s_profiles) / sizeof(s_profiles[0]))

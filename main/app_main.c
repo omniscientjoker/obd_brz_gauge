@@ -221,14 +221,18 @@ void app_main(void)
 
     /* 4. LCD + backlight + touch combined init
      *    LCD_Init() internally calls, in order:
-     *      ST77916_Init() → reset (V1: TCA9554 EXIO2; V2/V3: direct GPIO 47) → QSPI SPI bus & ST77916 panel driver
+     *      ST77916_Init() → reset (1.85B: GPIO3; V2/V3: direct GPIO 47) → QSPI SPI bus & ST77916 panel driver
      *      Backlight_Init() → LEDC PWM backlight (V1: GPIO 5; V2/V3: GPIO 15)
-     *      Touch_Init() → reuses I2C bus CST816 touch driver (V1: SCL=10 SDA=11; V2/V3: SCL=8 SDA=7)
-     *    After completion panel_handle / tp are both globally valid variables
+     *      Touch_Init() → CST816S on the board's shared GPIO10/11 I2C bus
+     *    A missing touch controller leaves the display available in read-only mode.
      */
     LCD_SetFlushCallback(notify_lvgl_flush_ready, &disp_drv);
     LCD_Backlight = 0;  // set to 0 before LCD_Init to prevent Backlight_Init from lighting an uninitialized panel
-    LCD_Init();
+    esp_err_t touch_init_err = LCD_Init();
+    if (touch_init_err != ESP_OK) {
+        ESP_LOGW(TAG, "Touch initialization failed (%s); starting without touch input",
+                 esp_err_to_name(touch_init_err));
+    }
 
     /* 5. LVGL init */
     lv_init();
@@ -267,14 +271,16 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_timer_create(&lvgl_tick_timer_args, &lvgl_tick_timer));
     ESP_ERROR_CHECK(esp_timer_start_periodic(lvgl_tick_timer, LVGL_TICK_PERIOD_MS * 1000));
 
-    /* Register touch input device (polling mode, uses the global tp created by Touch_Init) */
-    static lv_indev_drv_t indev_drv;
-    lv_indev_drv_init(&indev_drv);
-    indev_drv.type = LV_INDEV_TYPE_POINTER;
-    indev_drv.disp = disp;
-    indev_drv.read_cb = lvgl_touch_cb;
-    indev_drv.user_data = tp;               // from CST816.h extern
-    lv_indev_drv_register(&indev_drv);
+    /* Register touch input only after the controller has responded successfully. */
+    if (tp != NULL) {
+        static lv_indev_drv_t indev_drv;
+        lv_indev_drv_init(&indev_drv);
+        indev_drv.type = LV_INDEV_TYPE_POINTER;
+        indev_drv.disp = disp;
+        indev_drv.read_cb = lvgl_touch_cb;
+        indev_drv.user_data = tp;
+        lv_indev_drv_register(&indev_drv);
+    }
 
     /* 6. Start LVGL task */
     lvgl_mux = xSemaphoreCreateMutex();
@@ -288,8 +294,8 @@ void app_main(void)
     /* 6.5 Initialize Bluetooth stack BEFORE UI to claim internal RAM early */
     elm327_ble_ensure_stack_init();
 
-    /* 7. Start UI - Logo displayed first, then theme loading */
-    // Step 1: Show logo immediately (before theme loading)
+    /* 7. Start UI. The legacy Logo page is optional; video boot can start directly. */
+#if ENABLE_BOOT_LOGO_PAGE
     ESP_LOGI(TAG, "Creating and displaying logo page");
     if (lvgl_lock(-1)) {
         lv_disp_t * dispp = lv_disp_get_default();
@@ -300,18 +306,18 @@ void app_main(void)
         extern lv_obj_t * ui_ScreenPageLogo;
         ui_ScreenPageLogo_screen_init();
         lv_disp_load_scr(ui_ScreenPageLogo);
-        lvgl_unlock();  // Release lock so logo can be rendered immediately
+        lvgl_unlock();
     }
     ESP_LOGI(TAG, "Logo page displayed, yielding to LVGL task");
-
-    // Force LVGL to flush the logo to screen immediately
-    // Give LVGL task multiple chances to complete rendering
     for (int i = 0; i < 3; i++) {
-        vTaskDelay(1);  // Each delay allows one LVGL task iteration
+        vTaskDelay(1);
     }
+#else
+    ESP_LOGI(TAG, "Legacy logo page disabled; boot animation will start directly");
+#endif
 
     ESP_LOGI(TAG, "Starting theme load");
-    // Step 2: Load theme and create other UI elements (logo already visible)
+    // Load the theme and create the remaining UI elements.
     if (lvgl_lock(-1)) {
         ui_init();  // Now loads theme with logo already displayed
         ui_ext_init();

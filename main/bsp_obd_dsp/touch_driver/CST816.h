@@ -36,13 +36,21 @@ esp_err_t esp_lcd_touch_new_i2c_cst816(i2c_master_bus_handle_t i2c_bus, const es
  */
 #define ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS    (0x15)
 
-// I2C settings
+// I2C settings.  The Waveshare 1.85B routes CST816S onto the shared
+// GPIO10/11 bus; GPIO1 is the controller reset line (not SDA).
+#if CONFIG_OBD_HW_VERSION_V1_WAVESHARE
+#define I2C_Touch_SDA_IO            11              /*!< CST816S SDA */
+#define I2C_Touch_SCL_IO            10              /*!< CST816S SCL */
+#define I2C_Touch_RST_IO            1               /*!< CST816S reset */
+#else
 #define I2C_Touch_SDA_IO            1               /*!< GPIO number used for I2C master data  */
 #define I2C_Touch_SCL_IO            3               /*!< GPIO number used for I2C master clock */
-#define I2C_Touch_INT_IO            4               /*!< GPIO number used for I2C master data  */
-#define I2C_Touch_RST_IO            -1              /*!< GPIO number used for I2C master clock */
+#define I2C_Touch_RST_IO            -1              /*!< No dedicated reset line */
+#endif
+#define I2C_Touch_INT_IO            4               /*!< CST816S interrupt */
 #define I2C_Touch_MASTER_FREQ_HZ    400000          /*!< I2C master clock frequency */
 
 extern esp_lcd_touch_handle_t tp;
 
-void Touch_Init(void);
+/* A missing touch controller must not prevent the display-only gauge from booting. */
+esp_err_t Touch_Init(void);

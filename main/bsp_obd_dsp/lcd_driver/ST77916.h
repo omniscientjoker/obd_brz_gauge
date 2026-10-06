@@ -51,14 +51,14 @@
 #define EXAMPLE_LCD_PIN_NUM_RST             (47)    // direct GPIO
 #define EXAMPLE_LCD_PIN_NUM_BK_LIGHT        (15)
 #else
-/* Waveshare ESP32-S3-Touch-LCD-1.85 */
+/* Waveshare ESP32-S3-Touch-LCD-1.85B */
 #define ESP_PANEL_LCD_SPI_IO_SCK            (40)
 #define ESP_PANEL_LCD_SPI_IO_DATA0          (46)
 #define ESP_PANEL_LCD_SPI_IO_DATA1          (45)
 #define ESP_PANEL_LCD_SPI_IO_DATA2          (42)
 #define ESP_PANEL_LCD_SPI_IO_DATA3          (41)
 #define ESP_PANEL_LCD_SPI_IO_CS             (21)
-#define EXAMPLE_LCD_PIN_NUM_RST             (-1)    // EXIO2
+#define EXAMPLE_LCD_PIN_NUM_RST             (3)     // LCD_RST (direct GPIO)
 #define EXAMPLE_LCD_PIN_NUM_BK_LIGHT        (5)
 #endif
 
@@ -92,7 +92,7 @@ void LCD_SetFlushCallback(bool (*cb)(esp_lcd_panel_io_handle_t, esp_lcd_panel_io
 
 void ST77916_Init();
 
-void LCD_Init(void);                     // Call this function to initialize the screen (must be called in the main function) !!!!!
+esp_err_t LCD_Init(void);                // Initializes the panel, backlight, and optional touch controller.
 
 void Backlight_Init(void);                             // Initialize the LCD backlight, which has been called in the LCD_Init function, ignore it                                                         
 void Set_Backlight(uint8_t Light);                   // Call this function to adjust the brightness of the backlight. The value of the parameter Light ranges from 0 to 100

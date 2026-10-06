@@ -627,19 +627,25 @@ static const st77916_lcd_init_cmd_t vendor_specific_init_new[] = {
 #endif
 void ST77916_Reset(){
 #if CONFIG_OBD_HW_VERSION_V1_WAVESHARE
-  Set_EXIO(TCA9554_EXIO2,false);
+  /* 1.85B routes LCD_RST directly to GPIO3; it has no TCA9554 reset path. */
+  gpio_config_t rst_config = {
+    .mode = GPIO_MODE_OUTPUT,
+    .pin_bit_mask = 1ULL << EXAMPLE_LCD_PIN_NUM_RST,
+  };
+  gpio_config(&rst_config);
+  gpio_set_level(EXAMPLE_LCD_PIN_NUM_RST, 0);
   vTaskDelay(pdMS_TO_TICKS(10));
-  Set_EXIO(TCA9554_EXIO2,true);
+  gpio_set_level(EXAMPLE_LCD_PIN_NUM_RST, 1);
   vTaskDelay(pdMS_TO_TICKS(50));
 #else
   /* New boards: LCD reset is a direct GPIO (EXAMPLE_LCD_PIN_NUM_RST=47),
      already handled by esp_lcd_panel_reset() inside QSPI_Init(). */
 #endif
 }
-void LCD_Init() {        
+esp_err_t LCD_Init(void) {
   ST77916_Init();
   Backlight_Init();
-  Touch_Init();
+  return Touch_Init();
 }
 
 int QSPI_Init(void){

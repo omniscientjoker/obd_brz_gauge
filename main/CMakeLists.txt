@@ -100,8 +100,36 @@ idf_component_register(SRC_DIRS
                     app_update
                     json)
 
-# Auto-generate the bootmedia SPIFFS image; flashed together via idf.py flash
-spiffs_create_partition_image(bootmedia ${CMAKE_CURRENT_SOURCE_DIR}/../bootmedia/slot_a FLASH_IN_PROJECT)
+# bootmedia is a raw partition, not a SPIFFS filesystem.  The runtime reads a
+# fixed 4 KiB manifest slot followed by the animation stream directly from
+# flash, and the OTA upload path writes the same layout.
+set(BOOTMEDIA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../bootmedia/slot_a")
+set(BOOTMEDIA_IMAGE "${CMAKE_BINARY_DIR}/bootmedia.bin")
+set(BOOTMEDIA_IMAGE_TOOL "${CMAKE_CURRENT_SOURCE_DIR}/../tools/make_bootmedia_image.py")
+add_custom_command(
+    OUTPUT "${BOOTMEDIA_IMAGE}"
+    COMMAND "${python}" "${BOOTMEDIA_IMAGE_TOOL}"
+            "${BOOTMEDIA_DIR}/boot_block.txt"
+            "${BOOTMEDIA_DIR}/boot_block.bin"
+            "${BOOTMEDIA_IMAGE}"
+    DEPENDS "${BOOTMEDIA_IMAGE_TOOL}"
+            "${BOOTMEDIA_DIR}/boot_block.txt"
+            "${BOOTMEDIA_DIR}/boot_block.bin"
+    VERBATIM)
+add_custom_target(bootmedia_raw_bin ALL DEPENDS "${BOOTMEDIA_IMAGE}")
+
+partition_table_get_partition_info(bootmedia_size "--partition-name bootmedia" "size")
+partition_table_get_partition_info(bootmedia_offset "--partition-name bootmedia" "offset")
+if(NOT bootmedia_size OR NOT bootmedia_offset)
+    message(FATAL_ERROR "Failed to resolve bootmedia partition geometry")
+endif()
+idf_component_get_property(bootmedia_main_args esptool_py FLASH_ARGS)
+idf_component_get_property(bootmedia_sub_args esptool_py FLASH_SUB_ARGS)
+esptool_py_flash_target(bootmedia-flash "${bootmedia_main_args}" "${bootmedia_sub_args}" ALWAYS_PLAINTEXT)
+esptool_py_flash_to_partition(bootmedia-flash bootmedia "${BOOTMEDIA_IMAGE}")
+add_dependencies(bootmedia-flash bootmedia_raw_bin)
+esptool_py_flash_to_partition(flash bootmedia "${BOOTMEDIA_IMAGE}")
+add_dependencies(flash bootmedia_raw_bin)
 
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
     OBD_GAUGE_GIT_HASH="${OBD_GAUGE_GIT_HASH}"

@@ -59,6 +59,8 @@ This repository has two main branches with **incompatible partition layouts**:
 | [docs/OBD_TROUBLESHOOTING.md](docs/OBD_TROUBLESHOOTING.md) | No data / won't connect — diagnosis / 连不上或没数据时的排查 |
 | [docs/AUTO_PROTOCOL_DETECTION.md](docs/AUTO_PROTOCOL_DETECTION.md) | Protocol auto-detection: usage, FAQ, debugging / 自动协议检测：用法、常见问题、调试 |
 | [docs/BRZ_ZD8_PROTOCOL_GUIDE.md](docs/BRZ_ZD8_PROTOCOL_GUIDE.md) | BRZ ZD8 (Gen2) protocol diagnosis / ZD8 协议诊断 |
+| [docs/OBD_PROTOCOL_COMPOSITION_DESIGN.zh-CN.md](docs/OBD_PROTOCOL_COMPOSITION_DESIGN.zh-CN.md) | **Multi-protocol composition architecture** / 多协议组合、覆盖和迁移架构 |
+| [docs/FORD_TPMS_CAPTURE.md](docs/FORD_TPMS_CAPTURE.md) | Ford TPMS UDS/CAN validation procedure / 福特胎压 UDS/CAN 验证流程 |
 
 **UI themes / 界面主题**
 
@@ -80,13 +82,16 @@ Repository layout is in [this README](#repository-layout--目录结构) below.
 | Stack / 软件栈 | ESP-IDF 5.5.3, LVGL 8 |
 | Link / 通信链路 | BLE + ELM327 — standard OBD PID; only ZN/C6 CAN keeps ATMA monitoring |
 | Multi-gauge / 三连表 | One master + multiple slaves over ESP-NOW / 一主多从，ESP-NOW 联动 |
-| Verified on / 已验证 | Subaru BRZ ZN/C6 (fully) — ZN/C6 CAN is the only CAN-backed profile; other profiles are OBD-only / 其余车型已配置，部分仍需上车验证 |
+| OBD architecture / 架构 | Composed common rules + vehicle packs + special handlers, with legacy fallback / 通用规则、车型包、特殊处理器组合，保留兼容回退 |
+| Verified on / 已验证 | Subaru BRZ ZN/C6 (fully); Ford TPMS candidate requires FORScan/vLinker capture / BRZ ZN/C6 已完整验证；福特胎压候选仍需 FORScan/vLinker 抓包 |
 
-**Vehicle profiles / 内置车型** (12) — full list in
+**Vehicle profiles / 内置车型** (18) — full list in
 [vehicle_profiles.c](main/app_obd_dsp/vehicle_profiles.c), selectable in Settings:
 
 `OBD2 Generic` · `ZN/C6 CAN` · `ZN/C6 PID` · `ZD8 OBD` · `ZD8` · `MX-5 ND` ·
-`BMW F/G` · `BMW G OBD` · `JCW F56` · `POS 997.2` · `POS 997.1` · `GIULIA 2.0T`
+`BMW F/G` · `Supra A90` · `BMW G OBD` · `BMW E` · `JCW F56` · `MINI R55` ·
+`POS 997.2` · `POS 997.1` · `GIULIA 2.0T` · `jeep` · `Honda Integra` ·
+`Ford Mondeo 2014 TPMS candidate` (explicit opt-in candidate)
 
 ## Highlights / 主要特性
 
@@ -107,6 +112,8 @@ Repository layout is in [this README](#repository-layout--目录结构) below.
   climb. / **转速报警（含联动模式）** —— 三块表随转速依次亮起。
 - Manufacturer oil-temp paths beyond PID 01 5C (Mode 21/22, Mazda, MINI/BMW),
   per-vehicle protocol lock, gear from CAN when available.
+- **Composable OBD rules** — common SAE PID rules, vehicle-specific UDS/CAN packs,
+  stable-ID overrides, special-handler capabilities, and fail-closed plan validation.
 - Self-healing BLE: re-initializes on reconnect and recovers when data stalls —
   no manual reconnect after ignition. / 数据中断自愈，上车通电无需手动重连。
 

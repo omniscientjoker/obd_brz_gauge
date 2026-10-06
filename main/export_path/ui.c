@@ -11,6 +11,7 @@
 #include "theme_engine/theme_interface.h"
 #include "app_obd_dsp/app_event.h"
 #include "app_obd_dsp/obd_data_cache.h"
+#include "app_obd_dsp/obd_tpms_cache.h"
 #include <driver/gpio.h>
 #include "bsp_obd_dsp/bsp_board.h"
 #include "bsp_obd_dsp/nvs_storage.h"
@@ -119,6 +120,10 @@ void ui_ota_mode_refresh(void);
 // SCREEN: ui_ScreenPageTemp
 void ui_ScreenPageTemp_screen_init(void);
 lv_obj_t * ui_ScreenPageTemp;
+
+// SCREEN: ui_ScreenPageTpms
+void ui_ScreenPageTpms_screen_init(void);
+lv_obj_t * ui_ScreenPageTpms;
 
 // SCREEN: ui_ScreenPageTempCustom
 void ui_ScreenPageTempCustom_screen_init(void);
@@ -437,7 +442,7 @@ static uint32_t ui_refresh_period_ms_for_screen(lv_obj_t *scr,
         scr == ui_ScreenPageThemeGauge) {
         return 16;
     }
-    if (scr == ui_ScreenPageTemp || scr == ui_ScreenPageInfo ||
+    if (scr == ui_ScreenPageTemp || scr == ui_ScreenPageTpms || scr == ui_ScreenPageInfo ||
         scr == ui_ScreenPageOilPressure || scr == ui_ScreenPageLogo ||
         scr == ui_ScreenPageIntro) {
         return 33;
@@ -457,7 +462,7 @@ static bool ui_screen_updates_live_data(lv_obj_t *scr)
 {
     return scr == ui_ScreenPageGear || scr == ui_ScreenPageRpm ||
            scr == ui_ScreenPageSpeed || scr == ui_ScreenPageNeedle ||
-           scr == ui_ScreenPageTemp || scr == ui_ScreenPageOilPressure ||
+           scr == ui_ScreenPageTemp || scr == ui_ScreenPageTpms || scr == ui_ScreenPageOilPressure ||
            scr == ui_ScreenPageInfo || scr == ui_ScreenPageThemeGauge;
 }
 
@@ -707,6 +712,27 @@ void my_timerMain(lv_timer_t * timer)
                 bool valid = disp_item_read_value(item, clt, iat, oil, load_pct, tps, bat_mv, oilp_x10, brake_x10, usRpm, ucSpeed, boost_x10, afr_x100, &value);
                 disp_item_update(&s_disp_temp[i], ui_LabelTempValue[i], item, value, valid, ANIM_THRESH_TEMP);
             }
+        }
+    }
+
+    /* TPMS page: the four wheel values are maintained by the protocol layer
+       and intentionally do not enter obd_data_snapshot_t, preserving the
+       legacy UI/ESP-NOW ABI for non-TPMS vehicles. */
+    if (scr == ui_ScreenPageTpms && ui_LabelTpmsValue[0]) {
+        obd_tpms_snapshot_t tpms;
+        char text[16];
+        obd_tpms_cache_expire(esp_timer_get_time(), 4000000);
+        obd_tpms_cache_get_snapshot(&tpms);
+        for (uint8_t i = 0; i < OBD_TPMS_WHEEL_COUNT; ++i) {
+            if (tpms.valid[i]) {
+                int16_t pressure = tpms.pressure_bar_x100[i];
+                snprintf(text, sizeof(text), "%d.%02d", pressure / 100,
+                         pressure >= 0 ? pressure % 100 : -(pressure % 100));
+            } else {
+                snprintf(text, sizeof(text), "--");
+            }
+            if (strcmp(lv_label_get_text(ui_LabelTpmsValue[i]), text) != 0)
+                lv_label_set_text(ui_LabelTpmsValue[i], text);
         }
     }
 
@@ -1009,7 +1035,7 @@ void ui_event_speed_background(lv_event_t * e)
         }
     }
 }
-// Carousel order: Gear → RPM → Speed → Temp → Info → Needle → OilPressure → BrakeTemp → version page → back to Gear
+// Carousel order: Gear → RPM → Speed → Temp → TPMS → Info → Needle → OilPressure → version page → Gear
 // Swipe left = next page, swipe right = previous page
 void ui_event_temp_background(lv_event_t * e)
 {
@@ -1022,12 +1048,27 @@ void ui_event_temp_background(lv_event_t * e)
         }
         else if(dir == LV_DIR_LEFT) {
             lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageInfo, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageInfo_screen_init);
+            _ui_screen_change(&ui_ScreenPageTpms, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageTpms_screen_init);
         }
         else if(dir == LV_DIR_BOTTOM) {
             lv_indev_wait_release(lv_indev_get_act());
             _ui_screen_change(&ui_ScreenPageTempCustom, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageTempCustom_screen_init);
         }
+    }
+}
+
+void ui_event_tpms_background(lv_event_t * e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_GESTURE) return;
+    lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
+    if (dir == LV_DIR_RIGHT) {
+        lv_indev_wait_release(lv_indev_get_act());
+        _ui_screen_change(&ui_ScreenPageTemp, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0,
+                          &ui_ScreenPageTemp_screen_init);
+    } else if (dir == LV_DIR_LEFT) {
+        lv_indev_wait_release(lv_indev_get_act());
+        _ui_screen_change(&ui_ScreenPageInfo, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0,
+                          &ui_ScreenPageInfo_screen_init);
     }
 }
 
@@ -1155,7 +1196,7 @@ void ui_event_info_background(lv_event_t * e)
         lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
         if(dir == LV_DIR_RIGHT) {
             lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageTemp, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageTemp_screen_init);
+            _ui_screen_change(&ui_ScreenPageTpms, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageTpms_screen_init);
         }
         else if(dir == LV_DIR_LEFT) {
             lv_indev_wait_release(lv_indev_get_act());
@@ -1311,6 +1352,7 @@ void ui_init(void)
     // The Info page is lazy-loaded on demand; its screen pointer must be initialized to NULL
     ui_ScreenPageInfo = NULL;
     ui_ScreenPageTempCustom = NULL;
+    ui_ScreenPageTpms = NULL;
     ui_ScreenPageInfoCustom = NULL;
     ui_ScreenPageNeedleConfig = NULL;   // config page lazy-loaded
     ui_ScreenPageMultiGauge = NULL;     // triple-gauge settings page lazy-loaded

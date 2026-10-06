@@ -11,7 +11,7 @@ OBD BRZ Gauge 是一个基于 ESP-IDF 的车载圆形仪表显示项目，运行
 - 硬件平台：微雪 Waveshare ESP32-S3-Touch-LCD-1.85
 - 软件栈：ESP-IDF 5.5.3、LVGL 8
 - 通信链路：BLE + ELM327（标准 OBD PID；只有 ZN/C6 CAN 使用 CAN 广播帧 ATMA 监听）
-- 已内置车型（12 个）：OBD2 Generic、ZN/C6 CAN、ZN/C6 PID、ZD8 OBD、ZD8、MX-5 ND、BMW F/G、BMW G OBD、JCW F56、POS 997.2、POS 997.1、GIULIA 2.0T
+- 已内置车型（18 个）：OBD2 Generic、ZN/C6 CAN、ZN/C6 PID、ZD8 OBD、ZD8、MX-5 ND、BMW F/G、Supra A90、BMW G OBD、BMW E、JCW F56、MINI R55、POS 997.2、POS 997.1、GIULIA 2.0T、jeep、Honda Integra、Ford Mondeo 2014 TPMS candidate（显式候选配置）
 - 三连表：一主多从，通过 ESP-NOW 联动
 - 当前验证状态：已在斯巴鲁 BRZ ZN/C6 上完整验证；其余车型已配置，部分仍需上车验证
 
@@ -25,6 +25,7 @@ OBD BRZ Gauge 是一个基于 ESP-IDF 的车载圆形仪表显示项目，运行
 - 实时显示转速、车速、水温/进气温/机油温、机油压力、涡轮压力、节气门、发动机负荷、电压、档位（优先用 CAN 直接解码的精确档位，无效时回退转速/车速估算）等数据
 - 蓝牙/ESP-NOW 数据断开超时后，仪表页显示 "NO SIGNAL" 提示
 - 车型选择：各车型独立的传动比（最高 8 挡）、油温策略、涡轮增压，以及按车型锁定协议（需要时启用）
+- **多协议组合架构**：通用 SAE PID、车型 UDS/CAN 规则包、稳定 ID 覆盖和特殊处理器按车型组合；计划校验失败时不会把错误规则交给 BLE 调度器。详见 [OBD 多协议组合设计](OBD_PROTOCOL_COMPOSITION_DESIGN.zh-CN.md)。
 - 除标准 PID 01 5C 外的厂商油温读取：丰田/斯巴鲁 Mode 21、马自达 Mode 22、MINI/宝马 Mode 22、宝马 F 系 Mode 22 44 02
 - 可配置指针表盘页，下滑切换显示的数据源
 - **转速超限闪烁报警**：可设阈值，超限时背景图红色闪烁

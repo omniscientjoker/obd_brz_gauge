@@ -135,6 +135,13 @@ extern lv_obj_t * ui_LabelTempUnit[3];
 extern lv_obj_t * ui_LabelTempDot[3];
 void ui_event_temp_background(lv_event_t * e);
 
+// SCREEN: ui_ScreenPageTpms
+void ui_ScreenPageTpms_screen_init(void);
+extern lv_obj_t * ui_ScreenPageTpms;
+extern lv_obj_t * ui_LabelTpmsValue[4];
+extern lv_obj_t * ui_LabelTpmsName[4];
+void ui_event_tpms_background(lv_event_t * e);
+
 // SCREEN: ui_ScreenPageTempCustom
 void ui_ScreenPageTempCustom_screen_init(void);
 extern lv_obj_t * ui_ScreenPageTempCustom;

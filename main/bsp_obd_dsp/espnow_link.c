@@ -15,6 +15,7 @@
 #include "esp_netif.h"
 #include "esp_timer.h"
 #include "app_obd_dsp/obd_data_cache.h"
+#include "app_obd_dsp/obd_tpms_cache.h"
 #include "bsp_obd_dsp/elm327_ble_client.h"
 #include "bsp_obd_dsp/nvs_storage.h"
 
@@ -27,6 +28,8 @@ extern int  ui_intro_get_step(void);
 #define ESPNOW_CHANNEL          1       // master and slaves must share a channel (fixed here when STA is not connected to an AP)
 #define ESPNOW_MAGIC            0x4F42  // 'OB' packet-header magic
 #define ESPNOW_VER              5       // v5: added afr_x100 (air-fuel ratio)
+#define ESPNOW_TPMS_VER         1       // independent extension; old OBD packets stay compatible
+#define ESPNOW_PACKET_TPMS      3
 #define MASTER_NAME_LEN         12
 static const char MASTER_NAME[] = "SkyGauge";   // name the master broadcasts (shown on slaves); could become configurable later
 #define BROADCAST_INTERVAL_MS   100     // master broadcast period (10Hz, plenty for gauges)
@@ -104,6 +107,25 @@ typedef struct __attribute__((packed)) {
     char     name[MASTER_NAME_LEN];  // master name (shown on the slave info page as "SLAVE: <name>")
 } espnow_obd_packet_t;
 
+// Keep the established v5 wire layout frozen. TPMS travels in the separate
+// extension packet below so old gauges can continue consuming this packet.
+_Static_assert(sizeof(espnow_obd_packet_t) == 47,
+               "legacy ESP-NOW OBD packet ABI changed");
+
+// TPMS is an optional extension packet rather than a field appended to the
+// legacy OBD packet. Existing v5 packet size and old gauges remain compatible.
+typedef struct __attribute__((packed)) {
+    uint16_t magic;
+    uint8_t  version;
+    uint8_t  packet_type;
+    uint32_t seq;
+    uint8_t  valid_mask;
+    int16_t  pressure_bar_x100[OBD_TPMS_WHEEL_COUNT];
+} espnow_tpms_packet_t;
+
+_Static_assert(sizeof(espnow_tpms_packet_t) == 17,
+               "TPMS ESP-NOW extension packet layout changed");
+
 static char s_master_name[MASTER_NAME_LEN] = {0};  // slave side: name of the last master heard
 
 // ---- WiFi + ESP-NOW low-level init (shared by master and slave) ----
@@ -153,6 +175,22 @@ static void master_pack(espnow_obd_packet_t *p) {
     strncpy(p->name, MASTER_NAME, MASTER_NAME_LEN);   // broadcast the master name
 }
 
+static void master_pack_tpms(espnow_tpms_packet_t *p)
+{
+    obd_tpms_snapshot_t snapshot;
+    if (!p) return;
+    obd_tpms_cache_get_snapshot(&snapshot);
+    memset(p, 0, sizeof(*p));
+    p->magic = ESPNOW_MAGIC;
+    p->version = ESPNOW_TPMS_VER;
+    p->packet_type = ESPNOW_PACKET_TPMS;
+    p->seq = s_tx_seq;
+    for (uint8_t i = 0; i < OBD_TPMS_WHEEL_COUNT; ++i) {
+        p->pressure_bar_x100[i] = snapshot.pressure_bar_x100[i];
+        if (snapshot.valid[i]) p->valid_mask |= (uint8_t)(1u << i);
+    }
+}
+
 // Linked-test ramp control: compute the simulated RPM along the timeline and write it into the RPM override layer.
 // The master's get_rpm returns the override -> master_pack broadcasts it to slaves and the master displays it; all gauges stay in sync.
 static void master_linktest_task(void *arg) {
@@ -184,10 +222,14 @@ static void master_linktest_task(void *arg) {
 
 static void master_task(void *arg) {
     espnow_obd_packet_t pkt;
+    espnow_tpms_packet_t tpms_pkt;
     for (;;) {
         master_pack(&pkt);
         esp_err_t r = esp_now_send(s_broadcast_mac, (const uint8_t *)&pkt, sizeof(pkt));
         if (r != ESP_OK) ESP_LOGW(TAG, "esp_now_send err=%d", r);
+        master_pack_tpms(&tpms_pkt);
+        r = esp_now_send(s_broadcast_mac, (const uint8_t *)&tpms_pkt, sizeof(tpms_pkt));
+        if (r != ESP_OK) ESP_LOGW(TAG, "esp_now_send TPMS err=%d", r);
         vTaskDelay(pdMS_TO_TICKS(s_linktest_active ? 20 : BROADCAST_INTERVAL_MS));
     }
 }
@@ -195,6 +237,7 @@ static void master_task(void *arg) {
 void espnow_link_start_master(void) {
     wifi_espnow_init();
     s_is_master = true;
+    obd_tpms_cache_reset();
 
     esp_now_peer_info_t peer = {0};
     memcpy(peer.peer_addr, s_broadcast_mac, 6);
@@ -253,6 +296,20 @@ static void handle_obd(const espnow_obd_packet_t *p) {
     apply_packet(p);
 }
 
+static void handle_tpms(const espnow_tpms_packet_t *p)
+{
+    if (!p) return;
+    for (uint8_t i = 0; i < OBD_TPMS_WHEEL_COUNT; ++i) {
+        if (p->valid_mask & (uint8_t)(1u << i)) {
+            obd_tpms_cache_set((obd_tpms_wheel_t)i,
+                               (float)p->pressure_bar_x100[i] / 100.0f,
+                               esp_timer_get_time());
+        } else {
+            obd_tpms_cache_invalidate((obd_tpms_wheel_t)i);
+        }
+    }
+}
+
 // Linked control packet:
 //   master receives TEST_START -> start the RPM ramp; receives THRESH_SET -> send event (UI task writes NVS + relays)
 //   slave receives THRESH_SET  -> send event (UI task writes NVS, no relay); TEST is master-driven, slave ignores it
@@ -273,6 +330,11 @@ static void handle_rx(const uint8_t *mac, const uint8_t *data, int len) {
         if (s_is_master) return;   // the master does not process OBD packets
         const espnow_obd_packet_t *p = (const espnow_obd_packet_t *)data;
         if (p->magic == ESPNOW_MAGIC && p->version == ESPNOW_VER) handle_obd(p);
+    } else if (len == (int)sizeof(espnow_tpms_packet_t)) {
+        if (s_is_master) return;
+        const espnow_tpms_packet_t *p = (const espnow_tpms_packet_t *)data;
+        if (p->magic == ESPNOW_MAGIC && p->version == ESPNOW_TPMS_VER &&
+            p->packet_type == ESPNOW_PACKET_TPMS) handle_tpms(p);
     } else if (len == (int)sizeof(espnow_ctrl_packet_t)) {
         const espnow_ctrl_packet_t *c = (const espnow_ctrl_packet_t *)data;
         if (c->magic == ESPNOW_MAGIC && c->version == ESPNOW_VER) handle_ctrl(c);
@@ -335,6 +397,7 @@ static void slave_presence_task(void *arg) {
 void espnow_link_start_slave(void) {
     wifi_espnow_init();
     s_is_master = false;
+    obd_tpms_cache_reset();
     // A slave also needs the broadcast peer to be able to send presence
     esp_now_peer_info_t peer = {0};
     memcpy(peer.peer_addr, s_broadcast_mac, 6);
@@ -349,7 +412,9 @@ void espnow_link_start_slave(void) {
 
 bool espnow_link_slave_has_data(void) {
     if (s_last_rx_us == 0) return false;
-    return (esp_timer_get_time() - s_last_rx_us) < 2000000; // data within 2s counts as online
+    bool online = (esp_timer_get_time() - s_last_rx_us) < 2000000;
+    if (!online) obd_tpms_cache_reset();
+    return online; // data within 2s counts as online
 }
 
 const char *espnow_link_get_master_name(void) {
