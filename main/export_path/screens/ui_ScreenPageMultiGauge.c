@@ -242,5 +242,5 @@ void ui_ScreenPageMultiGauge_screen_init(void)
     lv_obj_add_flag(s_roller_intro, LV_OBJ_FLAG_HIDDEN);
 
     lv_obj_move_foreground(ring);
-    lv_obj_add_event_cb(ui_ScreenPageMultiGauge, ui_event_multi_gauge_background, LV_EVENT_GESTURE, NULL);
+    ui_nav_attach_gesture(ui_ScreenPageMultiGauge, UI_NAV_PAGE_MULTI_GAUGE);
 }

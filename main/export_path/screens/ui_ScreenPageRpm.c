@@ -12,8 +12,6 @@ void ui_ScreenPageRpm_screen_init(void)
     lv_obj_set_style_radius(ui_ScreenPageRpm, 360, LV_PART_MAIN | LV_STATE_DEFAULT);
     ui_helpers_style_screen_bg(ui_ScreenPageRpm);
     lv_obj_set_style_bg_opa(ui_ScreenPageRpm, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    ui_helpers_create_statusbar(ui_ScreenPageRpm, "RPM");
-
     // Bezel ring (color from the active theme)
     ui_SpinnerRpmPage = ui_helpers_create_ring(ui_ScreenPageRpm, 10);
 
@@ -98,8 +96,8 @@ void ui_ScreenPageRpm_screen_init(void)
     lv_obj_add_flag(ui_ImageRpmBlackEar, LV_OBJ_FLAG_ADV_HITTEST);     /// Flags
     lv_obj_clear_flag(ui_ImageRpmBlackEar, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
-    lv_obj_add_event_cb(ui_RpmPageArcRpmBack, ui_event_rpm_background, LV_EVENT_ALL, NULL);
+    ui_nav_attach_gesture(ui_RpmPageArcRpmBack, UI_NAV_PAGE_RPM);
     lv_obj_move_foreground(ui_SpinnerRpmPage);   // bring the ring to the front
-    lv_obj_add_event_cb(ui_ScreenPageRpm, ui_event_rpm_background, LV_EVENT_GESTURE, NULL);
+    ui_nav_attach_gesture(ui_ScreenPageRpm, UI_NAV_PAGE_RPM);
 
 }

@@ -101,8 +101,6 @@ void ui_ScreenPageTemp_screen_init(void)
     lv_obj_set_style_radius(ui_ScreenPageTemp, 360, LV_PART_MAIN);
     ui_helpers_style_screen_bg(ui_ScreenPageTemp);
     lv_obj_set_style_bg_opa(ui_ScreenPageTemp, 255, LV_PART_MAIN);
-    ui_helpers_create_statusbar(ui_ScreenPageTemp, "TEMP");
-
     lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageTemp, 10);
 
     ui_TempArc = lv_arc_create(ui_ScreenPageTemp);
@@ -137,5 +135,5 @@ void ui_ScreenPageTemp_screen_init(void)
     lv_obj_clear_flag(ear, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_move_foreground(ring);
-    lv_obj_add_event_cb(ui_ScreenPageTemp, ui_event_temp_background, LV_EVENT_GESTURE, NULL);
+    ui_nav_attach_gesture(ui_ScreenPageTemp, UI_NAV_PAGE_TEMP);
 }

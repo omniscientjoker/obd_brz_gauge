@@ -35,6 +35,7 @@
 
 
 static const char *TAG = "ui";
+static void ui_nav_ble_leave(void);
 ///////////////////// VARIABLES ////////////////////
 void ui_ScreenPageLogo_screen_init(void);
 lv_obj_t * ui_ScreenPageLogo;
@@ -74,7 +75,6 @@ lv_obj_t * ui_ImageGearBlackEar;
 // theme_engine/theme_interface.h. Not SquareLine-generated, hand-written below.)
 void ui_ScreenPageThemeGauge_screen_init(void);
 lv_obj_t * ui_ScreenPageThemeGauge;
-void ui_event_theme_gauge_background(lv_event_t * e);
 uint8_t ui_theme_gauge_page_index = 0;  // Current theme page index
 
 // SCREEN: ui_ScreenPageRpm
@@ -1059,8 +1059,8 @@ void ui_event_logo_background(lv_event_t * e)
 
         if(click_cnt >= 2){
             click_cnt = 0;
-            if(ui_ScreenPageODBProtocal == NULL) ui_ScreenPageODBProtocal_screen_init();
-            lv_scr_load_anim(ui_ScreenPageODBProtocal, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, true);
+            ui_nav_show_delete_old(UI_NAV_PAGE_OBD_PROTOCOL,
+                                   LV_SCR_LOAD_ANIM_FADE_ON, 300, 0);
             ui_ScreenPageLogo = NULL;
             imageLogo = NULL;
         }  
@@ -1069,342 +1069,18 @@ void ui_event_logo_background(lv_event_t * e)
     }   
 }
 
-// The Gear/RPM/Speed pages sit at the front of the carousel: Gear→RPM→Speed→Temp→… (swipe left = next / swipe right = previous)
-// Swipe down from Gear enters the theme-provided gauge page (only if the active theme declares one).
-void ui_event_gear_background(lv_event_t * e)
+void ui_event_easter_egg_background(lv_event_t *e)
 {
-    lv_event_code_t event_code = lv_event_get_code(e);
-    if(event_code == LV_EVENT_GESTURE) {
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if(dir == LV_DIR_RIGHT) {
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageEasterEgg, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageEasterEgg_screen_init);
-        }
-        else if(dir == LV_DIR_LEFT) {
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageRpm, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageRpm_screen_init);
-        }
-        else if(dir == LV_DIR_BOTTOM && theme_has_page("main_gauge")) {
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageThemeGauge, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageThemeGauge_screen_init);
-        }
+    if (lv_event_get_code(e) == LV_EVENT_CLICKED && !ui_ext_showroom_is_active()) {
+        ui_ext_showroom_handle_tap();
     }
 }
 
-// Theme-provided gauge page: swipe left/right moves to the next/prev page
-// declared by the active theme. Swiping left past the last theme page goes
-// to the Info page (version/settings). Swiping right from the first theme
-// page also goes to Info page (creating a loop: theme pages ↔ Info).
-void ui_event_theme_gauge_background(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-    if(event_code == LV_EVENT_GESTURE) {
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        uint8_t page_count = theme_page_list_count();
-
-        if(dir == LV_DIR_LEFT) {
-            lv_indev_wait_release(lv_indev_get_act());
-            if (ui_theme_gauge_page_index + 1 < page_count) {
-                // Move to next theme page
-                ui_theme_gauge_page_index++;
-                ui_ScreenPageThemeGauge = NULL;  // Let _ui_screen_change delete the old screen
-                _ui_screen_change(&ui_ScreenPageThemeGauge, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageThemeGauge_screen_init);
-            } else {
-                // Past the last theme page → go to Info page (version/settings)
-                _ui_screen_change(&ui_ScreenPageEasterEgg, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageEasterEgg_screen_init);
-            }
-        }
-        else if(dir == LV_DIR_RIGHT) {
-            lv_indev_wait_release(lv_indev_get_act());
-            if (ui_theme_gauge_page_index > 0) {
-                // Move to previous theme page
-                ui_theme_gauge_page_index--;
-                ui_ScreenPageThemeGauge = NULL;  // Let _ui_screen_change delete the old screen
-                _ui_screen_change(&ui_ScreenPageThemeGauge, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageThemeGauge_screen_init);
-            } else {
-                // Before the first theme page → go to Info page (creating a loop)
-                _ui_screen_change(&ui_ScreenPageEasterEgg, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageEasterEgg_screen_init);
-            }
-        }
-    }
-}
-void ui_event_rpm_background(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-    if(event_code == LV_EVENT_GESTURE) {
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if(dir == LV_DIR_RIGHT) {
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageGear, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageGear_screen_init);
-        }
-        else if(dir == LV_DIR_LEFT) {
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageSpeed, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageSpeed_screen_init);
-        }
-        else if(dir == LV_DIR_BOTTOM) {
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageRpmWarn, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageRpmWarn_screen_init);
-        }
-    }
-}
-void ui_event_speed_background(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-    if(event_code == LV_EVENT_GESTURE) {
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if(dir == LV_DIR_RIGHT) {
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageRpm, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageRpm_screen_init);
-        }
-        else if(dir == LV_DIR_LEFT) {
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageTemp, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageTemp_screen_init);
-        }
-    }
-}
-// Carousel order: Gear → RPM → Speed → Temp → TPMS → Info → Needle → OilPressure → version page → Gear
-// Swipe left = next page, swipe right = previous page
-void ui_event_temp_background(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-    if(event_code == LV_EVENT_GESTURE) {
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if(dir == LV_DIR_RIGHT) {
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageSpeed, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageSpeed_screen_init);
-        }
-        else if(dir == LV_DIR_LEFT) {
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageTpms, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageTpms_screen_init);
-        }
-        else if(dir == LV_DIR_BOTTOM) {
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageTempCustom, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageTempCustom_screen_init);
-        }
-    }
-}
-
-void ui_event_tpms_background(lv_event_t * e)
-{
-    if (lv_event_get_code(e) != LV_EVENT_GESTURE) return;
-    lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-    if (dir == LV_DIR_RIGHT) {
-        lv_indev_wait_release(lv_indev_get_act());
-        _ui_screen_change(&ui_ScreenPageTemp, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0,
-                          &ui_ScreenPageTemp_screen_init);
-    } else if (dir == LV_DIR_LEFT) {
-        lv_indev_wait_release(lv_indev_get_act());
-        _ui_screen_change(&ui_ScreenPageInfo, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0,
-                          &ui_ScreenPageInfo_screen_init);
-    } else if (dir == LV_DIR_BOTTOM) {
-        lv_indev_wait_release(lv_indev_get_act());
-        _ui_screen_change(&ui_ScreenPageTpmsConfig, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0,
-                          &ui_ScreenPageTpmsConfig_screen_init);
-    }
-}
-
-void ui_event_tpms_config_background(lv_event_t * e)
-{
-    if (lv_event_get_code(e) != LV_EVENT_GESTURE) return;
-    lv_indev_wait_release(lv_indev_get_act());
-    _ui_screen_change(&ui_ScreenPageTpms, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0,
-                      &ui_ScreenPageTpms_screen_init);
-}
-
-void ui_event_temp_custom_background(lv_event_t * e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    if (code == LV_EVENT_GESTURE) {
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if (dir == LV_DIR_TOP || dir == LV_DIR_LEFT || dir == LV_DIR_RIGHT) {
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageTemp, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageTemp_screen_init);
-        }
-    }
-}
-
-void ui_event_oil_pressure_background(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-    if(event_code == LV_EVENT_GESTURE) {
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if(dir == LV_DIR_RIGHT) {
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageNeedle, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageNeedle_screen_init);
-        }
-        else if(dir == LV_DIR_LEFT) {
-            // the brake-temp page was merged into the chart page; swipe left goes to the next visible page in the ring (version page)
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageEasterEgg, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageEasterEgg_screen_init);
-        }
-        else if(dir == LV_DIR_BOTTOM) {
-            // swipe down → chart data-source selection page (delete the old instance to force a rebuild, reflecting the current data item/selection)
-            lv_indev_wait_release(lv_indev_get_act());
-            if (ui_ScreenPageChartConfig) { lv_obj_del(ui_ScreenPageChartConfig); ui_ScreenPageChartConfig = NULL; }
-            _ui_screen_change(&ui_ScreenPageChartConfig, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageChartConfig_screen_init);
-        }
-        else if(dir == LV_DIR_TOP) {
-            // swipe up → alarm threshold settings page (delete the old instance to force a rebuild, per the current data item)
-            lv_indev_wait_release(lv_indev_get_act());
-            if (ui_ScreenPageChartAlarm) { lv_obj_del(ui_ScreenPageChartAlarm); ui_ScreenPageChartAlarm = NULL; }
-            _ui_screen_change(&ui_ScreenPageChartAlarm, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageChartAlarm_screen_init);
-        }
-    }
-}
-
-// Chart data-source selection page gestures: any direction returns to the chart page
-void ui_event_chart_config_background(lv_event_t * e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_GESTURE){
-        lv_indev_wait_release(lv_indev_get_act());
-        _ui_screen_change(&ui_ScreenPageOilPressure, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageOilPressure_screen_init);
-    }
-}
-
-// Chart alarm settings page gestures: any direction returns to the chart page
-void ui_event_chart_alarm_background(lv_event_t * e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_GESTURE){
-        lv_indev_wait_release(lv_indev_get_act());
-        _ui_screen_change(&ui_ScreenPageOilPressure, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageOilPressure_screen_init);
-    }
-}
-
-void ui_event_oil_warn_background(lv_event_t * e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_GESTURE){
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if(dir == LV_DIR_TOP || dir == LV_DIR_LEFT || dir == LV_DIR_RIGHT){
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageOilPressure, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageOilPressure_screen_init);
-        }
-    }
-}
-
-void ui_event_rpm_warn_background(lv_event_t * e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_GESTURE){
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if(dir == LV_DIR_TOP || dir == LV_DIR_LEFT || dir == LV_DIR_RIGHT){
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageRpm, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageRpm_screen_init);
-        }
-    }
-}
-
-// Needle page (gauge): sits between Info and OilPressure (before the two chart pages)
-//  swipe right → Info, swipe left → OilPressure, swipe down → data-source selection
-void ui_event_needle_background(lv_event_t * e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_GESTURE){
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if(dir == LV_DIR_BOTTOM){
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageNeedleConfig, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageNeedleConfig_screen_init);
-        }
-        else if(dir == LV_DIR_RIGHT){
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageInfo, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageInfo_screen_init);
-        }
-        else if(dir == LV_DIR_LEFT){
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageOilPressure, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageOilPressure_screen_init);
-        }
-    }
-}
-
-// Needle config page: any direction returns to the needle page
-void ui_event_needle_config_background(lv_event_t * e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_GESTURE){
-        lv_indev_wait_release(lv_indev_get_act());
-        _ui_screen_change(&ui_ScreenPageNeedle, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageNeedle_screen_init);
-    }
-}
-
-void ui_event_info_background(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-    if(event_code == LV_EVENT_GESTURE) {
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if(dir == LV_DIR_RIGHT) {
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageTpms, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageTpms_screen_init);
-        }
-        else if(dir == LV_DIR_LEFT) {
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageNeedle, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageNeedle_screen_init);
-        }
-        else if(dir == LV_DIR_BOTTOM) {
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageInfoCustom, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageInfoCustom_screen_init);
-        }
-    }
-}
-
-void ui_event_info_custom_background(lv_event_t * e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    if (code == LV_EVENT_GESTURE) {
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if (dir == LV_DIR_TOP || dir == LV_DIR_LEFT || dir == LV_DIR_RIGHT) {
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageInfo, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageInfo_screen_init);
-        }
-    }
-}
-void ui_event_easter_egg_background(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-    if(event_code == LV_EVENT_CLICKED && !ui_ext_showroom_is_active()) {
-        ui_ext_showroom_handle_tap();  // 10 rapid taps on the version page enter showroom
-        return;
-    }
-    if(event_code == LV_EVENT_GESTURE) {
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if(dir == LV_DIR_RIGHT || dir == LV_DIR_LEFT) {
-            lv_indev_wait_release(lv_indev_get_act());
-            // If a custom theme with pages is loaded, swipe left/right returns to theme pages
-            if (theme_page_list_count() > 0) {
-                // Right swipe goes to last theme page, left swipe goes to first
-                ui_theme_gauge_page_index = (dir == LV_DIR_RIGHT) ? (theme_page_list_count() - 1) : 0;
-                if (ui_ScreenPageThemeGauge) {
-                    lv_obj_del(ui_ScreenPageThemeGauge);
-                    ui_ScreenPageThemeGauge = NULL;
-                }
-                _ui_screen_change(&ui_ScreenPageThemeGauge, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageThemeGauge_screen_init);
-            } else {
-                // No theme loaded, return to Gear page
-                _ui_screen_change(&ui_ScreenPageGear, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageGear_screen_init);
-            }
-        }
-        else if(dir == LV_DIR_TOP) {
-            // swipe up → BLE scan page
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageBLEScan, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageBLEScan_screen_init);
-        }
-        else if(dir == LV_DIR_BOTTOM) {
-            // swipe down → settings page
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageSettings, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageSettings_screen_init);
-        }
-    }
-
-    // ---- hand-written extension logic hook (ui_ext.c, not overwritten by SquareLine) ----
-    ui_ext_tick();
-}
-
-// OTA button: enter OTA mode screen (WiFi SoftAP + HTTP server, no BLE)
+// OTA mode is a modal radio workflow; the navigation manager owns its exit swipe.
 void ui_event_easter_egg_ota_button(lv_event_t *e)
 {
-    (void)e;
-    _ui_screen_change(&ui_ScreenPageOTAMode, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, &ui_ScreenPageOTAMode_screen_init);
+    LV_UNUSED(e);
+    ui_nav_show(UI_NAV_PAGE_OTA_MODE, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, false);
 }
 
 // OTA mode screen: refresh status from the LVGL timer (called every 500ms)
@@ -1454,6 +1130,32 @@ void ui_init(void)
     // Load the saved UI theme BEFORE any screen is built, so every screen
     // picks up the active theme's colors at creation time.
     ui_theme_init();
+
+    // Keep page creation and route transitions in the central navigation registry.
+    ui_nav_register_page(UI_NAV_PAGE_GEAR, &ui_ScreenPageGear, ui_ScreenPageGear_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_THEME_GAUGE, &ui_ScreenPageThemeGauge, ui_ScreenPageThemeGauge_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_RPM, &ui_ScreenPageRpm, ui_ScreenPageRpm_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_SPEED, &ui_ScreenPageSpeed, ui_ScreenPageSpeed_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_TEMP, &ui_ScreenPageTemp, ui_ScreenPageTemp_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_TPMS, &ui_ScreenPageTpms, ui_ScreenPageTpms_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_INFO, &ui_ScreenPageInfo, ui_ScreenPageInfo_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_NEEDLE, &ui_ScreenPageNeedle, ui_ScreenPageNeedle_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_CHART, &ui_ScreenPageOilPressure, ui_ScreenPageOilPressure_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_SKY_GAUGE, &ui_ScreenPageEasterEgg, ui_ScreenPageEasterEgg_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_BLE_SCAN, &ui_ScreenPageBLEScan, ui_ScreenPageBLEScan_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_SETTINGS, &ui_ScreenPageSettings, ui_ScreenPageSettings_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_MULTI_GAUGE, &ui_ScreenPageMultiGauge, ui_ScreenPageMultiGauge_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_TEMP_CONFIG, &ui_ScreenPageTempCustom, ui_ScreenPageTempCustom_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_TPMS_CONFIG, &ui_ScreenPageTpmsConfig, ui_ScreenPageTpmsConfig_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_INFO_CONFIG, &ui_ScreenPageInfoCustom, ui_ScreenPageInfoCustom_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_NEEDLE_CONFIG, &ui_ScreenPageNeedleConfig, ui_ScreenPageNeedleConfig_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_CHART_CONFIG, &ui_ScreenPageChartConfig, ui_ScreenPageChartConfig_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_CHART_ALARM, &ui_ScreenPageChartAlarm, ui_ScreenPageChartAlarm_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_OIL_WARN, &ui_ScreenPageOilWarn, ui_ScreenPageOilWarn_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_RPM_WARN, &ui_ScreenPageRpmWarn, ui_ScreenPageRpmWarn_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_OBD_PROTOCOL, &ui_ScreenPageODBProtocal, ui_ScreenPageODBProtocal_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_OTA_MODE, &ui_ScreenPageOTAMode, ui_ScreenPageOTAMode_screen_init);
+    ui_nav_register_leave_cb(UI_NAV_PAGE_BLE_SCAN, ui_nav_ble_leave);
 
     // MEMORY OPTIMIZATION: Conditionally create screens based on theme availability
     // If custom theme is loaded, skip built-in gauge pages (Gear/Rpm/Speed/Temp/Needle/OilPressure)
@@ -1517,13 +1219,7 @@ void ui_init(void)
 void ui_event_obd_prot_background(lv_event_t * e)
 {
     lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_GESTURE){
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if(dir == LV_DIR_LEFT || dir == LV_DIR_RIGHT){
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageTemp, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageTemp_screen_init);
-        }
-    }else if(code == LV_EVENT_LONG_PRESSED){
+    if(code == LV_EVENT_LONG_PRESSED){
         usSaveProtTimeCnt = 0;
     }else if(code == LV_EVENT_LONG_PRESSED_REPEAT){
         usSaveProtTimeCnt += 100; // this event fires every 100 ms
@@ -1539,51 +1235,11 @@ void ui_event_obd_prot_background(lv_event_t * e)
     }
 }
 
-/* BLE scan page events - swipe left returns to the device info page */
-void ui_event_ble_scan_background(lv_event_t * e)
+static void ui_nav_ble_leave(void)
 {
-    lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_GESTURE){
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if(dir == LV_DIR_LEFT || dir == LV_DIR_RIGHT){
-            // on this page slaves run the pairing scan (gauge_pair_ble), not the OBD scan (elm327_ble); stop the matching one when swiping away.
-            if (nvs_cfg_get()->device_role == ESPNOW_ROLE_SLAVE) {
-                gauge_pair_ble_scan_stop();
-            } else {
-                elm327_ble_scan_only_stop();
-            }
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageEasterEgg, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageEasterEgg_screen_init);
-        }
-    }
-}
-
-/* Settings page events - swipe left/right returns to the device info page */
-void ui_event_settings_background(lv_event_t * e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_GESTURE){
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if(dir == LV_DIR_LEFT || dir == LV_DIR_RIGHT){
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageEasterEgg, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageEasterEgg_screen_init);
-        }
-        else if(dir == LV_DIR_BOTTOM){   // swipe down enters the triple-gauge settings page
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageMultiGauge, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageMultiGauge_screen_init);
-        }
-    }
-}
-
-// Triple-gauge settings page gestures: swipe up/left/right → return to the settings page
-void ui_event_multi_gauge_background(lv_event_t * e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    if(code == LV_EVENT_GESTURE){
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if(dir == LV_DIR_TOP || dir == LV_DIR_LEFT || dir == LV_DIR_RIGHT){
-            lv_indev_wait_release(lv_indev_get_act());
-            _ui_screen_change(&ui_ScreenPageSettings, LV_SCR_LOAD_ANIM_FADE_ON, 5, 0, &ui_ScreenPageSettings_screen_init);
-        }
+    if (nvs_cfg_get()->device_role == ESPNOW_ROLE_SLAVE) {
+        gauge_pair_ble_scan_stop();
+    } else {
+        elm327_ble_scan_only_stop();
     }
 }

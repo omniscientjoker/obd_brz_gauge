@@ -40,6 +40,12 @@ static void on_device_selected(lv_event_t *e);
 static void on_saved_device_delete(lv_event_t *e);
 static void on_pair_result(bool ok, const char *name, const uint8_t mac[6]);
 
+static void on_screen_loaded(lv_event_t *e) {
+    if (lv_event_get_code(e) == LV_EVENT_SCREEN_LOADED) {
+        start_scan();
+    }
+}
+
 // Mutex for LVGL (defined in main)
 extern SemaphoreHandle_t lvgl_mux;
 static inline bool lvgl_lock_ui(int timeout_ms) {
@@ -150,7 +156,6 @@ static void on_device_selected(lv_event_t *e) {
     uint8_t mac[6];
     memcpy(mac, s_obd_macs[idx], 6);
 
-    elm327_ble_scan_only_stop();
     s_scanning = false;
 
     nvs_user_cfg_t cfg = *nvs_cfg_get();
@@ -168,7 +173,7 @@ static void on_device_selected(lv_event_t *e) {
     if (s_spinner) lv_obj_clear_flag(s_spinner, LV_OBJ_FLAG_HIDDEN);
 
     elm327_ble_connect_by_addr(mac, name);
-    _ui_screen_change(&ui_ScreenPageTemp, LV_SCR_LOAD_ANIM_FADE_ON, 300, 500, &ui_ScreenPageTemp_screen_init);
+    ui_nav_show(UI_NAV_PAGE_TEMP, LV_SCR_LOAD_ANIM_FADE_ON, 300, 500, false);
 }
 
 // BLE pairing result callback (called in the BT task context, lvgl_lock required)
@@ -189,7 +194,7 @@ static void on_pair_result(bool ok, const char *name, const uint8_t mac[6]) {
         if (s_label_saved_hdr) lv_obj_clear_flag(s_label_saved_hdr, LV_OBJ_FLAG_HIDDEN);
 
         lv_label_set_text(s_label_status, "Paired!");
-        _ui_screen_change(&ui_ScreenPageTemp, LV_SCR_LOAD_ANIM_FADE_ON, 300, 500, &ui_ScreenPageTemp_screen_init);
+        ui_nav_show(UI_NAV_PAGE_TEMP, LV_SCR_LOAD_ANIM_FADE_ON, 300, 500, false);
     } else {
         ESP_LOGW(TAG_BLE_UI, "Pairing failed, rescanning");
         lv_label_set_text(s_label_status, "Pair failed, retrying...");
@@ -363,7 +368,7 @@ void ui_ScreenPageBLEScan_screen_init(void)
 
     // Hint text at bottom
     lv_obj_t *label_hint = lv_label_create(ui_ScreenPageBLEScan);
-    lv_label_set_text(label_hint, "Tap to connect  Slide to back");
+    lv_label_set_text(label_hint, "Tap to connect  Swipe down to back");
     lv_obj_set_style_text_font(label_hint, &lv_font_montserrat_12, LV_PART_MAIN);
     lv_obj_set_style_text_color(label_hint, lv_color_hex(0x555555), LV_PART_MAIN);
     lv_obj_set_style_text_align(label_hint, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
@@ -371,8 +376,6 @@ void ui_ScreenPageBLEScan_screen_init(void)
 
     // Gesture event for navigation
     lv_obj_move_foreground(spinner_ring);   // bring the ring to the front
-    lv_obj_add_event_cb(ui_ScreenPageBLEScan, ui_event_ble_scan_background, LV_EVENT_GESTURE, NULL);
-
-    // Start scanning
-    start_scan();
+    ui_nav_attach_gesture(ui_ScreenPageBLEScan, UI_NAV_PAGE_BLE_SCAN);
+    lv_obj_add_event_cb(ui_ScreenPageBLEScan, on_screen_loaded, LV_EVENT_SCREEN_LOADED, NULL);
 }

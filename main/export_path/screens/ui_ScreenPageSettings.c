@@ -1,7 +1,7 @@
 // Settings Page
 // Configure: default boot page, vehicle, UI theme and screen brightness.
 // Theme selection is saved and applied on reboot (esp_restart).
-// Swipe down (LV_DIR_BOTTOM) opens the multi-gauge page (see ui_event_settings_background).
+// Swipe navigation is defined centrally in ui_navigation.c.
 
 #include "../ui.h"
 #include <string.h>
@@ -236,7 +236,7 @@ void ui_ScreenPageSettings_screen_init(void)
 
     // ====== Hint ======
     lv_obj_t *hint = lv_label_create(ui_ScreenPageSettings);
-    lv_label_set_text(hint, "Swipe down: multi-gauge\nL/R: back");
+    lv_label_set_text(hint, "Swipe up: back\nDown: multi-gauge");
     lv_obj_set_style_text_font(hint, &lv_font_montserrat_12, LV_PART_MAIN);
     lv_obj_set_style_text_color(hint, lv_color_hex(0x555555), LV_PART_MAIN);
     lv_obj_set_style_text_align(hint, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
@@ -244,5 +244,5 @@ void ui_ScreenPageSettings_screen_init(void)
 
     // Events - swipe to go back / down to multi-gauge
     lv_obj_move_foreground(ring);   // ring on top
-    lv_obj_add_event_cb(ui_ScreenPageSettings, ui_event_settings_background, LV_EVENT_GESTURE, NULL);
+    ui_nav_attach_gesture(ui_ScreenPageSettings, UI_NAV_PAGE_SETTINGS);
 }

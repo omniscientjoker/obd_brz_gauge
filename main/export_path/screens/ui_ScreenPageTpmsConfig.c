@@ -161,6 +161,5 @@ void ui_ScreenPageTpmsConfig_screen_init(void)
     lv_obj_add_event_cb(s_min_pressure_slider, on_min_pressure_changed, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_add_event_cb(s_max_pressure_slider, on_max_pressure_changed, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_add_event_cb(s_voltage_slider, on_voltage_changed, LV_EVENT_VALUE_CHANGED, NULL);
-    lv_obj_add_event_cb(ui_ScreenPageTpmsConfig, ui_event_tpms_config_background,
-                        LV_EVENT_GESTURE, NULL);
+    ui_nav_attach_gesture(ui_ScreenPageTpmsConfig, UI_NAV_PAGE_TPMS_CONFIG);
 }

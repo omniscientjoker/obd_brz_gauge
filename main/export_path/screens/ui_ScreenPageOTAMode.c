@@ -28,6 +28,7 @@ lv_obj_t *ui_LabelOTAModeStatus = NULL;
 lv_obj_t *ui_LabelOTAModeVersion = NULL;
 
 static void ui_event_ota_mode_background(lv_event_t *e);
+static void ui_nav_ota_fallback(lv_event_t *e, lv_dir_t direction);
 
 void ui_ScreenPageOTAMode_screen_init(void)
 {
@@ -97,6 +98,8 @@ void ui_ScreenPageOTAMode_screen_init(void)
     lv_obj_align(label_hint, LV_ALIGN_BOTTOM_MID, 0, -40);
 
     lv_obj_move_foreground(spinner_ring);
+    ui_nav_attach_gesture(ui_ScreenPageOTAMode, UI_NAV_PAGE_OTA_MODE);
+    ui_nav_register_fallback_cb(UI_NAV_PAGE_OTA_MODE, ui_nav_ota_fallback);
     lv_obj_add_event_cb(ui_ScreenPageOTAMode, ui_event_ota_mode_background, LV_EVENT_ALL, NULL);
 
     rs485_brake_temp_pause();
@@ -151,15 +154,15 @@ static void exit_ota_mode(void)
 // are replaced by a reboot, which lands on the normal boot flow.
 static void ui_event_ota_mode_background(lv_event_t *e)
 {
-    lv_event_code_t event_code = lv_event_get_code(e);
-    if (event_code == LV_EVENT_GESTURE) {
-        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if (dir == LV_DIR_LEFT || dir == LV_DIR_RIGHT ||
-            dir == LV_DIR_TOP  || dir == LV_DIR_BOTTOM) {
-            lv_indev_wait_release(lv_indev_get_act());
-            exit_ota_mode();
-        }
-    }
-
+    LV_UNUSED(e);
     ui_ext_tick();
+}
+
+static void ui_nav_ota_fallback(lv_event_t *e, lv_dir_t direction)
+{
+    LV_UNUSED(e);
+    if (direction == LV_DIR_LEFT || direction == LV_DIR_RIGHT ||
+        direction == LV_DIR_TOP || direction == LV_DIR_BOTTOM) {
+        exit_ota_mode();
+    }
 }

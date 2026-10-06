@@ -13,6 +13,7 @@ extern "C" {
 #include "lvgl.h"
 
 #include "ui_helpers.h"
+#include "ui_navigation.h"
 #include "ui_events.h"
 #include "ui_disp_item.h"
 #include "ui_theme.h"
@@ -67,7 +68,6 @@ extern lv_obj_t * ui_ImageGearBlackEar;
 // SCREEN: ui_ScreenPageThemeGauge (theme-partition custom gauge page)
 void ui_ScreenPageThemeGauge_screen_init(void);
 extern lv_obj_t * ui_ScreenPageThemeGauge;
-void ui_event_theme_gauge_background(lv_event_t * e);
 extern uint8_t ui_theme_gauge_page_index;  // Current theme page index
 
 // SCREEN: ui_ScreenPageRpm
@@ -114,12 +114,12 @@ extern lv_obj_t * imageEasterEgg;
 extern lv_obj_t * ui_ImageEggBlackEar;
 extern lv_obj_t * ui_LabelEasterEggInfo;  // dynamically updated device info label
 void ui_event_easter_egg_ota_button(lv_event_t * e);  // OTA mode button handler
+void ui_event_easter_egg_background(lv_event_t * e);  // showroom tap handler
 // CUSTOM VARIABLES
 
 // SCREEN: ui_ScreenPageBLEScan
 void ui_ScreenPageBLEScan_screen_init(void);
 extern lv_obj_t * ui_ScreenPageBLEScan;
-void ui_event_ble_scan_background(lv_event_t * e);
 // CUSTOM VARIABLES
 
 // SCREEN: ui_ScreenPageOTAMode
@@ -140,7 +140,6 @@ extern lv_obj_t * ui_LabelTempName[3];
 extern lv_obj_t * ui_LabelTempUnit[3];
 extern lv_obj_t * ui_LabelTempDot[3];
 extern lv_obj_t * ui_TempArc;
-void ui_event_temp_background(lv_event_t * e);
 
 // SCREEN: ui_ScreenPageTpms
 void ui_ScreenPageTpms_screen_init(void);
@@ -151,13 +150,10 @@ extern lv_obj_t * ui_LabelTpmsValue[4];
 extern lv_obj_t * ui_LabelTpmsVoltage;
 extern lv_obj_t * ui_LabelTpmsHeader;
 extern lv_obj_t * ui_TpmsCard[4];
-void ui_event_tpms_background(lv_event_t * e);
-void ui_event_tpms_config_background(lv_event_t * e);
 
 // SCREEN: ui_ScreenPageTempCustom
 void ui_ScreenPageTempCustom_screen_init(void);
 extern lv_obj_t * ui_ScreenPageTempCustom;
-void ui_event_temp_custom_background(lv_event_t * e);
 
 // SCREEN: ui_ScreenPageOilPressure — now the "generic configurable chart page" (data source selected by chart_source_idx)
 void ui_ScreenPageOilPressure_screen_init(void);
@@ -168,18 +164,15 @@ extern lv_chart_series_t * ui_OilPressureChartSeries;
 extern lv_obj_t * ui_LabelChartTitle;        // title (data-item name, follows the data source)
 extern lv_obj_t * ui_ChartDot;               // colored dot at the line start
 extern lv_obj_t * ui_LabelChartUnit;         // unit
-void ui_event_oil_pressure_background(lv_event_t * e);
 void ui_chart_apply_source(void);            // apply title/color/unit/range per chart_source_idx (call after the data source changes)
 
 // SCREEN: ui_ScreenPageChartConfig (entered by swiping down on the chart page: choose the displayed data item)
 void ui_ScreenPageChartConfig_screen_init(void);
 extern lv_obj_t * ui_ScreenPageChartConfig;
-void ui_event_chart_config_background(lv_event_t * e);
 
 // SCREEN: ui_ScreenPageChartAlarm (entered by swiping up on the chart page: set the alarm threshold for the current data item)
 void ui_ScreenPageChartAlarm_screen_init(void);
 extern lv_obj_t * ui_ScreenPageChartAlarm;
-void ui_event_chart_alarm_background(lv_event_t * e);
 
 // SCREEN: ui_ScreenPageIntro (triple-gauge boot animation RACE / AS / ONE)
 void ui_ScreenPageIntro_screen_init(void);
@@ -200,34 +193,28 @@ extern lv_obj_t * ui_LabelInfoOil;
 extern lv_obj_t * ui_LabelInfoValue[5];
 extern lv_obj_t * ui_LabelInfoName[5];
 extern lv_obj_t * ui_LabelInfoUnit[5];
-void ui_event_info_background(lv_event_t * e);
 // CUSTOM VARIABLES
 
 // SCREEN: ui_ScreenPageInfoCustom
 void ui_ScreenPageInfoCustom_screen_init(void);
 extern lv_obj_t * ui_ScreenPageInfoCustom;
-void ui_event_info_custom_background(lv_event_t * e);
 
 // SCREEN: ui_ScreenPageSettings
 void ui_ScreenPageSettings_screen_init(void);
 extern lv_obj_t * ui_ScreenPageSettings;
-void ui_event_settings_background(lv_event_t * e);
 // CUSTOM VARIABLES
 
 // SCREEN: ui_ScreenPageOilWarn
 void ui_ScreenPageOilWarn_screen_init(void);
 extern lv_obj_t * ui_ScreenPageOilWarn;
-void ui_event_oil_warn_background(lv_event_t * e);
 
 // SCREEN: ui_ScreenPageRpmWarn (RPM warning settings)
 void ui_ScreenPageRpmWarn_screen_init(void);
 extern lv_obj_t * ui_ScreenPageRpmWarn;
-void ui_event_rpm_warn_background(lv_event_t * e);
 
 // SCREEN: ui_ScreenPageNeedle (needle-style configurable gauge)
 void ui_ScreenPageNeedle_screen_init(void);
 extern lv_obj_t * ui_ScreenPageNeedle;
-void ui_event_needle_background(lv_event_t * e);
 // Needle page widgets (created by screen_init, refreshed by ui.c's timer)
 extern lv_obj_t * ui_NeedleMeter;
 extern lv_meter_scale_t * ui_NeedleScale;
@@ -241,12 +228,10 @@ extern lv_obj_t * ui_NeedleSourceLabel;
 // SCREEN: ui_ScreenPageNeedleConfig (data-source selection entered by swiping down)
 void ui_ScreenPageNeedleConfig_screen_init(void);
 extern lv_obj_t * ui_ScreenPageNeedleConfig;
-void ui_event_needle_config_background(lv_event_t * e);
 
 // SCREEN: ui_ScreenPageMultiGauge (entered by swiping down on the settings page: triple-gauge master/slave + master selection)
 void ui_ScreenPageMultiGauge_screen_init(void);
 extern lv_obj_t * ui_ScreenPageMultiGauge;
-void ui_event_multi_gauge_background(lv_event_t * e);
 extern lv_obj_t * ui_LabelMultiValue[3];
 extern lv_obj_t * ui_LabelMultiRole;
 
@@ -323,12 +308,8 @@ LV_FONT_DECLARE(ui_font_FontTypoderSize140);
 void ui_init(void);
 void ui_event_logo_background(lv_event_t * e);
 void ui_event_main_background(lv_event_t * e);
-void ui_event_gear_background(lv_event_t * e);
-void ui_event_rpm_background(lv_event_t * e);
-void ui_event_speed_background(lv_event_t * e);
 void ui_event_obd_prot_background(lv_event_t * e);
 void ui_event_easter_egg_background(lv_event_t * e);
-void ui_event_temp_background(lv_event_t * e);
 #ifdef __cplusplus
 } /*extern "C"*/
 #endif

@@ -64,7 +64,6 @@ void ui_ScreenPageNeedle_screen_init(void)
     lv_obj_set_style_radius(ui_ScreenPageNeedle, 360, LV_PART_MAIN);
     ui_helpers_style_screen_bg(ui_ScreenPageNeedle);
     lv_obj_set_style_bg_opa(ui_ScreenPageNeedle, 255, LV_PART_MAIN);
-    ui_helpers_create_statusbar(ui_ScreenPageNeedle, "BOOST");
     lv_obj_set_style_border_width(ui_ScreenPageNeedle, 0, LV_PART_MAIN);  // disable the default theme border, use a white ring instead
     lv_obj_set_style_pad_all(ui_ScreenPageNeedle, 0, LV_PART_MAIN);
     lv_obj_set_style_outline_width(ui_ScreenPageNeedle, 0, LV_PART_MAIN);
@@ -167,7 +166,7 @@ void ui_ScreenPageNeedle_screen_init(void)
     ui_needle_apply_source();
 
     lv_obj_move_foreground(ring);   // bring the ring to the front
-    lv_obj_add_event_cb(ui_ScreenPageNeedle, ui_event_needle_background, LV_EVENT_GESTURE, NULL);
+    ui_nav_attach_gesture(ui_ScreenPageNeedle, UI_NAV_PAGE_NEEDLE);
 }
 
 void ui_ScreenPageNeedleConfig_screen_init(void)
@@ -219,5 +218,5 @@ void ui_ScreenPageNeedleConfig_screen_init(void)
     lv_obj_align(hint, LV_ALIGN_CENTER, 0, 120);
 
     lv_obj_move_foreground(ring);   // bring the ring to the front
-    lv_obj_add_event_cb(ui_ScreenPageNeedleConfig, ui_event_needle_config_background, LV_EVENT_GESTURE, NULL);
+    ui_nav_attach_gesture(ui_ScreenPageNeedleConfig, UI_NAV_PAGE_NEEDLE_CONFIG);
 }

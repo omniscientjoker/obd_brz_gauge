@@ -97,5 +97,5 @@ void ui_ScreenPageOilPressure_screen_init(void)
     ui_chart_apply_source();   // sets title/dot/unit/color/Y range per the current data item
 
     lv_obj_move_foreground(ring);   // bring the ring to the front
-    lv_obj_add_event_cb(ui_ScreenPageOilPressure, ui_event_oil_pressure_background, LV_EVENT_GESTURE, NULL);
+    ui_nav_attach_gesture(ui_ScreenPageOilPressure, UI_NAV_PAGE_CHART);
 }

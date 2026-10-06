@@ -1,0 +1,54 @@
+Windows 采集 FORScan / vLinker TPMS 原始响应
+================================================
+
+脚本：tools/windows_ford_tpms_capture.py
+
+脚本会自动依次探测 COM4、COM7，使用 38400 8N1 打开串口，以无写入风险的 ATZ 识别 ELM/vLinker，然后按顺序记录适配器初始化命令和四个候选 Mode 22 DID。
+
+采集前
+------
+
+1. 在车辆上插好 vLinker FD+，点火开关置于 ON，发动机保持关闭即可。
+2. 只让一台电脑连接适配器。退出 FORScan，确保它不占用蓝牙串口。
+3. 在 Windows 设备管理器的“端口（COM 和 LPT）”里确认 vLinker 串口。默认自动探测 COM4/COM7；如果实际不是这两个端口，可用 --port COMn 指定。
+4. 安装 Python 3。打开 PowerShell，在项目目录执行：
+
+    py -m pip install pyserial
+
+运行
+----
+
+在项目目录运行：
+
+    py .\tools\windows_ford_tpms_capture.py
+
+也可以双击 tools\run_windows_ford_tpms_capture.bat；它会检查 pyserial 是否已安装，缺少时尝试安装，然后启动采集。
+
+也可指定端口、采集轮数和输出目录：
+
+    py .\tools\windows_ford_tpms_capture.py --port COM7 --rounds 5 --output .\ford_tpms_capture
+
+脚本默认强制 ELM 协议 6（11-bit CAN、500 kbit/s），并采用候选 BCM 头 726。若所有 DID 都返回 NO DATA，可另行运行一次自动协议识别：
+
+    py .\tools\windows_ford_tpms_capture.py --protocol 0
+
+协议、DID 和头均为待验证候选。脚本只发送 ELM AT 设置命令及 UDS 读取服务 22，不会发送写入或配置服务。
+
+输出文件
+--------
+
+每次运行在输出目录生成三个文件：
+
+- ford_tpms_时间.txt：便于阅读的逐条 TX/RX transcript，包含时间戳、原始响应十六进制、ASCII 和超时标志。
+- ford_tpms_时间.json：结构化记录，保存串口设置、候选 ECU/header/DID、轮位、轮次以及每次交换的 tx_hex、rx_hex、rx_ascii、CAN header、十六进制 token 行、候选响应状态、耗时和超时状态，可用于生成项目请求规则及编写解码器。
+- ford_tpms_时间_uart.bin：带记录分隔标记的原始 UART 交换字节。它是电脑与 ELM 适配器之间的串口数据，不是 CAN 控制器的无损总线抓包；ELM 会处理 CAN 分帧，因此若需验证 CAN ID、PCI 和完整总线时序，需要支持被动监听的 CAN 硬件。
+
+采集完成后把 JSON 与 TXT 发回即可。分析时应核对每条正响应是否包含 62 和请求 DID，并结合 FORScan 同时刻的四轮压力、传感器状态进行对照。FORScan 当前文件报告 2013 MY，而用户车辆为 2014 款，车型配置差异仍须保留为验证项。
+
+常见情况
+--------
+
+- Access is denied：关闭 FORScan、串口终端及其他占用 COM 口的软件。
+- 两个端口都探测失败：检查 Windows 配对、vLinker 电源、COM 端口号和波特率；不要让 macOS/其他电脑同时连接。
+- 所有 DID 都是 NO DATA：保留日志，使用 --protocol 0 重试；不要据此修改车辆 As-Built。
+- 7F 22 xx：这是车辆的否定响应，完整保留 xx 和响应头；不要改用写服务试探。

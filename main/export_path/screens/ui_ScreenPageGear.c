@@ -58,8 +58,8 @@ void ui_ScreenPageGear_screen_init(void)
     lv_obj_add_flag(ui_ImageGearBlackEar, LV_OBJ_FLAG_ADV_HITTEST);     /// Flags
     lv_obj_clear_flag(ui_ImageGearBlackEar, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
-    lv_obj_add_event_cb(ui_GearPageArcGearNumBack, ui_event_gear_background, LV_EVENT_ALL, NULL);
+    ui_nav_attach_gesture(ui_GearPageArcGearNumBack, UI_NAV_PAGE_GEAR);
     lv_obj_move_foreground(ui_SpinnerGearPage);   // bring the ring to the front
-    lv_obj_add_event_cb(ui_ScreenPageGear, ui_event_gear_background, LV_EVENT_GESTURE, NULL);
+    ui_nav_attach_gesture(ui_ScreenPageGear, UI_NAV_PAGE_GEAR);
 
 }

@@ -2,7 +2,7 @@
 //  - Sets the alarm threshold for the data item currently shown on the chart (independent per item, stored in NVS chart_alarm)
 //  - Slider range = the item's natural range; pulling to the max step = OFF (alarm disabled)
 //  - When value >= threshold, that item's value turns red on all pages (see disp_item_set_value_color)
-//  - A gesture in any direction returns to the chart page (see ui_event_chart_alarm_background)
+//  - Swipe navigation is defined centrally in ui_navigation.c.
 
 #include "../ui.h"
 #include "bsp_obd_dsp/nvs_storage.h"
@@ -92,5 +92,5 @@ void ui_ScreenPageChartAlarm_screen_init(void)
     lv_obj_align(hint, LV_ALIGN_CENTER, 0, 110);
 
     lv_obj_move_foreground(ring);   // bring the ring to the front
-    lv_obj_add_event_cb(ui_ScreenPageChartAlarm, ui_event_chart_alarm_background, LV_EVENT_GESTURE, NULL);
+    ui_nav_attach_gesture(ui_ScreenPageChartAlarm, UI_NAV_PAGE_CHART_ALARM);
 }

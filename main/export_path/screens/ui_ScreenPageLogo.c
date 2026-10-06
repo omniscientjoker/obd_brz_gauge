@@ -46,6 +46,5 @@ void ui_ScreenPageLogo_screen_init(void)
     // White border ring (same as Gear page style)
     lv_obj_t *spinnerLogo = ui_helpers_create_ring(ui_ScreenPageLogo, 10);   // white ring: static circular border, replaces the rotating spinner, removes the arc seam gap
 #endif
-    lv_obj_add_event_cb(ui_ScreenPageLogo, ui_event_logo_background, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScreenPageLogo, ui_event_logo_background, LV_EVENT_CLICKED, NULL);
 }
-

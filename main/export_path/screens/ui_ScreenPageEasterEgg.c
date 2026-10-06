@@ -24,19 +24,10 @@ void ui_ScreenPageEasterEgg_screen_init(void)
     ui_helpers_style_screen_bg(ui_ScreenPageEasterEgg);
     lv_obj_set_style_bg_opa(ui_ScreenPageEasterEgg, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    // White border ring
-    lv_obj_t *spinner_ring = ui_helpers_create_ring(ui_ScreenPageEasterEgg, 10);
-
     /* ---- Device Info Page ----
        Kept minimal on purpose: role + OBD link state + firmware build tag.
-       Layout on the 360x360 round panel: title y=88..124, info block centered,
-       OTA button y=288..320. */
-    lv_obj_t *label_title = lv_label_create(ui_ScreenPageEasterEgg);
-    lv_label_set_text(label_title, "SKY GAUGE");
-    lv_obj_set_style_text_font(label_title, &ui_font_FontTypoderSize36, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_color(label_title, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_align(label_title, LV_ALIGN_TOP_MID, 0, 88);
-
+       The page intentionally has no "SKY GAUGE" title; the device bezel and
+       information block are the complete left-most page presentation. */
     // Role + connection state: master/standalone show BLE (ELM327), slave shows its master
     uint8_t device_role = nvs_cfg_get()->device_role;
     bool is_slave = (device_role == ESPNOW_ROLE_SLAVE);
@@ -91,5 +82,7 @@ void ui_ScreenPageEasterEgg_screen_init(void)
     imageEasterEgg = NULL;
 
     // Gesture event on screen for page navigation
-    lv_obj_add_event_cb(ui_ScreenPageEasterEgg, ui_event_easter_egg_background, LV_EVENT_ALL, NULL);
+    ui_nav_attach_gesture(ui_ScreenPageEasterEgg, UI_NAV_PAGE_SKY_GAUGE);
+    lv_obj_add_event_cb(ui_ScreenPageEasterEgg, ui_event_easter_egg_background,
+                        LV_EVENT_CLICKED, NULL);
 }

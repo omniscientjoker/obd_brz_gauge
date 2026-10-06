@@ -90,5 +90,5 @@ void ui_ScreenPageOilWarn_screen_init(void)
     lv_obj_clear_flag(ear, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_move_foreground(ring);   // bring the ring to the front
-    lv_obj_add_event_cb(ui_ScreenPageOilWarn, ui_event_oil_warn_background, LV_EVENT_GESTURE, NULL);
+    ui_nav_attach_gesture(ui_ScreenPageOilWarn, UI_NAV_PAGE_OIL_WARN);
 }

@@ -1,7 +1,7 @@
 // Theme-provided gauge page. Entered by boot (if theme is loaded) or by
 // swiping down from the Gear page. Which page is built is driven by
 // ui_theme_gauge_page_index, set by the gesture handlers before requesting
-// a rebuild — see ui_event_theme_gauge_background in ui.c and boot logic in
+// a rebuild — see ui_navigation.c and boot logic in
 // ui_ext.c. The actual widget tree comes entirely from theme_create_page();
 // this file just wires it into the existing screen/navigation conventions.
 
@@ -20,5 +20,5 @@ void ui_ScreenPageThemeGauge_screen_init(void)
         lv_obj_clear_flag(ui_ScreenPageThemeGauge, LV_OBJ_FLAG_SCROLLABLE);
     }
 
-    lv_obj_add_event_cb(ui_ScreenPageThemeGauge, ui_event_theme_gauge_background, LV_EVENT_GESTURE, NULL);
+    ui_nav_attach_gesture(ui_ScreenPageThemeGauge, UI_NAV_PAGE_THEME_GAUGE);
 }

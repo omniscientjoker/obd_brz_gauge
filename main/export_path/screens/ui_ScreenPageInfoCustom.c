@@ -88,5 +88,5 @@ void ui_ScreenPageInfoCustom_screen_init(void)
     lv_obj_align(ear, LV_ALIGN_CENTER, 0, -142);
 
     lv_obj_move_foreground(ring);   // bring the ring to the front
-    lv_obj_add_event_cb(ui_ScreenPageInfoCustom, ui_event_info_custom_background, LV_EVENT_GESTURE, NULL);
+    ui_nav_attach_gesture(ui_ScreenPageInfoCustom, UI_NAV_PAGE_INFO_CONFIG);
 }

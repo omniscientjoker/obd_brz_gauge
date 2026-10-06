@@ -55,7 +55,7 @@ static void mark_app_valid_task(void *arg)
 {
     (void)arg;
 
-    vTaskDelay(pdMS_TO_TICKS(15000));
+    vTaskDelay(pdMS_TO_TICKS(20000));
 
     esp_err_t err = esp_ota_mark_app_valid_cancel_rollback();
     if (err == ESP_OK) {
@@ -291,6 +291,11 @@ void app_main(void)
     extern TaskHandle_t g_lvgl_task_handle;
     g_lvgl_task_handle = s_lvgl_task_handle;
 
+    BaseType_t valid_task_started = xTaskCreate(mark_app_valid_task, "ota_valid", 4096, NULL, tskIDLE_PRIORITY + 1, NULL);
+    if (valid_task_started != pdPASS) {
+        ESP_LOGW(TAG, "Failed to create OTA validity task");
+    }
+
     /* 6.5 Initialize Bluetooth stack BEFORE UI to claim internal RAM early */
     elm327_ble_ensure_stack_init();
 
@@ -413,8 +418,4 @@ void app_main(void)
         vMileageDataStatisticTask();
     }
 
-    BaseType_t valid_task_started = xTaskCreate(mark_app_valid_task, "ota_valid", 4096, NULL, tskIDLE_PRIORITY + 1, NULL);
-    if (valid_task_started != pdPASS) {
-        ESP_LOGW(TAG, "Failed to create OTA validity task");
-    }
 }

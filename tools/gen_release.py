@@ -5,7 +5,7 @@ Run from anywhere (uses the repo root relative to this file). It assumes the
 project has already been built, so `build/` holds the fresh *.bin files:
 
     idf.py build
-    python3 tools/gen_release.py
+    python3 tools/gen_release.py [--build-dir build.verify7]
 
 It does two things:
   1. copies build/{bootloader,partition_table,ota_data_initial,obd_brz_gauge,bootmedia}
@@ -19,6 +19,7 @@ current git HEAD, so remember to `git commit` your code *before* building
 (see docs/APP_INTEGRATION.md).
 """
 
+import argparse
 import hashlib
 import json
 import os
@@ -59,6 +60,11 @@ BINS = {
     "bootloader": "bootloader/bootloader.bin",
     "ota_data_initial": "ota_data_initial.bin",
 }
+ALIASES = {
+    "firmware.bin": "obd_brz_gauge.bin",
+    "bootloader.bin": "bootloader/bootloader.bin",
+    "partition-table.bin": "partition_table/partition-table.bin",
+}
 
 
 def git(*args):
@@ -74,15 +80,24 @@ def sha256(path):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--build-dir", default=BUILD_DIR, help="ESP-IDF build directory")
+    args = parser.parse_args()
+    build_dir = os.path.abspath(args.build_dir)
+
     # 1. Copy the fresh build artifacts into the release directory.
     for rel in BINS.values():
-        src = os.path.join(BUILD_DIR, rel)
+        src = os.path.join(build_dir, rel)
         dst = os.path.join(RELEASE_DIR, rel)
         if not os.path.isfile(src):
             sys.exit(f"missing build artifact: {src}\nRun `idf.py build` first.")
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copy2(src, dst)
         print(f"copied {rel}")
+
+    for alias, canonical in ALIASES.items():
+        shutil.copy2(os.path.join(RELEASE_DIR, canonical), os.path.join(RELEASE_DIR, alias))
+        print(f"copied {alias}")
 
     # 2. Build the version metadata from the current git HEAD.
     branch = git("rev-parse", "--abbrev-ref", "HEAD")

@@ -1,7 +1,7 @@
 // Chart data source selection page (entered by swiping down from the chart page)
 //  - The roller lists all displayable data items (boost appears only for turbo vehicle profiles)
 //  - Selecting writes NVS chart_source_idx and applies to the chart page immediately
-//  - A gesture in any direction returns to the chart page (see ui_event_chart_config_background)
+//  - Swipe navigation is defined centrally in ui_navigation.c.
 
 #include "../ui.h"
 #include <string.h>
@@ -97,5 +97,5 @@ void ui_ScreenPageChartConfig_screen_init(void)
     lv_obj_align(hint, LV_ALIGN_CENTER, 0, 120);
 
     lv_obj_move_foreground(ring);   // bring the ring to the front
-    lv_obj_add_event_cb(ui_ScreenPageChartConfig, ui_event_chart_config_background, LV_EVENT_GESTURE, NULL);
+    ui_nav_attach_gesture(ui_ScreenPageChartConfig, UI_NAV_PAGE_CHART_CONFIG);
 }

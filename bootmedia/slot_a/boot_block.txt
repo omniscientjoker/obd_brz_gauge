@@ -1,10 +1,10 @@
 canvas_width=360
 canvas_height=360
-grid_width=240
-grid_height=240
-fps=25
-frame_count=218
-duration_ms=8720
-binary_size=4063640
-stream_format=delta_varint_rgb565_black_v1
+grid_width=360
+grid_height=360
+fps=20
+frame_count=100
+duration_ms=5000
+binary_size=5088735
+stream_format=delta_varint_rgb565_black_v2
 data_file=boot_block.bin

@@ -106,5 +106,5 @@ void ui_ScreenPageTpms_screen_init(void)
     lv_obj_clear_flag(ear, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_move_foreground(ring);
-    lv_obj_add_event_cb(ui_ScreenPageTpms, ui_event_tpms_background, LV_EVENT_GESTURE, NULL);
+    ui_nav_attach_gesture(ui_ScreenPageTpms, UI_NAV_PAGE_TPMS);
 }
