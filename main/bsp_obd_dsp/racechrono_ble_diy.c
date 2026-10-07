@@ -166,7 +166,9 @@ static void prepare_device_info_manifest(void)
 // Decide the advertising name and pairing MAC characteristic content based on the current device_role; called once before the startup flow / role change.
 static void build_adv_identity(void)
 {
-    const nvs_user_cfg_t *cfg = nvs_cfg_get();
+    nvs_user_cfg_t cfg_snapshot = {0};
+    nvs_cfg_get_snapshot(&cfg_snapshot);
+    const nvs_user_cfg_t *cfg = &cfg_snapshot;
     if (cfg->device_role == ESPNOW_ROLE_MASTER) {
         uint8_t mac[6] = {0};
         esp_read_mac(mac, ESP_MAC_WIFI_STA);
@@ -649,7 +651,9 @@ static void gatts_cb(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble
             }
         }
         prepare_device_info_manifest();
-        bool is_master = (nvs_cfg_get()->device_role == ESPNOW_ROLE_MASTER);
+        nvs_user_cfg_t cfg_snapshot = {0};
+        nvs_cfg_get_snapshot(&cfg_snapshot);
+        bool is_master = (cfg_snapshot.device_role == ESPNOW_ROLE_MASTER);
         if (s_rc_enabled) {
             // Full mode: create all 4 services (RC → Pair → Info → OTA)
             request_adv_config();

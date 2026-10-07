@@ -20,6 +20,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
+#include "freertos/semphr.h"
 
 #include "esp_log.h"
 #include "esp_err.h"
@@ -68,6 +69,7 @@ static const char *TAG = "ota_wifi";
 #define OTA_FLASH_WRITE_CHUNK 4096         // internal scratch buffer used for flash-safe writes
 #define OTA_PROGRESS_STEP   (64 * 1024)    // report to BLE callback every 64KB
 #define OTA_IDLE_TIMEOUT_US (10 * 60 * 1000000LL)  // auto-stop when no HTTP activity for 10 minutes
+#define OTA_MAX_PAYLOAD_SIZE (16u * 1024u * 1024u)
 // HTTPD task stack size is measured in bytes. 4 KB is the default and enough
 // for these handlers; flash operations must run from an internal-RAM task.
 #define OTA_WIFI_STACK_SIZE 8192
@@ -85,6 +87,12 @@ static bool s_wifi_owned = false;
 static wifi_mode_t s_prev_wifi_mode = WIFI_MODE_NULL;
 static volatile int64_t s_last_activity_us = 0;
 static uint8_t s_flash_write_buf[OTA_FLASH_WRITE_CHUNK];
+static SemaphoreHandle_t s_ota_mux = NULL;
+static uint32_t s_session_generation = 0;
+static uint32_t s_error_received = 0;
+static uint32_t s_error_expected = 0;
+static uint32_t s_error_generation = 0;
+static volatile uint8_t s_upload_request_active = 0;
 
 // OTA 接收状态
 typedef enum {
@@ -112,9 +120,48 @@ typedef struct {
 
     // bootmedia
     uint32_t manifest_size;
+    uint32_t generation;
 } ota_recv_t;
 
 static ota_recv_t s_recv = {0};
+
+static bool parse_u32_decimal(const char *text, uint32_t *out)
+{
+    if (!text || !*text || !out) return false;
+    uint64_t value = 0;
+    for (const unsigned char *p = (const unsigned char *)text; *p; ++p) {
+        if (*p < '0' || *p > '9') return false;
+        value = value * 10u + (uint32_t)(*p - '0');
+        if (value > UINT32_MAX) return false;
+    }
+    *out = (uint32_t)value;
+    return true;
+}
+
+static bool parse_last_header(httpd_req_t *req, bool *is_last)
+{
+    char value[8] = {0};
+    if (!req || !is_last || httpd_req_get_hdr_value_str(req, "X-Last", value, sizeof(value)) != ESP_OK) return false;
+    if (strcmp(value, "1") == 0) { *is_last = true; return true; }
+    if (strcmp(value, "0") == 0) { *is_last = false; return true; }
+    return false;
+}
+
+static bool parse_u32_header(httpd_req_t *req, const char *name, uint32_t *out)
+{
+    char value[16] = {0};
+    return req && name && out &&
+           httpd_req_get_hdr_value_str(req, name, value, sizeof(value)) == ESP_OK &&
+           parse_u32_decimal(value, out);
+}
+
+static bool upload_is_active(void)
+{
+    return s_recv.upload_buf != NULL &&
+           (s_state == OTA_WIFI_STATE_RECEIVING ||
+            s_state == OTA_WIFI_STATE_VERIFYING ||
+            s_state == OTA_WIFI_STATE_INSTALLING);
+}
 
 /* ------------------------------------------------------------------ */
 /* WiFi runtime: reuse the existing stack when present (ESP-NOW case) */
@@ -317,6 +364,11 @@ static void notify_status(ota_wifi_state_t state, const char *message, uint32_t 
 {
     s_last_activity_us = esp_timer_get_time();   // any state change counts as activity
     s_state = state;
+    if (state == OTA_WIFI_STATE_ERROR) {
+        s_error_received = received;
+        s_error_expected = expected;
+        s_error_generation = s_recv.generation;
+    }
     if (s_status_cb) {
         s_status_cb(state, message, received, expected);
     }
@@ -373,6 +425,7 @@ static esp_err_t flash_safe_ota_write(esp_ota_handle_t handle, const uint8_t *da
 
 static void recv_reset(void)
 {
+    uint32_t generation = s_recv.generation;
     if (s_recv.sha_started) {
         mbedtls_sha256_free(&s_recv.sha);
         s_recv.sha_started = false;
@@ -382,6 +435,7 @@ static void recv_reset(void)
         s_recv.upload_buf = NULL;
     }
     memset(&s_recv, 0, sizeof(s_recv));
+    s_recv.generation = generation;
 }
 
 static bool allocate_upload_buffer(uint32_t size, const char *label)
@@ -392,7 +446,7 @@ static bool allocate_upload_buffer(uint32_t size, const char *label)
     ESP_LOGI(TAG, "%s upload buffer: need=%lu, PSRAM free=%zu, largest=%zu",
              label, (unsigned long)size, free_bytes, largest);
 
-    if (size == 0 || largest < size) {
+    if (size == 0 || size > OTA_MAX_PAYLOAD_SIZE || largest < size) {
         ESP_LOGE(TAG, "%s upload buffer does not fit: need=%lu, largest=%zu",
                  label, (unsigned long)size, largest);
         return false;
@@ -409,10 +463,18 @@ static bool allocate_upload_buffer(uint32_t size, const char *label)
 
 static bool parse_hex_sha(const char *hex, uint8_t *out)
 {
-    if (strlen(hex) != 64) return false;
+    if (!hex || !out || strlen(hex) != 64) return false;
     for (int i = 0; i < 32; i++) {
-        char chunk[3] = { hex[i * 2], hex[i * 2 + 1], '\0' };
-        out[i] = (uint8_t)strtoul(chunk, NULL, 16);
+        unsigned char hi = (unsigned char)hex[i * 2];
+        unsigned char lo = (unsigned char)hex[i * 2 + 1];
+        int hn = (hi >= '0' && hi <= '9') ? hi - '0' :
+                 (hi >= 'a' && hi <= 'f') ? hi - 'a' + 10 :
+                 (hi >= 'A' && hi <= 'F') ? hi - 'A' + 10 : -1;
+        int ln = (lo >= '0' && lo <= '9') ? lo - '0' :
+                 (lo >= 'a' && lo <= 'f') ? lo - 'a' + 10 :
+                 (lo >= 'A' && lo <= 'F') ? lo - 'A' + 10 : -1;
+        if (hn < 0 || ln < 0) return false;
+        out[i] = (uint8_t)((hn << 4) | ln);
     }
     return true;
 }
@@ -455,7 +517,9 @@ static esp_err_t send_json_response(httpd_req_t *req, int status, const char *js
 {
     set_cors_headers(req);
     httpd_resp_set_type(req, "application/json");
-    httpd_resp_set_status(req, status == 200 ? "200 OK" : "400 Bad Request");
+    const char *status_line = (status == 200) ? "200 OK" :
+                              (status == 409) ? "409 Conflict" : "400 Bad Request";
+    httpd_resp_set_status(req, status_line);
     return httpd_resp_send(req, json, strlen(json));
 }
 
@@ -465,6 +529,13 @@ static esp_err_t send_err(httpd_req_t *req, const char *err)
     char json[80];
     snprintf(json, sizeof(json), "{\"error\":\"%s\"}", err);
     return send_json_response(req, 400, json);
+}
+
+static esp_err_t send_conflict(httpd_req_t *req, const char *err)
+{
+    char json[80];
+    snprintf(json, sizeof(json), "{\"error\":\"%s\"}", err);
+    return send_json_response(req, 409, json);
 }
 
 /* Periodic status report while receiving (throttled by OTA_PROGRESS_STEP). */
@@ -510,7 +581,7 @@ static esp_err_t connectivity_check_handler(httpd_req_t *req)
 // No auth: the phone must learn the per-session token before it can call any
 // authenticated endpoint.  Returning it here (after it joined the AP via the
 // fixed bootstrap passphrase) is the BLE-independent bootstrap path.
-static esp_err_t discover_handler(httpd_req_t *req)
+static esp_err_t discover_handler_impl(httpd_req_t *req)
 {
     if (s_state == OTA_WIFI_STATE_IDLE) {
         return send_err(req, "ota not active");
@@ -528,19 +599,17 @@ static esp_err_t discover_handler(httpd_req_t *req)
 }
 
 // GET /ota/info — device identity manifest, no auth (bootstrap endpoint)
-static esp_err_t info_handler(httpd_req_t *req)
+static esp_err_t info_handler_impl(httpd_req_t *req)
 {
     if (s_state == OTA_WIFI_STATE_IDLE) {
         return send_err(req, "ota not active");
     }
     const char *manifest = device_identity_manifest_json();
-    httpd_resp_set_type(req, "application/json");
-    httpd_resp_send(req, manifest, strlen(manifest));
-    return ESP_OK;
+    return send_json_response(req, 200, manifest);
 }
 
 // GET /ota/status
-static esp_err_t status_handler(httpd_req_t *req)
+static esp_err_t status_handler_impl(httpd_req_t *req)
 {
     if (!validate_token(req)) {
         return send_err(req, "unauthorized");
@@ -551,13 +620,18 @@ static esp_err_t status_handler(httpd_req_t *req)
     switch (s_state) {
         case OTA_WIFI_STATE_READY: state_str = "ready"; break;
         case OTA_WIFI_STATE_RECEIVING: state_str = "receiving"; break;
+        case OTA_WIFI_STATE_VERIFYING: state_str = "verifying"; break;
+        case OTA_WIFI_STATE_INSTALLING: state_str = "installing"; break;
         case OTA_WIFI_STATE_DONE: state_str = "done"; break;
         case OTA_WIFI_STATE_ERROR: state_str = "error"; break;
         default: break;
     }
+    uint32_t received = (s_state == OTA_WIFI_STATE_ERROR) ? s_error_received : s_recv.received_size;
+    uint32_t expected = (s_state == OTA_WIFI_STATE_ERROR) ? s_error_expected : s_recv.expected_size;
+    uint32_t generation = (s_state == OTA_WIFI_STATE_ERROR) ? s_error_generation : s_recv.generation;
     snprintf(json, sizeof(json),
-             "{\"state\":\"%s\",\"received\":%u,\"expected\":%u}",
-             state_str, s_recv.received_size, s_recv.expected_size);
+             "{\"state\":\"%s\",\"generation\":%lu,\"received\":%u,\"expected\":%u}",
+             state_str, (unsigned long)generation, received, expected);
     return send_json_response(req, 200, json);
 }
 
@@ -570,7 +644,7 @@ static esp_err_t status_handler(httpd_req_t *req)
 //   X-Offset: 该块在整个数据流中的起始偏移
 //   X-Last:   是否最后一块（1/0）
 // HTTP 阶段只累计到 PSRAM，完整校验后才停止 WiFi 并写 OTA 分区。
-static esp_err_t firmware_handler(httpd_req_t *req)
+static esp_err_t firmware_handler_impl(httpd_req_t *req)
 {
     int64_t handler_start_us = esp_timer_get_time();
 
@@ -580,8 +654,6 @@ static esp_err_t firmware_handler(httpd_req_t *req)
 
     char sha_hex[65] = {0};
     char size_str[16] = {0};
-    char offset_str[16] = {0};
-    char last_str[8] = {0};
     char content_type[64] = {0};
     if (httpd_req_get_hdr_value_str(req, "X-OTA-SHA256", sha_hex, sizeof(sha_hex)) != ESP_OK ||
         httpd_req_get_hdr_value_str(req, "X-OTA-Size", size_str, sizeof(size_str)) != ESP_OK) {
@@ -593,18 +665,16 @@ static esp_err_t firmware_handler(httpd_req_t *req)
         is_base64 = (strstr(content_type, "base64") != NULL);
     }
 
-    uint32_t expected_size = (uint32_t)strtoul(size_str, NULL, 10);
+    uint32_t expected_size = 0;
     uint32_t chunk_offset = 0;
     bool is_last = false;
-    if (httpd_req_get_hdr_value_str(req, "X-Offset", offset_str, sizeof(offset_str)) == ESP_OK) {
-        chunk_offset = (uint32_t)strtoul(offset_str, NULL, 10);
-    }
-    if (httpd_req_get_hdr_value_str(req, "X-Last", last_str, sizeof(last_str)) == ESP_OK) {
-        is_last = (strcmp(last_str, "1") == 0);
-    }
+    if (!parse_u32_decimal(size_str, &expected_size) ||
+        !parse_u32_header(req, "X-Offset", &chunk_offset) ||
+        !parse_last_header(req, &is_last)) return send_err(req, "invalid chunk headers");
 
     uint8_t expected_sha[32];
-    if (!parse_hex_sha(sha_hex, expected_sha) || expected_size == 0 || chunk_offset > expected_size) {
+    if (!parse_hex_sha(sha_hex, expected_sha) || expected_size == 0 ||
+        expected_size > OTA_MAX_PAYLOAD_SIZE || chunk_offset > expected_size || req->content_len == 0) {
         return send_err(req, "invalid headers");
     }
     if (!is_base64 && (uint32_t)req->content_len > expected_size - chunk_offset) {
@@ -612,8 +682,10 @@ static esp_err_t firmware_handler(httpd_req_t *req)
     }
 
     if (chunk_offset == 0) {
+        if (upload_is_active()) return send_conflict(req, "upload already active");
         ota_wifi_server_release_bt();
         recv_reset();
+        s_recv.generation = ++s_session_generation;
         s_recv.ota_partition = esp_ota_get_next_update_partition(NULL);
         if (!s_recv.ota_partition) {
             return send_err(req, "no ota partition");
@@ -812,12 +884,14 @@ static esp_err_t firmware_handler(httpd_req_t *req)
         return ret;
     }
 
-    if (s_recv.received_size != s_recv.expected_size) {
+    if (is_last != (s_recv.received_size == s_recv.expected_size) ||
+        s_recv.received_size != s_recv.expected_size) {
         uint32_t received_size = s_recv.received_size;
         recv_reset();
         notify_status(OTA_WIFI_STATE_ERROR, "firmware size mismatch", received_size, expected_size);
         return send_err(req, "size mismatch");
     }
+    notify_status(OTA_WIFI_STATE_VERIFYING, "firmware verifying", s_recv.received_size, expected_size);
     if (!sha_finish_matches()) {
         uint32_t received_size = s_recv.received_size;
         recv_reset();
@@ -827,7 +901,7 @@ static esp_err_t firmware_handler(httpd_req_t *req)
 
     // The network phase is complete. Acknowledge it first, then let the TCP
     // response leave the radio before starting any cache-disabled flash work.
-    notify_status(OTA_WIFI_STATE_RECEIVING, "firmware installing", expected_size, expected_size);
+    notify_status(OTA_WIFI_STATE_INSTALLING, "firmware installing", expected_size, expected_size);
     esp_err_t response_err = send_json_response(
         req, 200, "{\"ok\":true,\"message\":\"firmware received, installing\"}");
     if (response_err != ESP_OK) {
@@ -857,24 +931,27 @@ static esp_err_t firmware_handler(httpd_req_t *req)
         ESP_LOGI(TAG, "firmware install complete, rebooting");
         notify_status(OTA_WIFI_STATE_DONE, "firmware updated, rebooting", expected_size, expected_size);
     } else {
-        ESP_LOGE(TAG, "firmware install failed after upload: %s; rebooting old firmware",
+        ESP_LOGE(TAG, "firmware install failed after upload: %s; keeping current firmware",
                  esp_err_to_name(err));
         notify_status(OTA_WIFI_STATE_ERROR, "firmware install failed", expected_size, expected_size);
     }
     recv_reset();
-    vTaskDelay(pdMS_TO_TICKS(300));
-    esp_restart();
+    if (err == ESP_OK) {
+        vTaskDelay(pdMS_TO_TICKS(300));
+        esp_restart();
+    }
     return ESP_OK;
 }
 
 // POST /ota/theme/prepare
 // App 在上传分块之前调用一次，仅验证分区容量和 PSRAM。
 // 这里绝不擦除 Flash，旧主题会保留到新数据完整校验通过。
-static esp_err_t theme_prepare_handler(httpd_req_t *req)
+static esp_err_t theme_prepare_handler_impl(httpd_req_t *req)
 {
     if (!validate_token(req)) {
         return send_err(req, "unauthorized");
     }
+    if (upload_is_active()) return send_conflict(req, "upload already active");
     if (!theme_mount()) {
         return send_err(req, "mount failed");
     }
@@ -884,8 +961,8 @@ static esp_err_t theme_prepare_handler(httpd_req_t *req)
         return send_err(req, "missing prepare size");
     }
 
-    uint32_t total_size = (uint32_t)strtoul(size_str, NULL, 10);
-    if (total_size == 0) {
+    uint32_t total_size = 0;
+    if (!parse_u32_decimal(size_str, &total_size) || total_size == 0 || total_size > OTA_MAX_PAYLOAD_SIZE) {
         return send_err(req, "invalid prepare size");
     }
 
@@ -932,11 +1009,12 @@ static esp_err_t theme_prepare_handler(httpd_req_t *req)
 // 与 theme_prepare_handler 不同：这里*会*擦除 Flash，供 App 端"格式化主题分区"
 // 功能使用，擦除后设备下次启动 theme_engine_init() 会因 manifest 解析失败而
 // 自动回退到内建默认主题（见 theme_loader.c）。
-static esp_err_t theme_erase_handler(httpd_req_t *req)
+static esp_err_t theme_erase_handler_impl(httpd_req_t *req)
 {
     if (!validate_token(req)) {
         return send_err(req, "unauthorized");
     }
+    if (upload_is_active()) return send_conflict(req, "upload already active");
     if (!theme_mount()) {
         return send_err(req, "mount failed");
     }
@@ -963,7 +1041,7 @@ static esp_err_t theme_erase_handler(httpd_req_t *req)
 // POST /ota/theme — 分块上传 theme.bin (一个自包含的 4MB blob，和 firmware 一样
 // 没有 manifest/media 分段，写入前整块擦除 theme_0，再一次性写入)。
 // 分块协议与 firmware_handler 完全一致：X-OTA-SHA256/X-OTA-Size/X-Offset/X-Last。
-static esp_err_t theme_handler(httpd_req_t *req)
+static esp_err_t theme_handler_impl(httpd_req_t *req)
 {
     int64_t handler_start_us = esp_timer_get_time();
 
@@ -973,8 +1051,6 @@ static esp_err_t theme_handler(httpd_req_t *req)
 
     char sha_hex[65] = {0};
     char size_str[16] = {0};
-    char offset_str[16] = {0};
-    char last_str[8] = {0};
     char content_type[64] = {0};
     if (httpd_req_get_hdr_value_str(req, "X-OTA-SHA256", sha_hex, sizeof(sha_hex)) != ESP_OK ||
         httpd_req_get_hdr_value_str(req, "X-OTA-Size", size_str, sizeof(size_str)) != ESP_OK) {
@@ -986,18 +1062,16 @@ static esp_err_t theme_handler(httpd_req_t *req)
         is_base64 = (strstr(content_type, "base64") != NULL);
     }
 
-    uint32_t expected_size = (uint32_t)strtoul(size_str, NULL, 10);
+    uint32_t expected_size = 0;
     uint32_t chunk_offset = 0;
     bool is_last = false;
-    if (httpd_req_get_hdr_value_str(req, "X-Offset", offset_str, sizeof(offset_str)) == ESP_OK) {
-        chunk_offset = (uint32_t)strtoul(offset_str, NULL, 10);
-    }
-    if (httpd_req_get_hdr_value_str(req, "X-Last", last_str, sizeof(last_str)) == ESP_OK) {
-        is_last = (strcmp(last_str, "1") == 0);
-    }
+    if (!parse_u32_decimal(size_str, &expected_size) ||
+        !parse_u32_header(req, "X-Offset", &chunk_offset) ||
+        !parse_last_header(req, &is_last)) return send_err(req, "invalid chunk headers");
 
     uint8_t expected_sha[32];
-    if (!parse_hex_sha(sha_hex, expected_sha) || expected_size == 0 || chunk_offset > expected_size) {
+    if (!parse_hex_sha(sha_hex, expected_sha) || expected_size == 0 ||
+        expected_size > OTA_MAX_PAYLOAD_SIZE || chunk_offset > expected_size || req->content_len == 0) {
         return send_err(req, "invalid headers");
     }
     if (!is_base64 && (uint32_t)req->content_len > expected_size - chunk_offset) {
@@ -1005,8 +1079,10 @@ static esp_err_t theme_handler(httpd_req_t *req)
     }
 
     if (chunk_offset == 0) {
+        if (upload_is_active()) return send_conflict(req, "upload already active");
         ota_wifi_server_release_bt();
         recv_reset();
+        s_recv.generation = ++s_session_generation;
         if (!theme_mount()) {
             return send_err(req, "mount failed");
         }
@@ -1140,12 +1216,14 @@ static esp_err_t theme_handler(httpd_req_t *req)
         return send_json_response(req, 200, json);
     }
 
-    if (s_recv.received_size != s_recv.expected_size) {
+    if (is_last != (s_recv.received_size == s_recv.expected_size) ||
+        s_recv.received_size != s_recv.expected_size) {
         uint32_t received_size = s_recv.received_size;
         recv_reset();
         notify_status(OTA_WIFI_STATE_ERROR, "theme size mismatch", received_size, expected_size);
         return send_err(req, "size mismatch");
     }
+    notify_status(OTA_WIFI_STATE_VERIFYING, "theme verifying", s_recv.received_size, expected_size);
     if (!sha_finish_matches()) {
         uint32_t received_size = s_recv.received_size;
         recv_reset();
@@ -1155,7 +1233,7 @@ static esp_err_t theme_handler(httpd_req_t *req)
 
     // Network phase complete -- acknowledge before any flash work so the
     // TCP response leaves the radio before SoftAP is torn down.
-    notify_status(OTA_WIFI_STATE_RECEIVING, "theme installing", expected_size, expected_size);
+    notify_status(OTA_WIFI_STATE_INSTALLING, "theme installing", expected_size, expected_size);
     esp_err_t response_err = send_json_response(
         req, 200, "{\"ok\":true,\"message\":\"theme received, installing\"}");
     if (response_err != ESP_OK) {
@@ -1178,19 +1256,22 @@ static esp_err_t theme_handler(httpd_req_t *req)
         notify_status(OTA_WIFI_STATE_ERROR, "theme install failed", expected_size, expected_size);
     }
     recv_reset();
-    vTaskDelay(pdMS_TO_TICKS(300));
-    esp_restart();
+    if (err == ESP_OK) {
+        vTaskDelay(pdMS_TO_TICKS(300));
+        esp_restart();
+    }
     return ESP_OK;
 }
 
 // POST /ota/bootmedia/prepare
 // App 在上传分块之前调用一次，仅验证分区容量和 PSRAM。
 // 这里绝不擦除 Flash，旧动画会保留到新数据完整校验通过。
-static esp_err_t bootmedia_prepare_handler(httpd_req_t *req)
+static esp_err_t bootmedia_prepare_handler_impl(httpd_req_t *req)
 {
     if (!validate_token(req)) {
         return send_err(req, "unauthorized");
     }
+    if (upload_is_active()) return send_conflict(req, "upload already active");
     if (!boot_media_mount()) {
         return send_err(req, "mount failed");
     }
@@ -1202,9 +1283,13 @@ static esp_err_t bootmedia_prepare_handler(httpd_req_t *req)
         return send_err(req, "missing prepare sizes");
     }
 
-    uint32_t total_size = (uint32_t)strtoul(total_str, NULL, 10);
-    uint32_t manifest_size = (uint32_t)strtoul(manifest_str, NULL, 10);
-    if (total_size == 0 || manifest_size == 0 || manifest_size >= total_size ||
+    uint32_t total_size = 0;
+    uint32_t manifest_size = 0;
+    if (!parse_u32_decimal(total_str, &total_size) ||
+        !parse_u32_decimal(manifest_str, &manifest_size)) {
+        return send_err(req, "invalid prepare sizes");
+    }
+    if (total_size == 0 || total_size > OTA_MAX_PAYLOAD_SIZE || manifest_size == 0 || manifest_size >= total_size ||
         manifest_size > boot_media_raw_manifest_max()) {
         return send_err(req, "invalid prepare sizes");
     }
@@ -1254,7 +1339,7 @@ static esp_err_t bootmedia_prepare_handler(httpd_req_t *req)
 //   X-Offset: 该块在整个数据流中的起始偏移
 //   X-Last:   是否最后一块（1/0）
 // 收齐全部块后校验 SHA-256 并提交、重启。
-static esp_err_t bootmedia_handler(httpd_req_t *req)
+static esp_err_t bootmedia_handler_impl(httpd_req_t *req)
 {
     int64_t handler_start_us = esp_timer_get_time();
 
@@ -1265,8 +1350,6 @@ static esp_err_t bootmedia_handler(httpd_req_t *req)
     char sha_hex[65] = {0};
     char size_str[16] = {0};
     char manifest_size_str[16] = {0};
-    char offset_str[16] = {0};
-    char last_str[8] = {0};
     char content_type[64] = {0};
     if (httpd_req_get_hdr_value_str(req, "X-OTA-SHA256", sha_hex, sizeof(sha_hex)) != ESP_OK ||
         httpd_req_get_hdr_value_str(req, "X-OTA-Size", size_str, sizeof(size_str)) != ESP_OK ||
@@ -1279,19 +1362,19 @@ static esp_err_t bootmedia_handler(httpd_req_t *req)
         is_base64 = (strstr(content_type, "base64") != NULL);
     }
 
-    uint32_t total_size = (uint32_t)strtoul(size_str, NULL, 10);
-    uint32_t manifest_size = (uint32_t)strtoul(manifest_size_str, NULL, 10);
+    uint32_t total_size = 0;
+    uint32_t manifest_size = 0;
     uint32_t chunk_offset = 0;
     bool is_last = false;
-    if (httpd_req_get_hdr_value_str(req, "X-Offset", offset_str, sizeof(offset_str)) == ESP_OK) {
-        chunk_offset = (uint32_t)strtoul(offset_str, NULL, 10);
-    }
-    if (httpd_req_get_hdr_value_str(req, "X-Last", last_str, sizeof(last_str)) == ESP_OK) {
-        is_last = (strcmp(last_str, "1") == 0);
+    if (!parse_u32_decimal(size_str, &total_size) ||
+        !parse_u32_decimal(manifest_size_str, &manifest_size) ||
+        !parse_u32_header(req, "X-Offset", &chunk_offset) ||
+        !parse_last_header(req, &is_last)) {
+        return send_err(req, "invalid chunk headers");
     }
 
-    if (total_size == 0 || manifest_size == 0 || manifest_size > boot_media_raw_manifest_max() ||
-        manifest_size >= total_size || chunk_offset > total_size ||
+    if (total_size == 0 || total_size > OTA_MAX_PAYLOAD_SIZE || manifest_size == 0 || manifest_size > boot_media_raw_manifest_max() ||
+        manifest_size >= total_size || chunk_offset > total_size || req->content_len == 0 ||
         (!is_base64 && (uint32_t)req->content_len > total_size - chunk_offset)) {
         ESP_LOGE(TAG, "invalid sizes/offset: total=%lu manifest=%lu offset=%lu content_len=%d",
                  (unsigned long)total_size, (unsigned long)manifest_size,
@@ -1304,8 +1387,10 @@ static esp_err_t bootmedia_handler(httpd_req_t *req)
     }
 
     if (chunk_offset == 0) {
+        if (upload_is_active()) return send_conflict(req, "upload already active");
         ota_wifi_server_release_bt();
         recv_reset();
+        s_recv.generation = ++s_session_generation;
         if (!boot_media_mount()) {
             return send_err(req, "mount failed");
         }
@@ -1503,12 +1588,14 @@ static esp_err_t bootmedia_handler(httpd_req_t *req)
                  (after_response_us - handler_start_us) / 1000, ret);
         return ret;
     }
-    if (s_recv.received_size != total_size) {
+    if (is_last != (s_recv.received_size == total_size) ||
+        s_recv.received_size != total_size) {
         uint32_t received_size = s_recv.received_size;
         recv_reset();
         notify_status(OTA_WIFI_STATE_ERROR, "bootmedia size mismatch", received_size, total_size);
         return send_err(req, "size mismatch");
     }
+    notify_status(OTA_WIFI_STATE_VERIFYING, "bootmedia verifying", s_recv.received_size, total_size);
     if (!sha_finish_matches()) {
         uint32_t received_size = s_recv.received_size;
         recv_reset();
@@ -1516,7 +1603,7 @@ static esp_err_t bootmedia_handler(httpd_req_t *req)
         return send_err(req, "sha mismatch");
     }
 
-    notify_status(OTA_WIFI_STATE_RECEIVING, "bootmedia installing", total_size, total_size);
+    notify_status(OTA_WIFI_STATE_INSTALLING, "bootmedia installing", total_size, total_size);
     esp_err_t response_err = send_json_response(
         req, 200, "{\"ok\":true,\"message\":\"bootmedia received, installing\"}");
     if (response_err != ESP_OK) {
@@ -1551,9 +1638,121 @@ static esp_err_t bootmedia_handler(httpd_req_t *req)
         notify_status(OTA_WIFI_STATE_ERROR, "bootmedia install failed", total_size, total_size);
     }
     recv_reset();
-    vTaskDelay(pdMS_TO_TICKS(300));
-    esp_restart();
+    if (write_err == ESP_OK) {
+        vTaskDelay(pdMS_TO_TICKS(300));
+        esp_restart();
+    }
     return ESP_OK;
+}
+
+/* HTTPD invokes handlers concurrently.  Keep all upload/session metadata
+ * behind one mutex; the implementation functions above can then use simple
+ * state transitions without racing the status endpoint or idle watchdog. */
+static bool ota_state_lock(void)
+{
+    return s_ota_mux && xSemaphoreTake(s_ota_mux, portMAX_DELAY) == pdTRUE;
+}
+
+static void ota_state_unlock(void)
+{
+    if (s_ota_mux) xSemaphoreGive(s_ota_mux);
+}
+
+static bool upload_request_try_lock(void)
+{
+    return __sync_lock_test_and_set(&s_upload_request_active, 1) == 0;
+}
+
+static void upload_request_unlock(void)
+{
+    __sync_lock_release(&s_upload_request_active);
+}
+
+static esp_err_t discover_handler(httpd_req_t *req)
+{
+    if (!ota_state_lock()) return send_err(req, "ota unavailable");
+    esp_err_t err = discover_handler_impl(req);
+    ota_state_unlock();
+    return err;
+}
+
+static esp_err_t info_handler(httpd_req_t *req)
+{
+    if (!ota_state_lock()) return send_err(req, "ota unavailable");
+    esp_err_t err = info_handler_impl(req);
+    ota_state_unlock();
+    return err;
+}
+
+static esp_err_t status_handler(httpd_req_t *req)
+{
+    if (!ota_state_lock()) return send_err(req, "ota unavailable");
+    esp_err_t err = status_handler_impl(req);
+    ota_state_unlock();
+    return err;
+}
+
+static esp_err_t firmware_handler(httpd_req_t *req)
+{
+    if (!upload_request_try_lock()) return send_conflict(req, "upload already active");
+    if (!ota_state_lock()) {
+        upload_request_unlock();
+        return send_err(req, "ota unavailable");
+    }
+    esp_err_t err = firmware_handler_impl(req);
+    ota_state_unlock();
+    upload_request_unlock();
+    return err;
+}
+
+static esp_err_t theme_prepare_handler(httpd_req_t *req)
+{
+    if (!ota_state_lock()) return send_err(req, "ota unavailable");
+    esp_err_t err = theme_prepare_handler_impl(req);
+    ota_state_unlock();
+    return err;
+}
+
+static esp_err_t theme_erase_handler(httpd_req_t *req)
+{
+    if (!ota_state_lock()) return send_err(req, "ota unavailable");
+    esp_err_t err = theme_erase_handler_impl(req);
+    ota_state_unlock();
+    return err;
+}
+
+static esp_err_t theme_handler(httpd_req_t *req)
+{
+    if (!upload_request_try_lock()) return send_conflict(req, "upload already active");
+    if (!ota_state_lock()) {
+        upload_request_unlock();
+        return send_err(req, "ota unavailable");
+    }
+    esp_err_t err = theme_handler_impl(req);
+    ota_state_unlock();
+    upload_request_unlock();
+    return err;
+}
+
+static esp_err_t bootmedia_prepare_handler(httpd_req_t *req)
+{
+    if (!ota_state_lock()) return send_err(req, "ota unavailable");
+    esp_err_t err = bootmedia_prepare_handler_impl(req);
+    ota_state_unlock();
+    return err;
+}
+
+static esp_err_t bootmedia_handler(httpd_req_t *req)
+{
+    if (!upload_request_try_lock()) return send_conflict(req, "upload already active");
+    if (!ota_state_lock()) {
+        upload_request_unlock();
+        return send_err(req, "ota unavailable");
+    }
+    esp_err_t err = bootmedia_handler_impl(req);
+    ota_state_unlock();
+    upload_request_unlock();
+    return err;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1564,10 +1763,16 @@ static void ota_timeout_task(void *arg)
 {
     (void)arg;
     for (;;) {
-        if (s_state == OTA_WIFI_STATE_IDLE) {
+        if (!ota_state_lock()) {
             break;   // stopped externally
         }
-        if (esp_timer_get_time() - s_last_activity_us > OTA_IDLE_TIMEOUT_US) {
+        ota_wifi_state_t state = s_state;
+        int64_t last_activity_us = s_last_activity_us;
+        ota_state_unlock();
+        if (state == OTA_WIFI_STATE_IDLE) {
+            break;
+        }
+        if (esp_timer_get_time() - last_activity_us > OTA_IDLE_TIMEOUT_US) {
             ESP_LOGW(TAG, "WiFi OTA idle timeout (no HTTP activity for %lld s), stopping",
                      (long long)(OTA_IDLE_TIMEOUT_US / 1000000));
             ota_wifi_server_stop();
@@ -1578,29 +1783,21 @@ static void ota_timeout_task(void *arg)
     vTaskDelete(NULL);
 }
 
-static void generate_wifi_password(void)
-{
-    // Unambiguous alphabet (no 0/O/1/l/I): 8 chars, still WPA2-PSK compliant.
-    static const char charset[] = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-    uint8_t rnd[8];
-    esp_fill_random(rnd, sizeof(rnd));
-    for (int i = 0; i < WIFI_PASS_LEN; i++) {
-        s_password[i] = charset[rnd[i] % (sizeof(charset) - 1)];
-    }
-    s_password[WIFI_PASS_LEN] = '\0';
-}
-
 /* ------------------------------------------------------------------ */
 /* Public API                                                          */
 /* ------------------------------------------------------------------ */
 
-bool ota_wifi_server_start(ota_wifi_info_t *info, ota_wifi_status_cb_t callback)
+static bool ota_wifi_server_start_impl(ota_wifi_info_t *info, ota_wifi_status_cb_t callback)
 {
     if (s_state != OTA_WIFI_STATE_IDLE) {
         ESP_LOGW(TAG, "WiFi OTA already running");
         return false;
     }
 
+    s_session_generation++;
+    s_error_received = 0;
+    s_error_expected = 0;
+    s_error_generation = 0;
     s_status_cb = callback;
     notify_status(OTA_WIFI_STATE_STARTING, "starting", 0, 0);
     rs485_brake_temp_pause();
@@ -1903,7 +2100,7 @@ bool ota_wifi_server_start(ota_wifi_info_t *info, ota_wifi_status_cb_t callback)
     return true;
 }
 
-void ota_wifi_server_stop(void)
+static void ota_wifi_server_stop_impl(void)
 {
     if (s_state == OTA_WIFI_STATE_IDLE) return;
 
@@ -1948,16 +2145,45 @@ void ota_wifi_server_stop(void)
     s_status_cb = NULL;
     s_wifi_owned = false;
     s_prev_wifi_mode = WIFI_MODE_NULL;
+    s_session_generation++;
+    s_error_received = 0;
+    s_error_expected = 0;
+    s_error_generation = 0;
     s_state = OTA_WIFI_STATE_IDLE;
     ESP_LOGI(TAG, "WiFi OTA stopped");
 }
 
+bool ota_wifi_server_start(ota_wifi_info_t *info, ota_wifi_status_cb_t callback)
+{
+    if (!s_ota_mux) {
+        s_ota_mux = xSemaphoreCreateMutex();
+        if (!s_ota_mux) return false;
+    }
+    if (!ota_state_lock()) return false;
+    bool ok = ota_wifi_server_start_impl(info, callback);
+    ota_state_unlock();
+    return ok;
+}
+
+void ota_wifi_server_stop(void)
+{
+    if (!s_ota_mux || !ota_state_lock()) return;
+    ota_wifi_server_stop_impl();
+    ota_state_unlock();
+}
+
 ota_wifi_state_t ota_wifi_server_get_state(void)
 {
-    return s_state;
+    if (!s_ota_mux || !ota_state_lock()) return s_state;
+    ota_wifi_state_t state = s_state;
+    ota_state_unlock();
+    return state;
 }
 
 bool ota_wifi_server_is_busy(void)
 {
-    return s_state == OTA_WIFI_STATE_RECEIVING;
+    if (!s_ota_mux || !ota_state_lock()) return false;
+    bool busy = upload_is_active();
+    ota_state_unlock();
+    return busy;
 }

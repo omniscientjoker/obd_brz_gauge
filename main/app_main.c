@@ -204,7 +204,9 @@ void app_main(void)
     esp_task_wdt_reconfigure(&wdt_cfg);
 
     /* 1.5 Vehicle profile init (loads the saved vehicle index from NVS) */
-    const nvs_user_cfg_t *user_cfg = nvs_cfg_get();
+    nvs_user_cfg_t user_cfg_snapshot = {0};
+    nvs_cfg_get_snapshot(&user_cfg_snapshot);
+    const nvs_user_cfg_t *user_cfg = &user_cfg_snapshot;
     vehicle_profile_set_active(user_cfg->vehicle_profile_idx);
     const nvs_stat_t *stat = nvs_stat_get();
     ESP_LOGI("NVS", "cfg: proto=%u theme=%u profile=%u(%s) odo=%" PRIu64 " trip=%" PRIu64 " max=%d avg=%d run=%" PRIu64,
@@ -313,12 +315,11 @@ void app_main(void)
         extern lv_obj_t * ui_ScreenPageLogo;
         ui_ScreenPageLogo_screen_init();
         lv_disp_load_scr(ui_ScreenPageLogo);
+        lv_refr_now(dispp);
         lvgl_unlock();
     }
-    ESP_LOGI(TAG, "Logo page displayed, yielding to LVGL task");
-    for (int i = 0; i < 3; i++) {
-        vTaskDelay(1);
-    }
+    ESP_LOGI(TAG, "Startup logo refreshed; continuing UI initialization");
+    vTaskDelay(pdMS_TO_TICKS(50));
 #else
     ESP_LOGI(TAG, "Legacy logo page disabled; boot animation will start directly");
 #endif

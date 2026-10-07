@@ -21,6 +21,7 @@ void ui_ScreenPageLogo_screen_init(void)
 
     // White border ring (consistent with the other pages)
     lv_obj_t *spinnerLogo = ui_helpers_create_ring(ui_ScreenPageLogo, 10);   // white ring: static circular border
+    (void)spinnerLogo;
 #elif USE_GIF_LOGO == 1
     imageLogo = lv_gif_create(ui_ScreenPageLogo);
     lv_gif_set_src(imageLogo, &gifSnake400);

@@ -58,7 +58,10 @@ typedef struct {
 esp_err_t nvs_storage_init(void);
 
 /* User config accessors */
+/* Legacy read-only pointer API. Prefer nvs_cfg_get_snapshot() for task code. */
 const nvs_user_cfg_t * nvs_cfg_get(void);
+/* Copy the current configuration while holding the storage lock. */
+esp_err_t nvs_cfg_get_snapshot(nvs_user_cfg_t *out);
 esp_err_t nvs_cfg_set(const nvs_user_cfg_t *cfg);
 
 // Per-item alarm threshold for the chart page (raw units; value>=threshold alarms; 32767=off). item = disp_item_t value.

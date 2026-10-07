@@ -41,6 +41,9 @@ function setPressureLimit(input) {
     state.pressureMax = Math.max(value, state.pressureMin + 0.1);
     input.value = format(state.pressureMax, 1);
   }
+  // Keep the visible TPMS alarm state in sync without replacing the settings
+  // form while the user is typing in it.
+  if (state.page === 'tpms') renderPage();
 }
 
 function gauge(name, value, unit, percent, extras = '') {
@@ -81,9 +84,7 @@ function tire(label, position, value) {
   const warning = isPressureWarning(value);
   const side = position === 'fl' || position === 'rl' ? 'tire-left' : 'tire-right';
   const vertical = position === 'fl' || position === 'fr' ? 'tire-top' : 'tire-bottom';
-  const content = vertical === 'tire-top'
-    ? `<span>${label}</span><b>${format(value, 1)}</b><small>bar</small>`
-    : `<small>bar</small><b>${format(value, 1)}</b><span>${label}</span>`;
+  const content = `<span>${label}</span><b>${format(value, 1)}</b><small>bar</small>`;
   return `<div class="tire tire-${position} ${side} ${vertical} ${warning ? 'warning' : ''}"><div class="tire-content">${content}</div>${warning ? '<i class="warning-mark" role="img" aria-label="胎压异常">!</i>' : ''}</div>`;
 }
 

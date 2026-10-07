@@ -13,6 +13,8 @@ typedef enum {
     OTA_WIFI_STATE_STARTING,      // 正在启动
     OTA_WIFI_STATE_READY,         // 就绪，等待连接
     OTA_WIFI_STATE_RECEIVING,     // 正在接收数据
+    OTA_WIFI_STATE_VERIFYING,     // 正在校验完整 payload
+    OTA_WIFI_STATE_INSTALLING,    // 正在写入目标存储
     OTA_WIFI_STATE_DONE,          // 完成
     OTA_WIFI_STATE_ERROR,         // 错误
 } ota_wifi_state_t;

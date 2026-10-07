@@ -51,7 +51,7 @@ void ui_ext_showroom_handle_tap(void);    // 10 rapid taps on the version page e
 void ui_ext_showroom_tick(bool is_slave); // the whole showroom state machine (moved out of my_timerMain)
 
 /* ---- Boot animation / video / intro ---- */
-#define ENABLE_BOOT_LOGO_PAGE 0  // 0: start video/boot flow directly; 1: show the legacy Logo page first
+#define ENABLE_BOOT_LOGO_PAGE 1  // Show the startup image while the boot flow initializes.
 bool ui_ext_boot_video_tick(void);        // video boot mode; returns true to make my_timerMain return early
 void ui_ext_intro_tick(bool is_slave);    // RACE/AS/ONE boot animation state machine
 void ui_ext_no_signal_update(bool signal_ok); // "NO SIGNAL" overlay on gauge pages

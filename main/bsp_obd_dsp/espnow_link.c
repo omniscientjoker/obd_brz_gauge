@@ -1,6 +1,8 @@
 // Three-gauge ESP-NOW link: the master reads OBD then broadcasts to slaves.
 // One master, many slaves, broadcast (1-to-many), coexists with BLE (master).
-// Step 1: broadcast + no MAC filtering (enough for the single-master-per-car case).
+// Broadcast remains the wire transport for compatibility. Bound slaves filter
+// the source MAC; legacy OBD packets additionally use a rolling sequence,
+// while the TPMS extension uses a versioned CRC-protected packet.
 
 #include "espnow_link.h"
 #include "app_obd_dsp/app_event.h"
@@ -28,8 +30,9 @@ extern int  ui_intro_get_step(void);
 #define ESPNOW_CHANNEL          1       // master and slaves must share a channel (fixed here when STA is not connected to an AP)
 #define ESPNOW_MAGIC            0x4F42  // 'OB' packet-header magic
 #define ESPNOW_VER              5       // v5: added afr_x100 (air-fuel ratio)
-#define ESPNOW_TPMS_VER         1       // independent extension; old OBD packets stay compatible
+#define ESPNOW_TPMS_VER         2       // CRC-protected extension; old OBD packets stay compatible
 #define ESPNOW_PACKET_TPMS      3
+#define ESPNOW_LEGACY_BROADCAST_COMPAT 1
 #define MASTER_NAME_LEN         12
 static const char MASTER_NAME[] = "SkyGauge";   // name the master broadcasts (shown on slaves); could become configurable later
 #define BROADCAST_INTERVAL_MS   100     // master broadcast period (10Hz, plenty for gauges)
@@ -82,7 +85,41 @@ static void recv_cb(const uint8_t *mac, const uint8_t *data, int len);
 
 static const uint8_t s_broadcast_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 static volatile int64_t s_last_rx_us = 0;
+static volatile int64_t s_last_tpms_rx_us = 0;
 static uint32_t s_tx_seq = 0;
+static bool s_have_rx_seq = false;
+static uint32_t s_last_rx_seq = 0;
+static bool s_have_tpms_seq = false;
+static uint32_t s_last_tpms_seq = 0;
+static uint32_t s_drop_duplicate = 0;
+static uint32_t s_drop_integrity = 0;
+static uint32_t s_drop_header = 0;
+
+static void log_drop_sampled(const char *reason, uint32_t *counter)
+{
+    if (!counter) return;
+    (*counter)++;
+    if (*counter == 1 || (*counter % 64u) == 0) {
+        ESP_LOGW(TAG, "ESP-NOW dropped %s (count=%lu)", reason, (unsigned long)*counter);
+    }
+}
+
+static bool seq_is_newer(uint32_t seq, uint32_t last)
+{
+    return (int32_t)(seq - last) > 0;
+}
+
+static uint16_t packet_crc16(const uint8_t *data, size_t len)
+{
+    uint16_t crc = 0xFFFF;
+    for (size_t i = 0; i < len; ++i) {
+        crc ^= data[i];
+        for (uint8_t bit = 0; bit < 8; ++bit) {
+            crc = (crc & 1u) ? (uint16_t)((crc >> 1) ^ 0xA001u) : (uint16_t)(crc >> 1);
+        }
+    }
+    return crc;
+}
 
 // Broadcast packet: mirrors the available fields of obd_data_cache (packed, identical on master and slaves).
 typedef struct __attribute__((packed)) {
@@ -121,9 +158,10 @@ typedef struct __attribute__((packed)) {
     uint32_t seq;
     uint8_t  valid_mask;
     int16_t  pressure_bar_x100[OBD_TPMS_WHEEL_COUNT];
+    uint16_t crc16;
 } espnow_tpms_packet_t;
 
-_Static_assert(sizeof(espnow_tpms_packet_t) == 17,
+_Static_assert(sizeof(espnow_tpms_packet_t) == 19,
                "TPMS ESP-NOW extension packet layout changed");
 
 static char s_master_name[MASTER_NAME_LEN] = {0};  // slave side: name of the last master heard
@@ -135,6 +173,11 @@ static void wifi_espnow_init(void) {
     if (e != ESP_OK && e != ESP_ERR_INVALID_STATE) ESP_ERROR_CHECK(e);
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    // The gauge uses ESP-NOW only during normal operation, so keep its Wi-Fi
+    // buffers sized for the low-rate packets instead of the OTA throughput profile.
+    cfg.static_rx_buf_num = 4;
+    cfg.dynamic_rx_buf_num = 8;
+    cfg.rx_ba_win = 6;
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     s_wifi_initialized = true;
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
@@ -149,13 +192,15 @@ static void wifi_espnow_init(void) {
 // ========================= Master =========================
 static void master_pack(espnow_obd_packet_t *p) {
     obd_data_snapshot_t snap;
+    nvs_user_cfg_t cfg = {0};
+    nvs_cfg_get_snapshot(&cfg);
 
     p->magic   = ESPNOW_MAGIC;
     p->version = ESPNOW_VER;
     // bit0 = ELM connected; bit1 = linked test in progress; bit2 = rpm_warn_linked_en (slaves mirror this setting from master)
     p->flags   = (elm327_ble_is_connected() ? 0x01 : 0x00)
                | (s_linktest_active ? 0x02 : 0x00)
-               | (nvs_cfg_get()->rpm_warn_linked_en ? 0x04 : 0x00);
+               | (cfg.rpm_warn_linked_en ? 0x04 : 0x00);
     p->seq     = ++s_tx_seq;
     obd_data_get_snapshot(&snap);
     p->rpm              = snap.rpm;
@@ -189,6 +234,7 @@ static void master_pack_tpms(espnow_tpms_packet_t *p)
         p->pressure_bar_x100[i] = snapshot.pressure_bar_x100[i];
         if (snapshot.valid[i]) p->valid_mask |= (uint8_t)(1u << i);
     }
+    p->crc16 = packet_crc16((const uint8_t *)p, sizeof(*p) - sizeof(p->crc16));
 }
 
 // Linked-test ramp control: compute the simulated RPM along the timeline and write it into the RPM override layer.
@@ -196,7 +242,9 @@ static void master_pack_tpms(espnow_tpms_packet_t *p)
 static void master_linktest_task(void *arg) {
     for (;;) {
         if (s_linktest_active) {
-            uint16_t thresh = nvs_cfg_get()->rpm_warn_threshold;
+            nvs_user_cfg_t cfg = {0};
+            nvs_cfg_get_snapshot(&cfg);
+            uint16_t thresh = cfg.rpm_warn_threshold;
             uint32_t peak = (uint32_t)thresh + 200;   // slightly above threshold so the all-gauge flash is clearly visible
             int64_t el_ms = (esp_timer_get_time() - s_linktest_start_us) / 1000;
             int64_t total = LINKTEST_RISE_MS + LINKTEST_HOLD_MS + LINKTEST_FALL_MS;
@@ -237,6 +285,10 @@ static void master_task(void *arg) {
 void espnow_link_start_master(void) {
     wifi_espnow_init();
     s_is_master = true;
+    s_have_rx_seq = false;
+    s_have_tpms_seq = false;
+    s_last_rx_us = 0;
+    s_last_tpms_rx_us = 0;
     obd_tpms_cache_reset();
 
     esp_now_peer_info_t peer = {0};
@@ -292,6 +344,14 @@ static void handle_presence(const uint8_t *mac, const espnow_presence_t *pr) {
 
 // Slave side: received the master's OBD packet -> write the cache
 static void handle_obd(const espnow_obd_packet_t *p) {
+    int64_t now_us = esp_timer_get_time();
+    bool stale_source = s_have_rx_seq && s_last_rx_us != 0 && (now_us - s_last_rx_us) > 2000000;
+    if (!p || (s_have_rx_seq && !stale_source && !seq_is_newer(p->seq, s_last_rx_seq))) {
+        log_drop_sampled("duplicate/out-of-order OBD", &s_drop_duplicate);
+        return;
+    }
+    s_have_rx_seq = true;
+    s_last_rx_seq = p->seq;
     s_last_rx_us = esp_timer_get_time();
     apply_packet(p);
 }
@@ -299,6 +359,20 @@ static void handle_obd(const espnow_obd_packet_t *p) {
 static void handle_tpms(const espnow_tpms_packet_t *p)
 {
     if (!p) return;
+    uint16_t expected_crc = packet_crc16((const uint8_t *)p, sizeof(*p) - sizeof(p->crc16));
+    if (p->crc16 != expected_crc) {
+        log_drop_sampled("TPMS integrity failure", &s_drop_integrity);
+        return;
+    }
+    bool stale_source = s_have_tpms_seq && s_last_tpms_rx_us != 0 &&
+                        (esp_timer_get_time() - s_last_tpms_rx_us) > 2000000;
+    if (s_have_tpms_seq && !stale_source && !seq_is_newer(p->seq, s_last_tpms_seq)) {
+        log_drop_sampled("duplicate/out-of-order TPMS", &s_drop_duplicate);
+        return;
+    }
+    s_have_tpms_seq = true;
+    s_last_tpms_seq = p->seq;
+    s_last_tpms_rx_us = esp_timer_get_time();
     for (uint8_t i = 0; i < OBD_TPMS_WHEEL_COUNT; ++i) {
         if (p->valid_mask & (uint8_t)(1u << i)) {
             obd_tpms_cache_set((obd_tpms_wheel_t)i,
@@ -326,22 +400,30 @@ static void handle_ctrl(const espnow_ctrl_packet_t *c) {
 }
 
 static void handle_rx(const uint8_t *mac, const uint8_t *data, int len) {
+    if (!mac || !data || len <= 0) {
+        log_drop_sampled("missing source or payload", &s_drop_header);
+        return;
+    }
     if (len == (int)sizeof(espnow_obd_packet_t)) {
         if (s_is_master) return;   // the master does not process OBD packets
         const espnow_obd_packet_t *p = (const espnow_obd_packet_t *)data;
         if (p->magic == ESPNOW_MAGIC && p->version == ESPNOW_VER) handle_obd(p);
+        else log_drop_sampled("invalid OBD header", &s_drop_header);
     } else if (len == (int)sizeof(espnow_tpms_packet_t)) {
         if (s_is_master) return;
         const espnow_tpms_packet_t *p = (const espnow_tpms_packet_t *)data;
         if (p->magic == ESPNOW_MAGIC && p->version == ESPNOW_TPMS_VER &&
             p->packet_type == ESPNOW_PACKET_TPMS) handle_tpms(p);
+        else log_drop_sampled("invalid TPMS header", &s_drop_header);
     } else if (len == (int)sizeof(espnow_ctrl_packet_t)) {
         const espnow_ctrl_packet_t *c = (const espnow_ctrl_packet_t *)data;
         if (c->magic == ESPNOW_MAGIC && c->version == ESPNOW_VER) handle_ctrl(c);
+        else log_drop_sampled("invalid control header", &s_drop_header);
     } else if (len == (int)sizeof(espnow_presence_t)) {
         if (!s_is_master) return;  // only the master tallies slaves
         const espnow_presence_t *pr = (const espnow_presence_t *)data;
         if (pr->magic == ESPNOW_MAGIC && pr->version == ESPNOW_VER) handle_presence(mac, pr);
+        else log_drop_sampled("invalid presence header", &s_drop_header);
     }
 }
 
@@ -350,16 +432,25 @@ static void handle_rx(const uint8_t *mac, const uint8_t *data, int len) {
 static void recv_cb(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
     // Slave MAC filter: once bound to a master MAC, only accept packets from that MAC.
     if (!s_is_master && info) {
-        const nvs_user_cfg_t *cfg = nvs_cfg_get();
-        if (cfg->espnow_master_mac[0] != 0) {  // bound
+        nvs_user_cfg_t cfg = {0};
+        nvs_cfg_get_snapshot(&cfg);
+        if (cfg.espnow_master_mac[0] != 0) {  // bound
             bool mac_match = true;
             for (int i = 0; i < 6; i++) {
-                if (info->src_addr[i] != cfg->espnow_master_mac[i]) {
+                if (info->src_addr[i] != cfg.espnow_master_mac[i]) {
                     mac_match = false;
                     break;
                 }
             }
             if (!mac_match) return;  // ignore packets from other masters
+        } else {
+            /* Explicit compatibility mode for legacy installations that have
+             * not paired a master MAC yet. New installations should bind. */
+            static bool logged_compat = false;
+            if (!logged_compat) {
+                ESP_LOGW(TAG, "ESP-NOW slave is unbound; accepting broadcast compatibility mode");
+                logged_compat = true;
+            }
         }
     }
     handle_rx(info ? info->src_addr : NULL, data, len);
@@ -368,8 +459,9 @@ static void recv_cb(const esp_now_recv_info_t *info, const uint8_t *data, int le
 static void recv_cb(const uint8_t *mac, const uint8_t *data, int len) {
     // Slave MAC filter: once bound to a master MAC, only accept packets from that MAC.
     if (!s_is_master && mac) {
-        const nvs_user_cfg_t *cfg = nvs_cfg_get();
-        if (cfg->espnow_master_mac[0] != 0) {  // bound
+        nvs_user_cfg_t cfg = {0};
+        nvs_cfg_get_snapshot(&cfg);
+        if (cfg.espnow_master_mac[0] != 0) {  // bound
             bool mac_match = true;
             for (int i = 0; i < 6; i++) {
                 if (mac[i] != cfg->espnow_master_mac[i]) {
@@ -378,6 +470,12 @@ static void recv_cb(const uint8_t *mac, const uint8_t *data, int len) {
                 }
             }
             if (!mac_match) return;  // ignore packets from other masters
+        } else {
+            static bool logged_compat = false;
+            if (!logged_compat) {
+                ESP_LOGW(TAG, "ESP-NOW slave is unbound; accepting broadcast compatibility mode");
+                logged_compat = true;
+            }
         }
     }
     handle_rx(mac, data, len);
@@ -397,6 +495,10 @@ static void slave_presence_task(void *arg) {
 void espnow_link_start_slave(void) {
     wifi_espnow_init();
     s_is_master = false;
+    s_have_rx_seq = false;
+    s_have_tpms_seq = false;
+    s_last_rx_us = 0;
+    s_last_tpms_rx_us = 0;
     obd_tpms_cache_reset();
     // A slave also needs the broadcast peer to be able to send presence
     esp_now_peer_info_t peer = {0};
@@ -423,13 +525,17 @@ const char *espnow_link_get_master_name(void) {
 
 // Slave: MAC of the currently bound master (all-zero = unbound)
 const uint8_t *espnow_link_get_bound_master_mac(void) {
-    return nvs_cfg_get()->espnow_master_mac;
+    static uint8_t mac_snapshot[6];
+    nvs_user_cfg_t cfg = {0};
+    if (nvs_cfg_get_snapshot(&cfg) == ESP_OK) memcpy(mac_snapshot, cfg.espnow_master_mac, sizeof(mac_snapshot));
+    return mac_snapshot;
 }
 
 // Slave: bind to a specific master MAC (the ESP-NOW MAC read during BLE pairing)
 void espnow_link_bind_master(const uint8_t mac[6]) {
     if (!mac) return;
-    nvs_user_cfg_t cfg = *nvs_cfg_get();
+    nvs_user_cfg_t cfg = {0};
+    if (nvs_cfg_get_snapshot(&cfg) != ESP_OK) return;
     memcpy(cfg.espnow_master_mac, mac, 6);
     nvs_cfg_set(&cfg);
     ESP_LOGI(TAG, "Bound to master MAC: %02x:%02x:%02x:%02x:%02x:%02x",
@@ -439,7 +545,8 @@ void espnow_link_bind_master(const uint8_t mac[6]) {
 
 // Slave: unbind the master (return to accept-any mode)
 void espnow_link_unbind_master(void) {
-    nvs_user_cfg_t cfg = *nvs_cfg_get();
+    nvs_user_cfg_t cfg = {0};
+    if (nvs_cfg_get_snapshot(&cfg) != ESP_OK) return;
     memset(cfg.espnow_master_mac, 0, 6);
     nvs_cfg_set(&cfg);
     ESP_LOGI(TAG, "Unbound master MAC (receive from any master)");
@@ -488,14 +595,18 @@ bool espnow_link_linktest_active(void) {
 // Whether rpm_warn_linked_en is active on the master: master = local NVS, slave = mirrored from broadcast flags bit2.
 // Slaves use this so the gradient fires without needing manual NVS config on each slave unit.
 bool espnow_link_linked_en(void) {
-    return s_is_master ? (nvs_cfg_get()->rpm_warn_linked_en != 0) : s_rx_linked_en;
+    if (!s_is_master) return s_rx_linked_en;
+    nvs_user_cfg_t cfg = {0};
+    nvs_cfg_get_snapshot(&cfg);
+    return cfg.rpm_warn_linked_en != 0;
 }
 
 // Apply a threshold synced from another gauge (called by the UI task): write local NVS; the master
 // additionally relays it to the other slaves. ESP-NOW does not loop back one's own sends, so the
 // relay cannot form a loop.
 void espnow_link_apply_synced_threshold(uint16_t thresh) {
-    nvs_user_cfg_t cfg = *nvs_cfg_get();
+    nvs_user_cfg_t cfg = {0};
+    if (nvs_cfg_get_snapshot(&cfg) != ESP_OK) return;
     if (cfg.rpm_warn_threshold != thresh) {
         cfg.rpm_warn_threshold = thresh;
         nvs_cfg_set(&cfg);

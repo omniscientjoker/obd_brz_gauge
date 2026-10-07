@@ -785,6 +785,8 @@ static void wifi_ota_status_callback(ota_wifi_state_t state, const char *message
         case OTA_WIFI_STATE_STARTING: state_str = "wifi-starting"; break;
         case OTA_WIFI_STATE_READY: state_str = "wifi-ready"; break;
         case OTA_WIFI_STATE_RECEIVING: state_str = "wifi-receiving"; break;
+        case OTA_WIFI_STATE_VERIFYING: state_str = "wifi-verifying"; break;
+        case OTA_WIFI_STATE_INSTALLING: state_str = "wifi-installing"; break;
         case OTA_WIFI_STATE_DONE: state_str = "wifi-done"; break;
         case OTA_WIFI_STATE_ERROR: state_str = "wifi-error"; break;
         default: break;

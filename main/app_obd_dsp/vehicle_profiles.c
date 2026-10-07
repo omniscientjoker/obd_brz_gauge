@@ -454,7 +454,8 @@ void vehicle_profile_set_active(uint8_t index)
     obd_data_reset_temp_cache();
 
     // Save to NVS
-    nvs_user_cfg_t cfg = *nvs_cfg_get();
+    nvs_user_cfg_t cfg = {0};
+    nvs_cfg_get_snapshot(&cfg);
     cfg.vehicle_profile_idx = index;
     nvs_cfg_set(&cfg);
 

@@ -1164,7 +1164,9 @@ static void zc6_can_monitor_feed(const uint8_t *data, size_t len)
 // Called on every (re)connect and only after the notify subscription is ready, so handshake responses aren't lost before subscribing.
 static void do_elm_init(void) {
     char atsp_cmd[16];
-    const nvs_user_cfg_t *cfg = nvs_cfg_get();
+    nvs_user_cfg_t cfg_snapshot = {0};
+    nvs_cfg_get_snapshot(&cfg_snapshot);
+    const nvs_user_cfg_t *cfg = &cfg_snapshot;
 
     // ---- Protocol selection ----
     uint8_t protocol_to_use = cfg->protocol;
