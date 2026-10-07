@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 16 px
  * Bpp: 4
- * Opts: --size 16 --bpp 4 --format lvgl --font /Users/jiangmiao/Library/Fonts/SourceHanSansCN-Regular.ttf -r 0x20-0x7e --symbols 启动页车型主题亮度赛道记录开关上滑返回下多联表温度信息图表仪档位转速车电压主机从机独立设为模式连接状态已未等待固件 --no-compress --no-prefilter --lv-font-name ui_font_Chinese16 -o main/export_path/fonts/ui_font_Chinese16.c
+ * Opts: --size 16 --bpp 4 --format lvgl --font /Users/jiangmiao/Library/Fonts/SourceHanSansCN-Regular.ttf -r 0x20-0x7e --symbols 启动页车型主题亮度赛道记录开关上滑返回下多联表温度信息图表仪档位转速车电压主机从机独立设为模式连接状态已未等待固件量 --no-compress --no-prefilter --lv-font-name ui_font_Chinese16 -o main/export_path/fonts/ui_font_Chinese16.c
  ******************************************************************************/
 
 #include "../ui.h"
@@ -1620,6 +1620,22 @@ static LV_ATTRIBUTE_LARGE_CONST const uint8_t glyph_bitmap[] = {
     0x1e, 0x20, 0x4, 0xbf, 0xff, 0xff, 0xff, 0xf3,
     0x0, 0x0, 0x0, 0x0, 0x1, 0x10, 0x0, 0x0,
 
+    /* U+91CF "量" */
+    0x0, 0x2f, 0xbb, 0xbb, 0xbb, 0xbb, 0xf1, 0x0,
+    0x0, 0x2f, 0x11, 0x11, 0x11, 0x12, 0xf1, 0x0,
+    0x0, 0x2f, 0x99, 0x99, 0x99, 0x9a, 0xf1, 0x0,
+    0x0, 0x2f, 0x88, 0x88, 0x88, 0x88, 0xf1, 0x0,
+    0x2, 0x25, 0x55, 0x55, 0x55, 0x55, 0x52, 0x20,
+    0x1c, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xcc, 0xc1,
+    0x0, 0x38, 0x88, 0x88, 0x88, 0x88, 0x85, 0x0,
+    0x0, 0x6b, 0x22, 0x2a, 0x92, 0x22, 0xa9, 0x0,
+    0x0, 0x6e, 0xbb, 0xbe, 0xdb, 0xbb, 0xd9, 0x0,
+    0x0, 0x6d, 0x66, 0x6c, 0xb6, 0x66, 0xc9, 0x0,
+    0x0, 0x14, 0x44, 0x4b, 0xa4, 0x44, 0x42, 0x0,
+    0x0, 0xbd, 0xdd, 0xde, 0xed, 0xdd, 0xdc, 0x0,
+    0x0, 0x0, 0x0, 0x9, 0x80, 0x0, 0x0, 0x0,
+    0x2e, 0xee, 0xee, 0xef, 0xfe, 0xee, 0xee, 0xe3,
+
     /* U+9875 "页" */
     0xc, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xe0,
     0x12, 0x22, 0x22, 0xe8, 0x22, 0x22, 0x21, 0x0,
@@ -1808,8 +1824,9 @@ static const lv_font_fmt_txt_glyph_dsc_t glyph_dsc[] = {
     {.bitmap_index = 9747, .adv_w = 256, .box_w = 16, .box_h = 16, .ofs_x = 0, .ofs_y = -2},
     {.bitmap_index = 9875, .adv_w = 256, .box_w = 16, .box_h = 15, .ofs_x = 0, .ofs_y = -2},
     {.bitmap_index = 9995, .adv_w = 256, .box_w = 16, .box_h = 16, .ofs_x = 0, .ofs_y = -2},
-    {.bitmap_index = 10123, .adv_w = 256, .box_w = 15, .box_h = 15, .ofs_x = 0, .ofs_y = -2},
-    {.bitmap_index = 10236, .adv_w = 256, .box_w = 16, .box_h = 16, .ofs_x = 0, .ofs_y = -2}
+    {.bitmap_index = 10123, .adv_w = 256, .box_w = 16, .box_h = 14, .ofs_x = 0, .ofs_y = -1},
+    {.bitmap_index = 10235, .adv_w = 256, .box_w = 15, .box_h = 15, .ofs_x = 0, .ofs_y = -2},
+    {.bitmap_index = 10348, .adv_w = 256, .box_w = 16, .box_h = 16, .ofs_x = 0, .ofs_y = -2}
 };
 
 /*---------------------
@@ -1823,7 +1840,7 @@ static const uint16_t unicode_list_1[] = {
     0x117b, 0x11f7, 0x1265, 0x159b, 0x1920, 0x1930, 0x1a59, 0x1c17,
     0x201f, 0x20c7, 0x24ac, 0x24e2, 0x272b, 0x2cc1, 0x2d3f, 0x324a,
     0x3a5e, 0x3da6, 0x3db4, 0x3f51, 0x415c, 0x4162, 0x41ca, 0x41d4,
-    0x4215, 0x4249, 0x4a6b, 0x4a8e
+    0x4215, 0x4249, 0x43c5, 0x4a6b, 0x4a8e
 };
 
 /*Collect the unicode lists and glyph_id offsets*/
@@ -1835,7 +1852,7 @@ static const lv_font_fmt_txt_cmap_t cmaps[] =
     },
     {
         .range_start = 19978, .range_length = 19087, .glyph_id_start = 96,
-        .unicode_list = unicode_list_1, .glyph_id_ofs_list = NULL, .list_length = 52, .type = LV_FONT_FMT_TXT_CMAP_SPARSE_TINY
+        .unicode_list = unicode_list_1, .glyph_id_ofs_list = NULL, .list_length = 53, .type = LV_FONT_FMT_TXT_CMAP_SPARSE_TINY
     }
 };
 
@@ -1865,7 +1882,7 @@ static const uint8_t kern_left_class_mapping[] =
     0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0
+    0, 0, 0, 0, 0
 };
 
 /*Map glyph_ids to kern right classes*/
@@ -1889,7 +1906,7 @@ static const uint8_t kern_right_class_mapping[] =
     0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0
+    0, 0, 0, 0, 0
 };
 
 /*Kern values between classes*/
