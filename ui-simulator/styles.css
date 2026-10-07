@@ -58,11 +58,12 @@ button { cursor: pointer; }
 .screen {
   --accent: #42d1d4;
   --accent-soft: #225c5f;
+  --edge-ring: #62d8e3;
   --text: #e9ffff;
   --subtle: #91a1a1;
   width: 100%; height: 100%; position: relative; overflow: hidden; border-radius: 50%;
   background: radial-gradient(circle at 50% 46%, #172426 0 42%, #0c1112 76%);
-  box-shadow: inset 0 0 0 2px var(--accent-soft), inset 0 0 30px #000;
+  box-shadow: inset 0 0 0 2px var(--edge-ring), inset 0 0 30px #000;
   touch-action: none;
 }
 

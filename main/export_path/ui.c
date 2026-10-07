@@ -65,7 +65,6 @@ lv_obj_t * ui_LabelMainMieageNum;
 // SCREEN: ui_ScreenPageGear
 void ui_ScreenPageGear_screen_init(void);
 lv_obj_t * ui_ScreenPageGear;
-lv_obj_t * ui_SpinnerGearPage;
 lv_obj_t * ui_GearPageArcGearNumBack;
 lv_obj_t * ui_GearPageArcLabelGearNumText;
 lv_obj_t * ui_ImageGearBlackEar;
@@ -82,7 +81,6 @@ uint8_t ui_theme_gauge_page_index = 0;  // Current theme page index
 // SCREEN: ui_ScreenPageRpm
 void ui_ScreenPageRpm_screen_init(void);
 lv_obj_t * ui_ScreenPageRpm;
-lv_obj_t * ui_SpinnerRpmPage;
 lv_obj_t * ui_RpmPageArcRpmBack;
 lv_obj_t * ui_RpmPageArcLabelRpmText;
 lv_obj_t * ui_RpmPageArcLabelRpmUnit;
@@ -96,7 +94,6 @@ lv_obj_t * ui_LabelRpmMiniVoltage;
 // SCREEN: ui_ScreenPageSpeed
 void ui_ScreenPageSpeed_screen_init(void);
 lv_obj_t * ui_ScreenPageSpeed;
-lv_obj_t * ui_SpinnerSpeedPage;
 lv_obj_t * ui_SpeedPageArcSpeedBack;
 lv_obj_t * ui_SpeedPageArcLabelSpeedText;
 lv_obj_t * ui_SpeedPageArcLabelSpeedUnit;
@@ -201,7 +198,6 @@ lv_obj_t * ui_ScreenPageIntro;
 // SCREEN: ui_ScreenPageODBProtocal
 void ui_ScreenPageODBProtocal_screen_init(void);
 lv_obj_t * ui_ScreenPageODBProtocal;
-lv_obj_t * ui_SpinnerODBProtocalEgg;
 lv_obj_t * ui_ArcPageODBProtocalBack;
 lv_obj_t * ui_RollerODBProtocalChoose;
 lv_obj_t * ui_ImageODBProtocalBlackEar;
@@ -1149,6 +1145,7 @@ void ui_init(void)
     // Load the saved UI theme BEFORE any screen is built, so every screen
     // picks up the active theme's colors at creation time.
     ui_theme_init();
+    ui_helpers_init_edge_ring();
 
     // Keep page creation and route transitions in the central navigation registry.
     ui_nav_register_page(UI_NAV_PAGE_GEAR, &ui_ScreenPageGear, ui_ScreenPageGear_screen_init);
@@ -1256,9 +1253,5 @@ void ui_event_obd_prot_background(lv_event_t * e)
 
 static void ui_nav_ble_leave(void)
 {
-    if (nvs_cfg_get()->device_role == ESPNOW_ROLE_SLAVE) {
-        gauge_pair_ble_scan_stop();
-    } else {
-        elm327_ble_scan_only_stop();
-    }
+    ui_ble_scan_page_leave();
 }

@@ -58,7 +58,6 @@ extern lv_obj_t * ui_LabelMainMieageNum;
 // SCREEN: ui_ScreenPageGear
 void ui_ScreenPageGear_screen_init(void);
 extern lv_obj_t * ui_ScreenPageGear;
-extern lv_obj_t * ui_SpinnerGearPage;
 extern lv_obj_t * ui_GearPageArcGearNumBack;
 extern lv_obj_t * ui_GearPageArcLabelGearNumText;
 extern lv_obj_t * ui_ImageGearBlackEar;
@@ -72,7 +71,6 @@ extern uint8_t ui_theme_gauge_page_index;  // Current theme page index
 // SCREEN: ui_ScreenPageRpm
 void ui_ScreenPageRpm_screen_init(void);
 extern lv_obj_t * ui_ScreenPageRpm;
-extern lv_obj_t * ui_SpinnerRpmPage;
 extern lv_obj_t * ui_RpmPageArcRpmBack;
 extern lv_obj_t * ui_RpmPageArcLabelRpmText;
 extern lv_obj_t * ui_RpmPageArcLabelRpmUnit;
@@ -85,7 +83,6 @@ extern lv_obj_t * ui_LabelRpmMiniVoltage;
 // SCREEN: ui_ScreenPageSpeed
 void ui_ScreenPageSpeed_screen_init(void);
 extern lv_obj_t * ui_ScreenPageSpeed;
-extern lv_obj_t * ui_SpinnerSpeedPage;
 extern lv_obj_t * ui_SpeedPageArcSpeedBack;
 extern lv_obj_t * ui_SpeedPageArcLabelSpeedText;
 extern lv_obj_t * ui_SpeedPageArcLabelSpeedUnit;
@@ -97,7 +94,6 @@ extern lv_obj_t * ui_LabelSpeedMiniRpm;
 // SCREEN: ui_ScreenPageODBProtocal
 void ui_ScreenPageODBProtocal_screen_init(void);
 extern lv_obj_t * ui_ScreenPageODBProtocal;
-extern lv_obj_t * ui_SpinnerODBProtocalEgg;
 extern lv_obj_t * ui_ArcPageODBProtocalBack;
 extern lv_obj_t * ui_RollerODBProtocalChoose;
 extern lv_obj_t * ui_ImageODBProtocalBlackEar;
@@ -118,6 +114,7 @@ void ui_event_easter_egg_background(lv_event_t * e);  // showroom tap handler
 
 // SCREEN: ui_ScreenPageBLEScan
 void ui_ScreenPageBLEScan_screen_init(void);
+void ui_ble_scan_page_leave(void);
 extern lv_obj_t * ui_ScreenPageBLEScan;
 // CUSTOM VARIABLES
 

@@ -47,18 +47,13 @@ SCREEN_W, SCREEN_H = 360, 360
 #   size   required pixel size, or None for "any, up to the screen"
 #   field  the ui_theme_t member that receives the pointer
 #
-# `ring` and `needle` keep an alpha channel so artwork can be any shape.
+# `needle` keeps an alpha channel so artwork can be any shape.
 # LV_IMG_CF_ALPHA_8BIT would be 3x smaller and tintable by the theme color,
 # BUT lv_draw_img.c falls back to a per-pixel path for rotated images and the
 # built-in decoder only fills the alpha byte there — a rotated ALPHA_8BIT
 # needle renders with undefined colors. TRUE_COLOR_ALPHA is correct on every
-# draw path, so both use it. (An ALPHA_8BIT option for the static ring is a
-# safe future optimization; the needle can never use it.)
+# draw path, so the needle uses it.
 ASSET_KINDS = {
-    "ring": {
-        "cf": "LV_IMG_CF_TRUE_COLOR_ALPHA", "bpp": 3,
-        "size": (SCREEN_W, SCREEN_H), "field": "ring_img",
-    },
     "needle": {
         "cf": "LV_IMG_CF_TRUE_COLOR_ALPHA", "bpp": 3,
         "size": None, "field": "needle_img",

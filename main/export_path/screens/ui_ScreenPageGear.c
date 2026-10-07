@@ -13,12 +13,6 @@ void ui_ScreenPageGear_screen_init(void)
     ui_helpers_style_screen_bg(ui_ScreenPageGear);
     lv_obj_set_style_bg_opa(ui_ScreenPageGear, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    // Bezel ring (color from the active theme)
-    ui_SpinnerGearPage = ui_helpers_create_ring(ui_ScreenPageGear, 10);
-
-    lv_obj_set_style_arc_color(ui_SpinnerGearPage, ui_theme_color_lv(UI_COLOR_RING), LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_opa(ui_SpinnerGearPage, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_width(ui_SpinnerGearPage, 10, LV_PART_INDICATOR | LV_STATE_DEFAULT);
 
     ui_GearPageArcLabelGearNumText = lv_label_create(ui_ScreenPageGear);
     lv_obj_set_width(ui_GearPageArcLabelGearNumText, LV_SIZE_CONTENT);   /// 1
@@ -59,7 +53,6 @@ void ui_ScreenPageGear_screen_init(void)
     lv_obj_clear_flag(ui_ImageGearBlackEar, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
     ui_nav_attach_gesture(ui_GearPageArcGearNumBack, UI_NAV_PAGE_GEAR);
-    lv_obj_move_foreground(ui_SpinnerGearPage);   // bring the ring to the front
     ui_nav_attach_gesture(ui_ScreenPageGear, UI_NAV_PAGE_GEAR);
 
 }

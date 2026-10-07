@@ -64,12 +64,10 @@ void ui_ScreenPageNeedle_screen_init(void)
     lv_obj_set_style_radius(ui_ScreenPageNeedle, 360, LV_PART_MAIN);
     ui_helpers_style_screen_bg(ui_ScreenPageNeedle);
     lv_obj_set_style_bg_opa(ui_ScreenPageNeedle, 255, LV_PART_MAIN);
-    lv_obj_set_style_border_width(ui_ScreenPageNeedle, 0, LV_PART_MAIN);  // disable the default theme border, use a white ring instead
+    lv_obj_set_style_border_width(ui_ScreenPageNeedle, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(ui_ScreenPageNeedle, 0, LV_PART_MAIN);
     lv_obj_set_style_outline_width(ui_ScreenPageNeedle, 0, LV_PART_MAIN);
 
-    // ====== Outer white ring (consistent with other pages) ======
-    lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageNeedle, 8);   // white ring: static circular border, replaces the rotating spinner, removes the arc seam gap
 
     // Simulator-compatible primary gauge ring; the selected live data source
     // still drives the value and range.
@@ -165,7 +163,6 @@ void ui_ScreenPageNeedle_screen_init(void)
     // Apply the current data source (set range/name/unit)
     ui_needle_apply_source();
 
-    lv_obj_move_foreground(ring);   // bring the ring to the front
     ui_nav_attach_gesture(ui_ScreenPageNeedle, UI_NAV_PAGE_NEEDLE);
 }
 
@@ -180,7 +177,6 @@ void ui_ScreenPageNeedleConfig_screen_init(void)
     lv_obj_set_style_pad_all(ui_ScreenPageNeedleConfig, 0, LV_PART_MAIN);
     lv_obj_set_style_outline_width(ui_ScreenPageNeedleConfig, 0, LV_PART_MAIN);
 
-    lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageNeedleConfig, 10);   // white ring: static circular border, consistent with the other pages
 
     // Title
     lv_obj_t *title = lv_label_create(ui_ScreenPageNeedleConfig);
@@ -217,6 +213,5 @@ void ui_ScreenPageNeedleConfig_screen_init(void)
     lv_obj_set_style_text_color(hint, lv_color_hex(0x555555), LV_PART_MAIN);
     lv_obj_align(hint, LV_ALIGN_CENTER, 0, 120);
 
-    lv_obj_move_foreground(ring);   // bring the ring to the front
     ui_nav_attach_gesture(ui_ScreenPageNeedleConfig, UI_NAV_PAGE_NEEDLE_CONFIG);
 }

@@ -29,11 +29,13 @@ name = "SUNSET"
 # Metadata — free text, not compiled into the firmware.
 # 元信息 —— 自由填写，不会编译进固件。
 author      = "your-github-handle"
-description = "Warm orange face with a deep purple ring."
+description = "Warm orange face with a cyan edge ring."
 
 # ---- Decorative colors / 装饰色 ----
-# All eight are REQUIRED. Format 0xRRGGBB.
-# 八个全部必填。格式 0xRRGGBB。
+# All eight fields are REQUIRED for compatibility. `ring` is legacy and is not
+# applied to the shared edge ring. Format 0xRRGGBB.
+# 八个字段全部必填以兼容旧主题。`ring` 仅为兼容保留，不作用于统一边缘圆环。
+# 格式 0xRRGGBB。
 #
 # Do NOT try to set alarm red / toggle green here — those are semantic colors
 # (UI_SEM_* in ui_theme.h) and are deliberately global so a warning always
@@ -46,8 +48,9 @@ description = "Warm orange face with a deep purple ring."
 # 屏幕/页面背景。一般用很深的颜色。
 bg             = 0x140800
 
-# Outer bezel ring around every page.
-# 每个页面边缘的外圈表框。
+# Edge ring color is retained for theme-file compatibility. The firmware draws
+# the shared 2px edge ring with its global color, so this field is not applied.
+# 为兼容旧主题文件保留。固件统一绘制 2px 边缘圆环，此字段当前不生效。
 ring           = 0x6A2C8A
 
 # Gauge arc track, slider groove, minor ticks — the "not reached yet" part.
@@ -97,8 +100,6 @@ style_id = 0
 # 朝向，再换成你自己的。
 #
 # REQUIREMENTS / 要求
-#   ring    exactly 360x360, PNG with alpha (transparent centre).
-#           必须正好 360x360，带透明通道（中间镂空）。
 #   needle  any size up to 360x360, PNG with alpha.
 #           MUST POINT RIGHT (east). LVGL rotates it around the pivot, and
 #           angle 0 draws the bitmap unrotated — art pointing up will be 90° off.
@@ -110,12 +111,11 @@ style_id = 0
 #
 # COST / 开销: artwork is compiled into the firmware, and EVERY registered
 # theme's artwork is linked in — not just the active one. A full set is about
-# 645 KB (ring 380 + dial 253 + needle 12). The build fails past the budget.
+# 265 KB (dial 253 + needle 12). The build fails past the budget.
 # 素材会编译进固件，而且**所有已注册主题**的素材都会被链接进去，不只是当前
-# 激活的那个。一整套约 645 KB（表框 380 + 表盘 253 + 指针 12）。超预算会构建失败。
+# 激活的那个。一整套约 265 KB（表盘 253 + 指针 12）。超预算会构建失败。
 #
 # [assets]
-# ring   = "assets/ring.png"
 # needle = "assets/needle.png"
 # needle_pivot_x = 24          # rotation center in the needle art, from top-left
 # needle_pivot_y = 12          # 指针图的旋转中心，从左上角算起

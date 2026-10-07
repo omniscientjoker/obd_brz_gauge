@@ -92,6 +92,11 @@ static void create_temp_slot(lv_obj_t *parent, uint8_t index, lv_coord_t x,
     lv_obj_align(ui_LabelTempUnit[index], LV_ALIGN_CENTER, x, unit_y);
 
     ui_LabelTempDot[index] = create_color_dot(parent, x - (index == 0 ? 0 : 54), name_y);
+    if (index == 0) {
+        // The primary title is centered here; the indicator would sit on top
+        // of the text rather than beside it.
+        lv_obj_add_flag(ui_LabelTempDot[index], LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 void ui_ScreenPageTemp_screen_init(void)
@@ -101,7 +106,6 @@ void ui_ScreenPageTemp_screen_init(void)
     lv_obj_set_style_radius(ui_ScreenPageTemp, 360, LV_PART_MAIN);
     ui_helpers_style_screen_bg(ui_ScreenPageTemp);
     lv_obj_set_style_bg_opa(ui_ScreenPageTemp, 255, LV_PART_MAIN);
-    lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageTemp, 10);
 
     ui_TempArc = lv_arc_create(ui_ScreenPageTemp);
     // Match the simulator's 230px primary gauge ring on the 360px display.
@@ -134,6 +138,5 @@ void ui_ScreenPageTemp_screen_init(void)
     lv_obj_add_flag(ear, LV_OBJ_FLAG_ADV_HITTEST);
     lv_obj_clear_flag(ear, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_move_foreground(ring);
     ui_nav_attach_gesture(ui_ScreenPageTemp, UI_NAV_PAGE_TEMP);
 }

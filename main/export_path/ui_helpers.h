@@ -139,9 +139,13 @@ void _ui_switch_theme(int val)
 
 // ---- Project-custom helpers (not SquareLine generated; styles shared by multiple screens) ----
 
-// Outer bezel ring. Uses the active theme's `ring_img` artwork when it has one,
-// otherwise draws a plain circle border in UI_COLOR_RING at `border_width`.
-lv_obj_t * ui_helpers_create_ring(lv_obj_t * parent, uint8_t border_width);
+// Shared by the page-edge ring and TPMS inner rings so their cyan hue remains
+// identical across the UI.
+#define UI_EDGE_RING_COLOR 0x62D8E3
+
+// Create the single 2px edge ring on LVGL's top layer. Calling this more than
+// once is safe; all pages share the same object.
+void ui_helpers_init_edge_ring(void);
 
 // Screen background: UI_COLOR_BG, plus the theme's dial-face artwork if it has
 // one. Every screen should use this instead of setting bg_color directly, so a

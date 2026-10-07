@@ -65,7 +65,6 @@ void ui_ScreenPageInfoCustom_screen_init(void)
     ui_helpers_style_screen_bg(ui_ScreenPageInfoCustom);
     lv_obj_set_style_bg_opa(ui_ScreenPageInfoCustom, 255, LV_PART_MAIN);
 
-    lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageInfoCustom, 10);   // white ring: static circular border, replaces the rotating spinner, removes the arc seam gap
 
     create_row(ui_ScreenPageInfoCustom, 0, "SLOT 1", -82);
     create_row(ui_ScreenPageInfoCustom, 1, "SLOT 2", -38);
@@ -87,6 +86,5 @@ void ui_ScreenPageInfoCustom_screen_init(void)
     lv_img_set_src(ear, &ui_img_pngblackear_png);
     lv_obj_align(ear, LV_ALIGN_CENTER, 0, -142);
 
-    lv_obj_move_foreground(ring);   // bring the ring to the front
     ui_nav_attach_gesture(ui_ScreenPageInfoCustom, UI_NAV_PAGE_INFO_CONFIG);
 }

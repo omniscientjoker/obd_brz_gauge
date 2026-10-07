@@ -48,7 +48,6 @@ void ui_ScreenPageChartAlarm_screen_init(void)
     lv_obj_set_style_pad_all(ui_ScreenPageChartAlarm, 0, LV_PART_MAIN);
     lv_obj_set_style_outline_width(ui_ScreenPageChartAlarm, 0, LV_PART_MAIN);
 
-    lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageChartAlarm, 10);   // white ring: static circular border, consistent with the other pages
 
     // Title: "<item> ALARM"
     lv_obj_t *title = lv_label_create(ui_ScreenPageChartAlarm);
@@ -91,6 +90,5 @@ void ui_ScreenPageChartAlarm_screen_init(void)
     lv_obj_set_style_text_color(hint, lv_color_hex(0x555555), LV_PART_MAIN);
     lv_obj_align(hint, LV_ALIGN_CENTER, 0, 110);
 
-    lv_obj_move_foreground(ring);   // bring the ring to the front
     ui_nav_attach_gesture(ui_ScreenPageChartAlarm, UI_NAV_PAGE_CHART_ALARM);
 }

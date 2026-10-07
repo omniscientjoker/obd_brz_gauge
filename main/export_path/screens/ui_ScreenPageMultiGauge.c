@@ -127,8 +127,6 @@ void ui_ScreenPageMultiGauge_screen_init(void)
     ui_helpers_style_screen_bg(ui_ScreenPageMultiGauge);
     lv_obj_set_style_bg_opa(ui_ScreenPageMultiGauge, 255, LV_PART_MAIN);
 
-    // White border ring
-    lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageMultiGauge, 10);
 
     // Black ear image at top (created before the widgets so they draw on top of the notch)
     lv_obj_t *ear = lv_img_create(ui_ScreenPageMultiGauge);
@@ -233,6 +231,5 @@ void ui_ScreenPageMultiGauge_screen_init(void)
     lv_obj_add_flag(s_lbl_intro, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(s_roller_intro, LV_OBJ_FLAG_HIDDEN);
 
-    lv_obj_move_foreground(ring);
     ui_nav_attach_gesture(ui_ScreenPageMultiGauge, UI_NAV_PAGE_MULTI_GAUGE);
 }

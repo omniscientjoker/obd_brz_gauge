@@ -33,10 +33,8 @@ void theme_engine_test(void) {
 
     // Test asset access
     const lv_img_dsc_t *dial = theme_get_asset("dial");
-    const lv_img_dsc_t *ring = theme_get_asset("ring");
     ESP_LOGI(TAG, "  Assets:");
     ESP_LOGI(TAG, "    dial: %s", dial ? "available" : "not available");
-    ESP_LOGI(TAG, "    ring: %s", ring ? "available" : "not available");
 
     // Test protected pages
     ESP_LOGI(TAG, "  Protected pages:");

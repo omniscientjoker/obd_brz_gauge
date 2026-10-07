@@ -88,8 +88,6 @@ void ui_ScreenPageSettings_screen_init(void)
     ui_helpers_style_screen_bg(ui_ScreenPageSettings);
     lv_obj_set_style_bg_opa(ui_ScreenPageSettings, 255, LV_PART_MAIN);
 
-    // Bezel ring (color from the active theme)
-    lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageSettings, 10);
 
     // Black ear image at top (created before the widgets so the title and
     // rows draw on top of the notch instead of being covered by it)
@@ -234,6 +232,5 @@ void ui_ScreenPageSettings_screen_init(void)
     lv_obj_align(hint, LV_ALIGN_CENTER, 0, 124);
 
     // Events - swipe to go back / down to multi-gauge
-    lv_obj_move_foreground(ring);   // ring on top
     ui_nav_attach_gesture(ui_ScreenPageSettings, UI_NAV_PAGE_SETTINGS);
 }

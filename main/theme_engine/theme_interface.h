@@ -142,9 +142,9 @@ void theme_update_data(const obd_snapshot_t *obd);
 lv_color_t theme_get_color(uint8_t role);
 
 /**
- * Get theme asset (dial/ring image descriptor)
+ * Get the theme dial image descriptor
  *
- * @param asset_name "dial" or "ring"
+ * @param asset_name "dial"; the legacy "ring" alias returns NULL
  * @return LVGL image descriptor, or NULL if not available
  */
 const lv_img_dsc_t* theme_get_asset(const char *asset_name);

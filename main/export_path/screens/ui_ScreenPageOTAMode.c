@@ -38,8 +38,6 @@ void ui_ScreenPageOTAMode_screen_init(void)
     ui_helpers_style_screen_bg(ui_ScreenPageOTAMode);
     lv_obj_set_style_bg_opa(ui_ScreenPageOTAMode, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    // White border ring
-    lv_obj_t *spinner_ring = ui_helpers_create_ring(ui_ScreenPageOTAMode, 10);
 
     // Title: "OTA MODE"
     lv_obj_t *label_title = lv_label_create(ui_ScreenPageOTAMode);
@@ -97,7 +95,6 @@ void ui_ScreenPageOTAMode_screen_init(void)
     lv_obj_set_style_text_color(label_hint, lv_color_hex(0x555555), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_align(label_hint, LV_ALIGN_BOTTOM_MID, 0, -40);
 
-    lv_obj_move_foreground(spinner_ring);
     ui_nav_attach_gesture(ui_ScreenPageOTAMode, UI_NAV_PAGE_OTA_MODE);
     ui_nav_register_fallback_cb(UI_NAV_PAGE_OTA_MODE, ui_nav_ota_fallback);
     lv_obj_add_event_cb(ui_ScreenPageOTAMode, ui_event_ota_mode_background, LV_EVENT_ALL, NULL);

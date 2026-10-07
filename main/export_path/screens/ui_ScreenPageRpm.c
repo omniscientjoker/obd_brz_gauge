@@ -12,12 +12,6 @@ void ui_ScreenPageRpm_screen_init(void)
     lv_obj_set_style_radius(ui_ScreenPageRpm, 360, LV_PART_MAIN | LV_STATE_DEFAULT);
     ui_helpers_style_screen_bg(ui_ScreenPageRpm);
     lv_obj_set_style_bg_opa(ui_ScreenPageRpm, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    // Bezel ring (color from the active theme)
-    ui_SpinnerRpmPage = ui_helpers_create_ring(ui_ScreenPageRpm, 10);
-
-    lv_obj_set_style_arc_color(ui_SpinnerRpmPage, ui_theme_color_lv(UI_COLOR_RING), LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_opa(ui_SpinnerRpmPage, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_width(ui_SpinnerRpmPage, 10, LV_PART_INDICATOR | LV_STATE_DEFAULT);
 
     ui_RpmPageArcRpmBack = lv_arc_create(ui_ScreenPageRpm);
     // The simulator's primary gauge is a 230px ring on the 360px display.
@@ -97,7 +91,6 @@ void ui_ScreenPageRpm_screen_init(void)
     lv_obj_clear_flag(ui_ImageRpmBlackEar, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
     ui_nav_attach_gesture(ui_RpmPageArcRpmBack, UI_NAV_PAGE_RPM);
-    lv_obj_move_foreground(ui_SpinnerRpmPage);   // bring the ring to the front
     ui_nav_attach_gesture(ui_ScreenPageRpm, UI_NAV_PAGE_RPM);
 
 }

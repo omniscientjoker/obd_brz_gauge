@@ -19,9 +19,6 @@ void ui_ScreenPageLogo_screen_init(void)
     lv_img_set_src(imageLogo, &imgBootLogoCustom);
     lv_obj_align(imageLogo, LV_ALIGN_CENTER, 0, 0);
 
-    // White border ring (consistent with the other pages)
-    lv_obj_t *spinnerLogo = ui_helpers_create_ring(ui_ScreenPageLogo, 10);   // white ring: static circular border
-    (void)spinnerLogo;
 #elif USE_GIF_LOGO == 1
     imageLogo = lv_gif_create(ui_ScreenPageLogo);
     lv_gif_set_src(imageLogo, &gifSnake400);
@@ -44,8 +41,6 @@ void ui_ScreenPageLogo_screen_init(void)
 
     imageLogo = NULL; // No image logo anymore
 
-    // White border ring (same as Gear page style)
-    lv_obj_t *spinnerLogo = ui_helpers_create_ring(ui_ScreenPageLogo, 10);   // white ring: static circular border, replaces the rotating spinner, removes the arc seam gap
 #endif
     lv_obj_add_event_cb(ui_ScreenPageLogo, ui_event_logo_background, LV_EVENT_CLICKED, NULL);
 }

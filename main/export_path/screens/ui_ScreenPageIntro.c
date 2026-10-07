@@ -18,8 +18,6 @@ void ui_ScreenPageIntro_screen_init(void)
     lv_obj_set_style_pad_all(ui_ScreenPageIntro, 0, LV_PART_MAIN);
     lv_obj_set_style_outline_width(ui_ScreenPageIntro, 0, LV_PART_MAIN);
 
-    // White border ring (consistent with the other pages)
-    lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageIntro, 10);
 
     ui_LabelIntroWord = lv_label_create(ui_ScreenPageIntro);
     lv_label_set_text(ui_LabelIntroWord, "");
@@ -28,5 +26,4 @@ void ui_ScreenPageIntro_screen_init(void)
     lv_obj_set_style_text_letter_space(ui_LabelIntroWord, 4, LV_PART_MAIN);
     lv_obj_center(ui_LabelIntroWord);
 
-    lv_obj_move_foreground(ring);   // bring the ring to the front (consistent with the other pages)
 }

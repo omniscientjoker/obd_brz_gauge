@@ -21,6 +21,7 @@
 #include "esp_gap_ble_api.h"
 #include "esp_gattc_api.h"
 #include "esp_bt_defs.h"
+#include "esp_err.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "ble_adv_util.h"
@@ -127,18 +128,35 @@ static void ble_ensure_init(void) {
 static void gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) {
     switch (event) {
     case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT:
-        if (s_scanning) esp_ble_gap_start_scanning(s_pending_scan_duration);
+        if (s_scanning) {
+            esp_err_t err = esp_ble_gap_start_scanning(s_pending_scan_duration);
+            ESP_LOGI(TAG, "Scan params ready; start scan (%ds): %s",
+                     s_pending_scan_duration, esp_err_to_name(err));
+        }
         break;
 
     case ESP_GAP_BLE_SCAN_RESULT_EVT: {
         if (!s_scanning) break;
         esp_ble_gap_cb_param_t *pr = param;
+        if (pr->scan_rst.search_evt == ESP_GAP_SEARCH_INQ_CMPL_EVT) {
+            s_scanning = false;
+            ESP_LOGI(TAG, "Scan complete: %d matching SkyGauge devices", s_scan_count);
+            if (s_scan_cb) s_scan_cb(NULL, s_scan_count);
+            break;
+        }
         if (pr->scan_rst.search_evt != ESP_GAP_SEARCH_INQ_RES_EVT) break;
 
         char dev_name[32] = {0};
         ble_adv_extract_name(pr->scan_rst.ble_adv, pr->scan_rst.adv_data_len,
                           pr->scan_rst.scan_rsp_len, dev_name, sizeof(dev_name));
-        if (strncmp(dev_name, GAUGE_PAIR_NAME_PREFIX, GAUGE_PAIR_NAME_PREFIX_LEN) != 0) break;
+        ESP_LOGD(TAG, "Scan result: mac=%02x:%02x:%02x:%02x:%02x:%02x rssi=%d adv=%u rsp=%u name='%s'",
+                 pr->scan_rst.bda[0], pr->scan_rst.bda[1], pr->scan_rst.bda[2],
+                 pr->scan_rst.bda[3], pr->scan_rst.bda[4], pr->scan_rst.bda[5],
+                 pr->scan_rst.rssi, pr->scan_rst.adv_data_len, pr->scan_rst.scan_rsp_len, dev_name);
+        if (strncmp(dev_name, GAUGE_PAIR_NAME_PREFIX, GAUGE_PAIR_NAME_PREFIX_LEN) != 0) {
+            ESP_LOGD(TAG, "Scan result ignored: name does not start with '%s'", GAUGE_PAIR_NAME_PREFIX);
+            break;
+        }
         if (s_scan_count >= GAUGE_PAIR_SCAN_MAX_DEVICES) break;
 
         bool exists = false;
@@ -303,12 +321,14 @@ void gauge_pair_ble_scan_start(int duration_s, gauge_pair_scan_cb_t cb) {
         .scan_window        = 0x30,
         .scan_duplicate     = BLE_SCAN_DUPLICATE_DISABLE,
     };
-    esp_ble_gap_set_scan_params(&scan_params);
+    esp_err_t err = esp_ble_gap_set_scan_params(&scan_params);
+    ESP_LOGI(TAG, "Scan requested (%ds), set scan params: %s", duration_s, esp_err_to_name(err));
 }
 
 void gauge_pair_ble_scan_stop(void) {
     s_scanning = false;
     esp_ble_gap_stop_scanning();
+    s_scan_cb = NULL;
 }
 
 void gauge_pair_ble_connect(const uint8_t addr[6], const char *name, gauge_pair_result_cb_t cb) {

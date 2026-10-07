@@ -35,15 +35,15 @@ Architecture reference (English): [`../docs/THEMING.md`](../docs/THEMING.md)
 
 主题能改两样东西：
 
-1. **8 个装饰色角色**（必填）
-2. **3 类美术素材**（可选）：表框、指针、表盘背景 —— 见下面的[素材](#美术素材可选)一节
+1. **7 个生效的装饰色角色 + 1 个兼容字段**（必填）
+2. **2 类美术素材**（可选）：指针、表盘背景 —— 见下面的[素材](#美术素材可选)一节
 
-一个主题提供 8 个**装饰色角色**：
+一个主题文件提供 8 个颜色字段，其中 `ring` 仅为旧主题兼容字段：
 
 | 角色 | 用在哪 |
 |------|--------|
 | `bg` | 屏幕/页面背景 |
-| `ring` | 外圈表框 |
+| `ring` | 外圈表框颜色（兼容字段；当前由固件统一绘制） |
 | `arc_track` | 仪表弧线底轨、滑块凹槽、小刻度（"还没走到"的部分） |
 | `arc_indicator` | 仪表弧线进度、滑块填充和滑块头（"已走到"的部分） |
 | `text_primary` | 数值、主文字 |
@@ -146,7 +146,6 @@ NVS 里存的是**槽位号**（`theme_cfg.theme`），不是主题名。所以�
 
 ```toml
 [assets]
-ring   = "assets/ring.png"
 needle = "assets/needle.png"
 needle_pivot_x = 24      # 指针图的旋转中心，从左上角算起
 needle_pivot_y = 12
@@ -155,11 +154,10 @@ dial   = "assets/dial.png"
 
 | 素材 | 尺寸要求 | 透明通道 | 编译后大小 | 替换掉什么 |
 |------|----------|----------|-----------|-----------|
-| `ring` | **正好 360×360** | 需要（中间镂空） | 380 KB | 外圈表框（原来是画的圆环边框） |
 | `needle` | ≤ 360×360 | 需要 | 宽×高×3 B | 指针页的指针（原来是画的线） |
 | `dial` | **正好 360×360** | 忽略 | 253 KB | 所有页面的背景（原来是纯 `bg` 色） |
 
-[`_TEMPLATE/assets/`](_TEMPLATE/assets/) 里有三张**能直接用的参考素材**，尺寸和朝向都是对的，
+[`_TEMPLATE/assets/`](_TEMPLATE/assets/) 里有两张**能直接用的参考素材**，尺寸和朝向都是对的，
 复制过去打开看一眼就明白，然后换成你自己的。
 
 **⚠️ 指针必须画成朝右（东）。** LVGL 绕 pivot 旋转图片，角度 0 = 原样绘制
@@ -209,16 +207,16 @@ reason — swapping a font changes glyph metrics, which changes layout.
 
 A theme controls two things:
 
-1. **Eight decorative color roles** (required)
-2. **Three kinds of artwork** (optional): bezel, needle, dial face — see
+1. **Seven active decorative color roles plus one compatibility field** (required)
+2. **Two kinds of artwork** (optional): needle and dial face — see
    [Artwork](#artwork-optional) below
 
-The eight **decorative color roles**:
+The theme file has eight color fields; `ring` is retained only for compatibility:
 
 | Role | Used for |
 |------|----------|
 | `bg` | Screen / page background |
-| `ring` | Outer bezel ring |
+| `ring` | Outer bezel ring color (legacy compatibility field; drawn by firmware) |
 | `arc_track` | Arc track, slider groove, minor ticks (the "not reached" part) |
 | `arc_indicator` | Arc progress, slider fill and knob (the "reached" part) |
 | `text_primary` | Values / main text |
@@ -330,7 +328,6 @@ omitted keeps the drawn version and its color role.
 
 ```toml
 [assets]
-ring   = "assets/ring.png"
 needle = "assets/needle.png"
 needle_pivot_x = 24      # rotation center in the needle art, from top-left
 needle_pivot_y = 12
@@ -339,11 +336,10 @@ dial   = "assets/dial.png"
 
 | Asset | Size | Alpha | Compiled size | Replaces |
 |-------|------|-------|---------------|----------|
-| `ring` | **exactly 360×360** | required (transparent centre) | 380 KB | Bezel ring (was a drawn circle border) |
 | `needle` | ≤ 360×360 | required | w×h×3 B | Needle-page needle (was a drawn line) |
 | `dial` | **exactly 360×360** | ignored | 253 KB | Page background (was flat `bg`) |
 
-[`_TEMPLATE/assets/`](_TEMPLATE/assets/) ships three **working reference files**
+[`_TEMPLATE/assets/`](_TEMPLATE/assets/) ships two **working reference files**
 with the right sizes and orientation — copy them, look at them, then replace
 them with your own.
 

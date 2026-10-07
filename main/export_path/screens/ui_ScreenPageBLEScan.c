@@ -40,6 +40,18 @@ static void on_device_selected(lv_event_t *e);
 static void on_saved_device_delete(lv_event_t *e);
 static void on_pair_result(bool ok, const char *name, const uint8_t mac[6]);
 
+static void on_screen_delete(lv_event_t *e) {
+    if (lv_event_get_code(e) != LV_EVENT_DELETE) return;
+    ui_ble_scan_page_leave();
+    ui_ScreenPageBLEScan = NULL;
+    s_list = NULL;
+    s_label_status = NULL;
+    s_spinner = NULL;
+    s_saved_panel = NULL;
+    s_label_saved_hdr = NULL;
+    s_saved_name_lbl = NULL;
+}
+
 static void on_screen_loaded(lv_event_t *e) {
     if (lv_event_get_code(e) == LV_EVENT_SCREEN_LOADED) {
         start_scan();
@@ -57,6 +69,18 @@ static inline void lvgl_unlock_ui(void) {
 
 // BLE scan callback (called in the BT thread, LVGL must be updated thread-safely) -- OBD device scan (MASTER/STANDALONE)
 static void scan_result_cb(const ble_scan_result_t *dev, int total_count) {
+    if (!dev) {
+        if (!lvgl_lock_ui(100)) return;
+        s_scanning = false;
+        if (s_spinner) lv_obj_add_flag(s_spinner, LV_OBJ_FLAG_HIDDEN);
+        if (s_label_status) {
+            lv_label_set_text_fmt(s_label_status,
+                                   total_count > 0 ? "Found %d devices" : "No BLE devices found",
+                                   total_count);
+        }
+        lvgl_unlock_ui();
+        return;
+    }
     if (!s_list) return;
 
     if (lvgl_lock_ui(100)) {
@@ -93,6 +117,18 @@ static void scan_result_cb(const ble_scan_result_t *dev, int total_count) {
 
 // BLE scan callback -- slave pairing with a master (SLAVE); only devices with the "SkyGauge" prefix are received (see the filter in gauge_pair_ble_client.c)
 static void scan_result_cb_gauge(const gauge_pair_scan_result_t *dev, int total_count) {
+    if (!dev) {
+        if (!lvgl_lock_ui(100)) return;
+        s_scanning = false;
+        if (s_spinner) lv_obj_add_flag(s_spinner, LV_OBJ_FLAG_HIDDEN);
+        if (s_label_status) {
+            lv_label_set_text_fmt(s_label_status,
+                                   total_count > 0 ? "Found %d devices" : "No SkyGauge master found",
+                                   total_count);
+        }
+        lvgl_unlock_ui();
+        return;
+    }
     if (!s_list) return;
 
     if (lvgl_lock_ui(100)) {
@@ -198,8 +234,7 @@ static void on_pair_result(bool ok, const char *name, const uint8_t mac[6]) {
     } else {
         ESP_LOGW(TAG_BLE_UI, "Pairing failed, rescanning");
         lv_label_set_text(s_label_status, "Pair failed, retrying...");
-        // When the native BLE scan window (15s) expires, no callback notifies here, so s_scanning stays true.
-        // This is a place where a forced rescan is intended, so reset it before calling to avoid being blocked by the dedup check in start_scan().
+        // Reset the UI state before forcing a fresh scan.
         s_scanning = false;
         start_scan();
     }
@@ -232,7 +267,7 @@ static void on_saved_device_delete(lv_event_t *e) {
     if (s_label_status)   lv_label_set_text(s_label_status, "Saved device removed");
 
     if (s_slave_mode) {
-        s_scanning = false;   // the native scan window expiry does not reset via callback; reset before forcing a rescan (same reason as on_pair_result)
+        s_scanning = false;
         start_scan();         // Slave: rescan immediately after deleting the binding, so a new master can be paired
     }
 }
@@ -254,6 +289,15 @@ static void start_scan(void) {
     }
 }
 
+void ui_ble_scan_page_leave(void) {
+    if (s_slave_mode) {
+        gauge_pair_ble_scan_stop();
+    } else {
+        elm327_ble_scan_only_stop();
+    }
+    s_scanning = false;
+}
+
 void ui_ScreenPageBLEScan_screen_init(void)
 {
     s_slave_mode = (nvs_cfg_get()->device_role == ESPNOW_ROLE_SLAVE);
@@ -265,8 +309,6 @@ void ui_ScreenPageBLEScan_screen_init(void)
     lv_obj_set_style_bg_opa(ui_ScreenPageBLEScan, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_all(ui_ScreenPageBLEScan, 0, LV_PART_MAIN);
 
-    // White border ring
-    lv_obj_t *spinner_ring = ui_helpers_create_ring(ui_ScreenPageBLEScan, 10);
 
     // Title
     lv_obj_t *label_title = lv_label_create(ui_ScreenPageBLEScan);
@@ -375,7 +417,12 @@ void ui_ScreenPageBLEScan_screen_init(void)
     lv_obj_align(label_hint, LV_ALIGN_BOTTOM_MID, 0, -15);
 
     // Gesture event for navigation
-    lv_obj_move_foreground(spinner_ring);   // bring the ring to the front
     ui_nav_attach_gesture(ui_ScreenPageBLEScan, UI_NAV_PAGE_BLE_SCAN);
     lv_obj_add_event_cb(ui_ScreenPageBLEScan, on_screen_loaded, LV_EVENT_SCREEN_LOADED, NULL);
+    lv_obj_add_event_cb(ui_ScreenPageBLEScan, on_screen_delete, LV_EVENT_DELETE, NULL);
+
+    // Start immediately after the list exists. The screen-loaded callback is
+    // retained for revisits to an already-created page, but must not be the
+    // only path that starts discovery.
+    start_scan();
 }

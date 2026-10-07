@@ -71,9 +71,11 @@ typedef struct {
 } ble_scan_result_t;
 
 // Callback when a device is found (invoked on the BT callback thread; make UI updates thread-safe).
+// A NULL dev marks scan completion; total_count is the final number of devices.
 typedef void (*ble_scan_found_cb_t)(const ble_scan_result_t *dev, int total_count);
 
-// Start scanning (scan only, do not connect). duration_s: scan duration in seconds. cb: called for each new device.
+// Start scanning (scan only, do not connect). duration_s: scan duration in seconds.
+// cb is called for each new device and once with dev == NULL when the scan ends.
 void elm327_ble_scan_only_start(int duration_s, ble_scan_found_cb_t cb);
 
 // Stop scanning.

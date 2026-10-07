@@ -13,7 +13,6 @@ Theme directory structure:
     ├── theme_manifest.json  (required)
     ├── assets/
     │   ├── dial.png         (optional, 360x360)
-    │   └── ring.png         (optional, 360x360 RGBA)
     └── layout.json          (optional, custom page layout)
 """
 
@@ -170,22 +169,6 @@ def pack_theme(theme_dir: Path, output_bin: Path) -> None:
             current_offset += size
     else:
         print(f"\nWarning: dial.png not found, skipping")
-
-    # Pack ring overlay (360x360 RGBA8888)
-    ring_path = theme_dir / "assets" / "ring.png"
-    if ring_path.exists():
-        size = pack_image_rgba8888(ring_path, current_offset, data)
-        if size > 0:
-            assets_info["ring_overlay"] = {
-                "offset": current_offset,
-                "size": size,
-                "format": "rgba8888",
-                "width": 360,
-                "height": 360
-            }
-            current_offset += size
-    else:
-        print(f"\nWarning: ring.png not found, skipping")
 
     # Pack layout JSON (optional)
     layout_path = theme_dir / "layout.json"

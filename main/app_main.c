@@ -42,6 +42,7 @@
 #include "app_obd_dsp/obd_data_cache.h"
 #include "app_obd_dsp/vehicle_profiles.h"
 #include "export_path/ui_ext.h"
+#include "export_path/ui_helpers.h"
 #include "app_obd_dsp/app_event.h"
 #include "theme_engine/theme_interface.h"
 
@@ -311,6 +312,7 @@ void app_main(void)
         lv_theme_t * theme = lv_theme_default_init(dispp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED),
                                                    false, LV_FONT_DEFAULT);
         lv_disp_set_theme(dispp, theme);
+        ui_helpers_init_edge_ring();
         extern void ui_ScreenPageLogo_screen_init(void);
         extern lv_obj_t * ui_ScreenPageLogo;
         ui_ScreenPageLogo_screen_init();

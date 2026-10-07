@@ -21,7 +21,8 @@ typedef struct {
     int     rssi;
 } gauge_pair_scan_result_t;
 
-// Called once for each newly discovered device (advertising name starts with "SkyGauge")
+// Called once for each newly discovered device (advertising name starts with "SkyGauge").
+// A NULL dev marks scan completion; total_count is the final number of devices.
 typedef void (*gauge_pair_scan_cb_t)(const gauge_pair_scan_result_t *dev, int total_count);
 
 // Pairing result callback; name/mac are valid when success=true

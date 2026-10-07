@@ -62,7 +62,6 @@ void ui_ScreenPageChartConfig_screen_init(void)
     lv_obj_set_style_pad_all(ui_ScreenPageChartConfig, 0, LV_PART_MAIN);
     lv_obj_set_style_outline_width(ui_ScreenPageChartConfig, 0, LV_PART_MAIN);
 
-    lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageChartConfig, 10);   // white ring: static circular border, consistent with the other pages
 
     lv_obj_t *title = lv_label_create(ui_ScreenPageChartConfig);
     lv_label_set_text(title, "CHART SOURCE");
@@ -96,6 +95,5 @@ void ui_ScreenPageChartConfig_screen_init(void)
     lv_obj_set_style_text_color(hint, lv_color_hex(0x555555), LV_PART_MAIN);
     lv_obj_align(hint, LV_ALIGN_CENTER, 0, 120);
 
-    lv_obj_move_foreground(ring);   // bring the ring to the front
     ui_nav_attach_gesture(ui_ScreenPageChartConfig, UI_NAV_PAGE_CHART_CONFIG);
 }

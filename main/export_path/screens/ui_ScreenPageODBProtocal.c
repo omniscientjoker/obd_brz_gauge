@@ -16,22 +16,6 @@ void ui_ScreenPageODBProtocal_screen_init(void)
     ui_helpers_style_screen_bg(ui_ScreenPageODBProtocal);
     lv_obj_set_style_bg_opa(ui_ScreenPageODBProtocal, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    // Keep the generated object for compatibility, but do not draw the old
-    // full-screen white ring.  All pages use the borderless screen contract.
-    ui_SpinnerODBProtocalEgg = lv_obj_create(ui_ScreenPageODBProtocal);
-    lv_obj_set_size(ui_SpinnerODBProtocalEgg, 360, 360);
-    lv_obj_set_align(ui_SpinnerODBProtocalEgg, LV_ALIGN_CENTER);
-    lv_obj_clear_flag(ui_SpinnerODBProtocalEgg, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_radius(ui_SpinnerODBProtocalEgg, LV_RADIUS_CIRCLE, LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(ui_SpinnerODBProtocalEgg, 0, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(ui_SpinnerODBProtocalEgg, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_width(ui_SpinnerODBProtocalEgg, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_opa(ui_SpinnerODBProtocalEgg, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_add_flag(ui_SpinnerODBProtocalEgg, LV_OBJ_FLAG_HIDDEN);
-
-    lv_obj_set_style_arc_color(ui_SpinnerODBProtocalEgg, lv_color_hex(0xFFFFFF), LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_opa(ui_SpinnerODBProtocalEgg, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_width(ui_SpinnerODBProtocalEgg, 10, LV_PART_INDICATOR | LV_STATE_DEFAULT);
 
     ui_ArcPageODBProtocalBack = lv_arc_create(ui_ScreenPageODBProtocal);
     lv_obj_set_width(ui_ArcPageODBProtocalBack,340);
@@ -116,7 +100,6 @@ void ui_ScreenPageODBProtocal_screen_init(void)
     lv_obj_set_style_text_font(ui_LabelSureTipText, &ui_font_FontTypoderSize20, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     /* Event callbacks */
-    lv_obj_move_foreground(ui_SpinnerODBProtocalEgg);   // bring the ring to the front
     ui_nav_attach_gesture(ui_ScreenPageODBProtocal, UI_NAV_PAGE_OBD_PROTOCOL);
     lv_obj_add_event_cb(ui_ScreenPageODBProtocal, ui_event_obd_prot_background,
                         LV_EVENT_ALL, NULL);

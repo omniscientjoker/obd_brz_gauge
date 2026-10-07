@@ -62,7 +62,6 @@ void ui_ScreenPageInfo_screen_init(void)
     lv_obj_set_style_radius(ui_ScreenPageInfo, 360, LV_PART_MAIN);
     ui_helpers_style_screen_bg(ui_ScreenPageInfo);
     lv_obj_set_style_bg_opa(ui_ScreenPageInfo, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageInfo, 8);
 
     lv_obj_t *title = lv_label_create(ui_ScreenPageInfo);
     lv_label_set_text(title, "INFO");
@@ -90,6 +89,5 @@ void ui_ScreenPageInfo_screen_init(void)
     lv_obj_add_flag(ear, LV_OBJ_FLAG_ADV_HITTEST);
     lv_obj_clear_flag(ear, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_move_foreground(ring);
     ui_nav_attach_gesture(ui_ScreenPageInfo, UI_NAV_PAGE_INFO);
 }

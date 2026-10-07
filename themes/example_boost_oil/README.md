@@ -6,14 +6,14 @@ This is an example theme for the OBD gauge theme partition system.
 
 - `theme_manifest.json` - Theme metadata, colors, and page configuration
 - `layout.json` - Custom page layout (boost arc + oil pressure bar)
-- `assets/` - Theme assets (dial.png and ring.png should be placed here)
+- `assets/` - Optional theme assets (dial.png and needle.png)
 
 ## Assets (Optional)
 
-To add custom background images:
+To add custom artwork:
 
 1. Create `assets/dial.png` - 360x360 RGB background image
-2. Create `assets/ring.png` - 360x360 RGBA ring overlay (transparent center)
+2. Create `assets/needle.png` - PNG needle artwork with alpha (optional)
 
 If assets are not provided, the theme will use colored backgrounds.
 

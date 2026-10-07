@@ -129,7 +129,6 @@ void ui_ScreenPageTpmsConfig_screen_init(void)
     lv_obj_set_style_pad_all(ui_ScreenPageTpmsConfig, 0, LV_PART_MAIN);
     lv_obj_set_style_outline_width(ui_ScreenPageTpmsConfig, 0, LV_PART_MAIN);
 
-    ui_helpers_create_ring(ui_ScreenPageTpmsConfig, 8);
 
     lv_obj_t *title = lv_label_create(ui_ScreenPageTpmsConfig);
     lv_label_set_text(title, "TPMS LIMITS");

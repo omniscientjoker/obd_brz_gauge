@@ -35,7 +35,7 @@ static void create_tire_tile(lv_obj_t *parent, int index, const char *name,
     lv_obj_set_style_radius(inner, LV_RADIUS_CIRCLE, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(inner, 0, LV_PART_MAIN);
     lv_obj_set_style_border_width(inner, 1, LV_PART_MAIN);
-    lv_obj_set_style_border_color(inner, lv_color_hex(0x62D8E3), LV_PART_MAIN);
+    lv_obj_set_style_border_color(inner, lv_color_hex(UI_EDGE_RING_COLOR), LV_PART_MAIN);
     lv_obj_set_style_border_opa(inner, 64, LV_PART_MAIN);
     lv_obj_align(inner, LV_ALIGN_CENTER, x, y);
     lv_obj_clear_flag(inner, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
@@ -69,7 +69,6 @@ void ui_ScreenPageTpms_screen_init(void)
     ui_helpers_style_screen_bg(ui_ScreenPageTpms);
     lv_obj_set_style_bg_opa(ui_ScreenPageTpms, 255, LV_PART_MAIN);
 
-    lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageTpms, 8);
 
     ui_LabelTpmsHeader = lv_label_create(ui_ScreenPageTpms);
     lv_label_set_text(ui_LabelTpmsHeader, "2.0-3.2 bar");
@@ -105,6 +104,5 @@ void ui_ScreenPageTpms_screen_init(void)
     lv_obj_add_flag(ear, LV_OBJ_FLAG_ADV_HITTEST);
     lv_obj_clear_flag(ear, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_move_foreground(ring);
     ui_nav_attach_gesture(ui_ScreenPageTpms, UI_NAV_PAGE_TPMS);
 }

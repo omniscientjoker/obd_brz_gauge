@@ -19,7 +19,6 @@ void ui_ScreenPageOilPressure_screen_init(void)
     lv_obj_set_style_bg_opa(ui_ScreenPageOilPressure, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_all(ui_ScreenPageOilPressure, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageOilPressure, 8);   // white ring: static circular border, replaces the rotating spinner, removes the arc seam gap
 
     ui_LabelChartTitle = lv_label_create(ui_ScreenPageOilPressure);
     lv_label_set_text(ui_LabelChartTitle, "");        // text/color set by ui_chart_apply_source()
@@ -96,6 +95,5 @@ void ui_ScreenPageOilPressure_screen_init(void)
 
     ui_chart_apply_source();   // sets title/dot/unit/color/Y range per the current data item
 
-    lv_obj_move_foreground(ring);   // bring the ring to the front
     ui_nav_attach_gesture(ui_ScreenPageOilPressure, UI_NAV_PAGE_CHART);
 }

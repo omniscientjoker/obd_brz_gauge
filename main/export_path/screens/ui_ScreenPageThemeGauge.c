@@ -18,7 +18,11 @@ void ui_ScreenPageThemeGauge_screen_init(void)
         // _ui_screen_change() call this init function again on every swipe).
         ui_ScreenPageThemeGauge = lv_obj_create(NULL);
         lv_obj_clear_flag(ui_ScreenPageThemeGauge, LV_OBJ_FLAG_SCROLLABLE);
+        ui_helpers_style_screen_bg(ui_ScreenPageThemeGauge);
+        lv_obj_set_style_bg_opa(ui_ScreenPageThemeGauge, LV_OPA_COVER, LV_PART_MAIN);
     }
 
+    // The shared edge ring lives on LVGL's top layer and is initialized once
+    // by ui_init(), so theme pages need no page-local chrome object.
     ui_nav_attach_gesture(ui_ScreenPageThemeGauge, UI_NAV_PAGE_THEME_GAUGE);
 }

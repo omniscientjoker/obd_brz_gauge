@@ -30,7 +30,7 @@ extern "C" {
 // Decorative color roles every theme provides.
 typedef enum {
     UI_COLOR_BG = 0,          // screen / page background
-    UI_COLOR_RING,            // outer bezel ring
+    UI_COLOR_RING,            // legacy theme role; edge ring uses UI_EDGE_RING_COLOR
     UI_COLOR_ARC_TRACK,       // gauge arc track / slider groove
     UI_COLOR_ARC_INDICATOR,   // gauge arc progress
     UI_COLOR_TEXT_PRIMARY,    // values / main text
@@ -46,9 +46,8 @@ typedef enum {
 #define UI_SEM_ON      0x06D6A0   // toggle ON / positive state
 #define UI_SEM_WARN    0xFFD166   // caution (oil pressure etc.)
 
-// Bezel (outer ring) style. Reserved for future variants — today only the
-// ring color is themed (see ui_helpers_create_ring). Extend here later with
-// e.g. a style id, double ring, or tick decoration. Zero = default.
+// Bezel style metadata retained for theme compatibility. The active page
+// edge ring is now shared and fixed at 2px in ui_helpers_init_edge_ring().
 typedef struct {
     uint8_t style_id;         // reserved: 0 = plain solid ring
 } ui_bezel_style_t;
@@ -63,7 +62,7 @@ typedef struct {
     const lv_img_dsc_t *dial_face;       // dial-face background (NULL = plain UI_COLOR_BG)
     const lv_font_t    *font;            // reserved: font override (NULL = default)
     // ---- appended after the initial release; keep new fields at the end ----
-    const lv_img_dsc_t *ring_img;        // bezel artwork (NULL = drawn ring in UI_COLOR_RING)
+    const lv_img_dsc_t *ring_img;        // legacy field, retained for theme ABI compatibility
     const lv_img_dsc_t *needle_img;      // needle artwork (NULL = drawn line in UI_COLOR_NEEDLE)
     int16_t needle_pivot_x;              // needle rotation center, px from artwork top-left
     int16_t needle_pivot_y;              // only meaningful when needle_img != NULL

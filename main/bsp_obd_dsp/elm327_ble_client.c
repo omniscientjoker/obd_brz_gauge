@@ -64,6 +64,9 @@ static bool s_scan_only_mode = false;  // true=scan only, no connect
 static ble_scan_found_cb_t s_scan_cb = NULL;
 static ble_scan_result_t s_scan_list[BLE_SCAN_MAX_DEVICES];
 static int s_scan_count = 0;
+static bool s_scan_params_ready = false;
+static bool s_scan_start_pending = false;
+static int s_scan_pending_duration = 0;
 static bool s_ble_inited = false;  // whether the BLE stack has been initialized
 static bool s_poll_task_started = false; // whether the poll task has been created
 static volatile bool s_ota_paused = false; // during WiFi OTA: suppress auto-reconnect + polling so BLE stops competing for the radio
@@ -1547,7 +1550,10 @@ static void obd_poll_task(void *arg) {
 }
 
 static void start_scan(void) {
-    esp_ble_gap_start_scanning(10); // 10s
+    esp_err_t err = esp_ble_gap_start_scanning(10); // 10s
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Auto scan start failed: %s", esp_err_to_name(err));
+    }
 }
 
 static bool match_device_target(const esp_ble_gap_cb_param_t *pr, const char *target_name,
@@ -1682,6 +1688,14 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
 
     switch (event) {
     case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT: {
+        s_scan_params_ready = true;
+        if (s_scan_only_mode && s_scan_start_pending) {
+            s_scan_start_pending = false;
+            esp_err_t err = esp_ble_gap_start_scanning(s_scan_pending_duration);
+            ESP_LOGI(TAG, "Scan-only started after scan params ready (%ds): %s",
+                     s_scan_pending_duration, esp_err_to_name(err));
+            break;
+        }
         // Only auto-start scanning when a target MAC is actually bound. Stack-only inits
         // (no OBD device bound) must not scan: scanning duty-cycles the radio and degrades
         // the SkyGauge pairing advert on MASTER devices.
@@ -1698,8 +1712,14 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
                              pr->scan_rst.scan_rsp_len, dev_name, sizeof(dev_name));
 
             if (s_scan_only_mode) {
-                // Scan mode: collect the device list
-                if (dev_name[0] != '\0' && s_scan_count < BLE_SCAN_MAX_DEVICES) {
+                ESP_LOGD(TAG, "Scan result: mac=%02x:%02x:%02x:%02x:%02x:%02x rssi=%d adv=%u rsp=%u name='%s'",
+                         pr->scan_rst.bda[0], pr->scan_rst.bda[1], pr->scan_rst.bda[2],
+                         pr->scan_rst.bda[3], pr->scan_rst.bda[4], pr->scan_rst.bda[5],
+                         pr->scan_rst.rssi, pr->scan_rst.adv_data_len, pr->scan_rst.scan_rsp_len,
+                         dev_name);
+                // Scan mode: collect the device list only while a page callback is active.
+                // Inquiry-complete can be followed by already-queued result events.
+                if (s_scan_cb && dev_name[0] != '\0' && s_scan_count < BLE_SCAN_MAX_DEVICES) {
                     // Check if it already exists
                     bool exists = false;
                     for (int i = 0; i < s_scan_count; i++) {
@@ -1713,7 +1733,7 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
                         memcpy(s_scan_list[s_scan_count].addr, pr->scan_rst.bda, 6);
                         s_scan_list[s_scan_count].rssi = pr->scan_rst.rssi;
                         s_scan_count++;
-                        ESP_LOGD(TAG, "Scan found [%d]: %s (RSSI %d)", s_scan_count, dev_name, pr->scan_rst.rssi);
+                        ESP_LOGI(TAG, "Scan found [%d]: %s (RSSI %d)", s_scan_count, dev_name, pr->scan_rst.rssi);
                         if (s_scan_cb) s_scan_cb(&s_scan_list[s_scan_count - 1], s_scan_count);
                     }
                 }
@@ -1731,6 +1751,14 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
                 }
             }
         } else if (pr->scan_rst.search_evt == ESP_GAP_SEARCH_INQ_CMPL_EVT) {
+            if (s_scan_only_mode) {
+                s_scan_start_pending = false;
+                ESP_LOGI(TAG, "Scan complete: %d named devices", s_scan_count);
+                ble_scan_found_cb_t cb = s_scan_cb;
+                s_scan_cb = NULL;
+                if (cb) cb(NULL, s_scan_count);
+                break;
+            }
             // Scan window expired without a connection: keep auto-reconnect alive.
             if (!s_scan_only_mode && s_target_bda_valid && !s_connected && !s_ota_paused) {
                 start_scan();
@@ -2592,16 +2620,26 @@ void elm327_ble_ensure_stack_init(void) {
 void elm327_ble_scan_only_start(int duration_s, ble_scan_found_cb_t cb) {
     ble_ensure_init();
     s_scan_only_mode = true;
+    s_scan_start_pending = true;
+    s_scan_pending_duration = duration_s > 0 ? duration_s : 1;
     s_scan_cb = cb;
     s_scan_count = 0;
     memset(s_scan_list, 0, sizeof(s_scan_list));
-    ESP_LOGD(TAG, "Starting scan-only mode (%ds)...", duration_s);
-    esp_ble_gap_start_scanning(duration_s);
+    ESP_LOGD(TAG, "Starting scan-only mode (%ds)...", s_scan_pending_duration);
+    if (s_scan_params_ready) {
+        s_scan_start_pending = false;
+        esp_err_t err = esp_ble_gap_start_scanning(s_scan_pending_duration);
+        ESP_LOGI(TAG, "Scan-only start: %s", esp_err_to_name(err));
+    } else {
+        ESP_LOGI(TAG, "Scan-only start deferred until scan params are ready");
+    }
 }
 
 void elm327_ble_scan_only_stop(void) {
+    s_scan_start_pending = false;
     esp_ble_gap_stop_scanning();
     s_scan_only_mode = false;
+    s_scan_cb = NULL;
     ESP_LOGD(TAG, "Scan-only stopped. Found %d devices.", s_scan_count);
 }
 

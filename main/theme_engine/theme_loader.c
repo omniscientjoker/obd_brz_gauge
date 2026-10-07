@@ -47,10 +47,8 @@ typedef struct {
 } theme_binding_t;
 
 // A single named, memory-mapped image asset from the manifest's "assets"
-// object. dial_background/ring_overlay are also mapped into this table (in
-// addition to the dedicated dial_img/ring_img fields, which stay for
-// theme_get_asset()'s "dial"/"ring" back-compat lookup) so "image" layout
-// elements can address them the same way as any other imported image.
+// object. dial_background is mirrored into dial_img for the legacy "dial"
+// lookup; legacy ring_overlay assets are ignored by the loader.
 #define THEME_MAX_NAMED_ASSETS 16
 typedef struct {
     char name[32];
@@ -91,17 +89,13 @@ typedef struct {
     // Memory-mapped assets
     const void *dial_data;
     esp_partition_mmap_handle_t dial_handle;
-    const void *ring_data;
-    esp_partition_mmap_handle_t ring_handle;
 
     // LVGL image descriptors
     lv_img_dsc_t dial_img;
-    lv_img_dsc_t ring_img;
 
-    // Generic named assets (superset of dial_background/ring_overlay above,
-    // keyed by whatever name pack_theme.py assigned in the manifest's
-    // "assets" object) -- lets layout.json "image" elements reference any
-    // imported image by name, not just the two built-in dial/ring slots.
+    // Generic named assets keyed by whatever name pack_theme.py assigned in
+    // the manifest's "assets" object, so layout.json "image" elements can
+    // reference imported images by name.
     theme_named_asset_t named_assets[THEME_MAX_NAMED_ASSETS];
     uint8_t named_asset_count;
 
@@ -294,7 +288,7 @@ esp_err_t theme_load(uint8_t slot) {
         return ret;
     }
 
-    // Load assets (dial/ring images)
+    // Load theme image assets (dial and custom layout images)
     ret = theme_load_assets();
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "Failed to load some assets, continuing anyway");
@@ -490,15 +484,12 @@ const lv_img_dsc_t* theme_get_asset(const char *asset_name) {
 
     if (strcmp(asset_name, "dial") == 0 && s_ctx.dial_data) {
         return &s_ctx.dial_img;
-    } else if (strcmp(asset_name, "ring") == 0 && s_ctx.ring_data) {
-        return &s_ctx.ring_img;
     }
 
     return NULL;
 }
 
-// Looks up a named asset by its exact packer-assigned name (as opposed to
-// theme_get_asset()'s fixed "dial"/"ring" aliases). Used by layout.json
+// Looks up a named asset by its exact packer-assigned name. Used by layout.json
 // "image" elements, which reference arbitrary imported images by name.
 static const lv_img_dsc_t* theme_find_named_asset(const char *name) {
     for (int i = 0; i < s_ctx.named_asset_count; i++) {
@@ -585,9 +576,8 @@ void theme_unload(void) {
 
     ESP_LOGI(TAG, "Unloading theme '%s'", s_ctx.info.name);
 
-    // Unmap every named asset. dial_handle/ring_handle (when set) are just
-    // copies of a named_assets[] entry's handle -- unmap only through this
-    // table so each mapping is torn down exactly once.
+    // Unmap every named asset through this table so each mapping is torn down
+    // exactly once.
     for (int i = 0; i < s_ctx.named_asset_count; i++) {
         if (s_ctx.named_assets[i].handle) {
             esp_partition_munmap(s_ctx.named_assets[i].handle);
@@ -595,9 +585,6 @@ void theme_unload(void) {
     }
     s_ctx.dial_handle = 0;
     s_ctx.dial_data = NULL;
-    s_ctx.ring_handle = 0;
-    s_ctx.ring_data = NULL;
-
     // Free every lv_font_load()'ed custom font, then unmap its backing
     // memory -- same handle-per-slot lifecycle as named_assets above.
     for (int i = 0; i < s_ctx.loaded_font_count; i++) {
@@ -750,16 +737,18 @@ static esp_err_t theme_load_assets(void) {
         return ESP_OK;  // Not an error, theme may have no assets
     }
 
-    // Every entry in "assets" (not just the two original built-ins) gets
-    // mmap'd into the generic named-asset table, so layout.json "image"
-    // elements can reference any imported image by its packer-assigned
-    // name. dial_background/ring_overlay additionally get mirrored into
-    // the dedicated dial_img/ring_img fields for theme_get_asset()'s
-    // existing "dial"/"ring" lookup.
+    // Every entry in "assets" gets mmap'd into the generic named-asset table
+    // so layout.json "image" elements can reference imported images. The
+    // legacy ring_overlay asset is deliberately ignored: all pages now use
+    // the fixed 2px edge ring from ui_helpers_init_edge_ring().
     cJSON *asset = NULL;
     cJSON_ArrayForEach(asset, assets) {
         const char *name = asset->string;
         if (!name) {
+            continue;
+        }
+        if (strcmp(name, "ring_overlay") == 0) {
+            ESP_LOGI(TAG, "Ignoring legacy ring_overlay asset; using the shared 2px edge ring");
             continue;
         }
 
@@ -827,15 +816,11 @@ static esp_err_t theme_load_assets(void) {
         s_ctx.named_asset_count++;
         ESP_LOGI(TAG, "Asset '%s' loaded: %zu bytes @ 0x%zx", name, size, offset);
 
-        // Back-compat mirror for theme_get_asset("dial"/"ring")
+        // Back-compat mirror for theme_get_asset("dial").
         if (strcmp(name, "dial_background") == 0) {
             s_ctx.dial_data = slot->data;
             s_ctx.dial_handle = slot->handle;
             s_ctx.dial_img = slot->img;
-        } else if (strcmp(name, "ring_overlay") == 0) {
-            s_ctx.ring_data = slot->data;
-            s_ctx.ring_handle = slot->handle;
-            s_ctx.ring_img = slot->img;
         }
     }
 
