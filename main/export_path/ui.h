@@ -294,6 +294,8 @@ LV_FONT_DECLARE(ui_font_FontTaikongSize72);
 LV_FONT_DECLARE(ui_font_FontTypoderSize16);
 LV_FONT_DECLARE(ui_font_FontTypoderSize20);
 LV_FONT_DECLARE(ui_font_FontTypoderSize24);
+LV_FONT_DECLARE(ui_font_Chinese16);
+LV_FONT_DECLARE(ui_font_Chinese20);
 LV_FONT_DECLARE(ui_font_FontTypoderSize28);
 LV_FONT_DECLARE(ui_font_FontTypoderSize32);
 LV_FONT_DECLARE(ui_font_FontTypoderSize36);

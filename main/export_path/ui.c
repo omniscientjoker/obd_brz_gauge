@@ -17,6 +17,7 @@
 #include "bsp_obd_dsp/nvs_storage.h"
 #include "bsp_obd_dsp/lcd_driver/ST77916.h"
 #include "bsp_obd_dsp/elm327_ble_client.h"
+#include "bsp_obd_dsp/esp_battery.h"
 #include "bsp_obd_dsp/espnow_link.h"
 #include "bsp_obd_dsp/gauge_pair_ble_client.h"
 #include "bsp_obd_dsp/racechrono_ble_diy.h"
@@ -36,6 +37,7 @@
 
 static const char *TAG = "ui";
 static void ui_nav_ble_leave(void);
+
 ///////////////////// VARIABLES ////////////////////
 void ui_ScreenPageLogo_screen_init(void);
 lv_obj_t * ui_ScreenPageLogo;
@@ -591,8 +593,12 @@ void my_timerMain(lv_timer_t * timer)
     int16_t load_pct = 0;
     int16_t tps = 0;
     int32_t bat_mv = 0;
+    int32_t esp_bat_mv = -1;
+    int esp_bat_pct = -1;
     int16_t boost_x10 = 0;
     int16_t afr_x100 = 0;
+
+    esp_battery_get_snapshot(&esp_bat_mv, &esp_bat_pct);
 
     /* ---- Sweep trigger ----
        Master: triggered the instant the ELM327 BLE connects and advances the animation itself;
@@ -749,9 +755,9 @@ void my_timerMain(lv_timer_t * timer)
             lv_label_set_text(ui_LabelMultiValue[2], "--.-");
         }
         if (ui_LabelMultiRole) {
-            const char *role = (user_cfg->device_role == ESPNOW_ROLE_SLAVE) ? "SLAVE" :
-                               (user_cfg->device_role == ESPNOW_ROLE_STANDALONE) ? "ALONE" : "MASTER";
-            lv_label_set_text_fmt(ui_LabelMultiRole, "%s / MULTI-GAUGE", role);
+            const char *role = (user_cfg->device_role == ESPNOW_ROLE_SLAVE) ? "从机" :
+                               (user_cfg->device_role == ESPNOW_ROLE_STANDALONE) ? "独立" : "主机";
+            lv_label_set_text_fmt(ui_LabelMultiRole, "%s多联表", role);
         }
     }
 
@@ -815,7 +821,7 @@ void my_timerMain(lv_timer_t * timer)
         const nvs_user_cfg_t *tpms_cfg = nvs_cfg_get();
         char text[16];
         if (ui_LabelTpmsHeader) {
-            lv_label_set_text_fmt(ui_LabelTpmsHeader, "SAFE PRESSURE\n%d.%d-%d.%d BAR",
+            lv_label_set_text_fmt(ui_LabelTpmsHeader, "%d.%d-%d.%d bar",
                                   tpms_cfg->tpms_pressure_min_bar_x100 / 100,
                                   (tpms_cfg->tpms_pressure_min_bar_x100 % 100) / 10,
                                   tpms_cfg->tpms_pressure_max_bar_x100 / 100,
@@ -955,32 +961,45 @@ void my_timerMain(lv_timer_t * timer)
     if (scr == ui_ScreenPageEasterEgg && ui_LabelEasterEggInfo) {
         static char s_last_easteregg_info[192];
         char info_text[192];
-        const char *mode_str = is_slave ? "SLAVE"
-                             : (user_cfg->device_role == ESPNOW_ROLE_MASTER) ? "MASTER" : "STANDALONE";
-        const char *conn_label, *conn_name;
+        char voltage_text[16];
+        const char *mode_str = is_slave ? "从机"
+                             : (user_cfg->device_role == ESPNOW_ROLE_MASTER) ? "主机" : "独立";
+        const char *conn_name;
 
         if (is_slave) {
             const char *mname = espnow_link_get_master_name();
-            conn_label = "SLAVE";
             conn_name  = (ble_now && mname[0]) ? mname : "--";
         } else {
             const char *dev_name = elm327_ble_get_connected_name();
             if(!dev_name || dev_name[0] == '\0') dev_name = "Not set";
-            conn_label = "BLE";
             conn_name  = dev_name;
         }
 
+        if (esp_bat_mv > 0) {
+            snprintf(voltage_text, sizeof(voltage_text), "%d.%d V",
+                     (int)(esp_bat_mv / 1000), (int)((esp_bat_mv % 1000) / 100));
+        } else {
+            strlcpy(voltage_text, "--.- V", sizeof(voltage_text));
+        }
         snprintf(info_text, sizeof(info_text),
-            "MODE: %s\n"
-            "%s: %s\n"
-            "Status: %s\n"
-            "BUILD %s",
-            mode_str, conn_label, conn_name,
-            ble_now ? (is_slave ? "Linked" : "Connected")
-                    : (is_slave ? "Waiting" : "Disconnected"),
-            OBD_GAUGE_BUILD_TAG);
-        if (strcmp(s_last_easteregg_info, info_text) != 0) {
-            strncpy(s_last_easteregg_info, info_text, sizeof(s_last_easteregg_info));
+            "模式: %s\n"
+            "连接: %s\n"
+            "状态: %s\n"
+            "电压: %s\n"
+            "固件: %s",
+            mode_str, conn_name,
+            ble_now ? "已连接" : (is_slave ? "等待" : "未连接"),
+            voltage_text, OBD_GAUGE_BUILD_TAG);
+        char info_with_battery[224];
+        snprintf(info_with_battery, sizeof(info_with_battery),
+                 "%s\n电量: %s", info_text,
+                 esp_bat_pct >= 0 ? "" : "--%");
+        if (esp_bat_pct >= 0) {
+            snprintf(info_with_battery, sizeof(info_with_battery),
+                     "%s\n电量: %d%%", info_text, esp_bat_pct);
+        }
+        if (strcmp(s_last_easteregg_info, info_with_battery) != 0) {
+            strncpy(s_last_easteregg_info, info_with_battery, sizeof(s_last_easteregg_info));
             s_last_easteregg_info[sizeof(s_last_easteregg_info) - 1] = '\0';
             lv_label_set_text(ui_LabelEasterEggInfo, s_last_easteregg_info);
         }

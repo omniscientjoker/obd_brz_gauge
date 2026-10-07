@@ -135,6 +135,9 @@ static bool s_composition_runtime_ready = false;
 // the immutable rule header for the single in-flight request so identical
 // DIDs addressed to different ECUs remain unambiguous.
 static const char *s_pending_response_header = NULL;
+// AT RV is the ELM327 adapter supply-voltage query.  It is used for the
+// battery display because many adapters/cars do not implement Mode 01 PID 42.
+static volatile bool s_pending_adapter_voltage = false;
 
 static void reset_composition_runtime(void);
 
@@ -360,6 +363,7 @@ static bool init_composition_runtime(void)
 static void reset_composition_runtime(void)
 {
     s_pending_response_header = NULL;
+    s_pending_adapter_voltage = false;
     obd_channel_arbiter_reset(&s_channel_arbiter);
     memset(&s_composed_plan, 0, sizeof(s_composed_plan));
     memset(&s_request_plan, 0, sizeof(s_request_plan));
@@ -443,6 +447,7 @@ static bool send_composed_slot(uint8_t slot_id)
     bool special_raw_gear = obd_special_bmw_is_raw_gear(rule, override);
     bool special_raw_gear_started = false;
     s_pending_response_header = rule->header;
+    s_pending_adapter_voltage = false;
     bool switched_header = rule->header && rule->header[0] != '\0' &&
                            strcmp(rule->header, fixed_header) != 0;
     if (switched_header)
@@ -452,6 +457,12 @@ static bool send_composed_slot(uint8_t slot_id)
         special_raw_gear_started = true;
         sent = obd_special_bmw_send_raw_gear(override, fixed_header,
                                              send_special_command, NULL);
+    } else if (sent && slot_id == 7) {
+        // AT RV returns the adapter supply voltage as text (for example
+        // "12.6V") and works even when the vehicle rejects PID 0142.
+        s_pending_adapter_voltage = true;
+        sent = elm327_ble_send_ascii_blocking("AT RV\r");
+        if (!sent) s_pending_adapter_voltage = false;
     } else if (sent) {
         char command[32];
         if (!obd_protocol_build_request(slot->protocol, rule, command, sizeof(command))) {
@@ -467,6 +478,7 @@ static bool send_composed_slot(uint8_t slot_id)
     if (!sent) {
         if (slot_id == 6) record_oil_query_failure();
         s_pending_response_header = NULL;
+        s_pending_adapter_voltage = false;
         s_pending_oil_query = false;
         s_pending_oil_value_handled = false;
         s_expect_mode21 = false;
@@ -1221,7 +1233,7 @@ static void obd_poll_task(void *arg) {
     bool inited = false;
     uint8_t heal_attempts = 0;   // consecutive self-heal count; escalates to a forced reconnect if resending ATZ a few times still yields no data
 
-    // 12-slot poll: 0=RPM, 1=IAT, 2=Speed, 3=CLT, 4=Load(0x04), 5=TPS(0x11), 6=OIL(vehicle strategy), 7=BAT(0x42), 8=Boost, 9=AFR, 10=Oil pressure, 11=Gear
+    // 12-slot poll: 0=RPM, 1=IAT, 2=Speed, 3=CLT, 4=Load(0x04), 5=TPS(0x11), 6=OIL(vehicle strategy), 7=adapter voltage(AT RV), 8=Boost, 9=AFR, 10=Oil pressure, 11=Gear
     while (1)
     {
         // The first twelve slots are the legacy cadence. Opt-in rule packs
@@ -1959,6 +1971,35 @@ static void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_
 
         char *buf = s_accum_buf;
 
+        // Parse the plain-text response from ELM327's AT RV command before
+        // looking for hexadecimal OBD response headers.
+        if (s_pending_adapter_voltage) {
+            const char *p = buf;
+            while (*p) {
+                if ((*p >= '0' && *p <= '9') || *p == '.') {
+                    char *end = NULL;
+                    float volts = strtof(p, &end);
+                    if (end != p && volts >= 5.0f && volts <= 20.0f) {
+                        while (*end == ' ' || *end == '\t') end++;
+                        if (*end == 'V' || *end == 'v') {
+                            if (s_cbs.on_parsed_control_module_voltage)
+                                s_cbs.on_parsed_control_module_voltage((uint32_t)(volts * 1000.0f + 0.5f));
+                            mark_obd_data_valid();
+                            s_pending_adapter_voltage = false;
+                            s_accum_len = 0;
+                            s_accum_buf[0] = '\0';
+                            s_pending_response_header = NULL;
+                            break;
+                        }
+                    }
+                    p = (end != p) ? end : p + 1;
+                } else {
+                    p++;
+                }
+            }
+            if (!s_pending_adapter_voltage) break;
+        }
+
         char *p61 = strstr(buf, "61 01"); // Mode 21 response header (exact match "61 01")
         char *p41 = strstr(buf, "41 ");
         char *p62 = strstr(buf, "62 ");
@@ -2432,6 +2473,7 @@ normalized_response_done:
         s_accum_len = 0;
         s_accum_buf[0] = '\0';
         s_pending_response_header = NULL;
+        s_pending_adapter_voltage = false;
         break;
     }
     case ESP_GATTC_WRITE_CHAR_EVT: {
@@ -2458,6 +2500,7 @@ normalized_response_done:
         s_write_type = ESP_GATT_WRITE_TYPE_RSP; // reset the write type after disconnect
         s_expect_mode21 = false;
         s_pending_response_header = NULL;
+        s_pending_adapter_voltage = false;
         reset_composition_runtime();
         s_char_write_handle = s_char_notify_handle = s_cccd_handle = 0;
         s_accum_len = 0; s_accum_buf[0] = '\0'; // clear the response accumulation buffer

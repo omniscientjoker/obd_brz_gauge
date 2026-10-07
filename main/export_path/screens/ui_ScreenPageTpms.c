@@ -72,7 +72,7 @@ void ui_ScreenPageTpms_screen_init(void)
     lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageTpms, 8);
 
     ui_LabelTpmsHeader = lv_label_create(ui_ScreenPageTpms);
-    lv_label_set_text(ui_LabelTpmsHeader, "SAFE PRESSURE\n2.0-3.2 BAR");
+    lv_label_set_text(ui_LabelTpmsHeader, "2.0-3.2 bar");
     lv_obj_set_width(ui_LabelTpmsHeader, 150);
     lv_obj_set_style_text_align(ui_LabelTpmsHeader, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     lv_obj_set_style_text_font(ui_LabelTpmsHeader, &ui_font_FontTypoderSize16, LV_PART_MAIN);
@@ -85,8 +85,8 @@ void ui_ScreenPageTpms_screen_init(void)
     create_tire_tile(ui_ScreenPageTpms, 3, "RR",  101,  101);
 
     lv_obj_t *voltage_name = lv_label_create(ui_ScreenPageTpms);
-    lv_label_set_text(voltage_name, "BATTERY VOLTAGE");
-    lv_obj_set_style_text_font(voltage_name, &ui_font_FontTypoderSize16, LV_PART_MAIN);
+    lv_label_set_text(voltage_name, "电压");
+    lv_obj_set_style_text_font(voltage_name, &ui_font_Chinese16, LV_PART_MAIN);
     lv_obj_set_style_text_color(voltage_name, lv_color_hex(0xE0B85A), LV_PART_MAIN);
     lv_obj_align(voltage_name, LV_ALIGN_CENTER, 0, -9);
 

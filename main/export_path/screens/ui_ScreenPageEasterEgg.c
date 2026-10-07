@@ -13,9 +13,6 @@
 #define OBD_GAUGE_BUILD_TAG "unknown"
 #endif
 
-// ui_ScreenPageOTAMode is lazily created; forward ref for the OTA button handler
-extern lv_obj_t *ui_ScreenPageOTAMode;
-
 void ui_ScreenPageEasterEgg_screen_init(void)
 {
     ui_ScreenPageEasterEgg = lv_obj_create(NULL);
@@ -24,60 +21,41 @@ void ui_ScreenPageEasterEgg_screen_init(void)
     ui_helpers_style_screen_bg(ui_ScreenPageEasterEgg);
     lv_obj_set_style_bg_opa(ui_ScreenPageEasterEgg, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    /* ---- Device Info Page ----
-       Kept minimal on purpose: role + OBD link state + firmware build tag.
-       The page intentionally has no "SKY GAUGE" title; the device bezel and
-       information block are the complete left-most page presentation. */
+    /* Keep the Sky Gauge page to five concise lines of device information. */
     // Role + connection state: master/standalone show BLE (ELM327), slave shows its master
     uint8_t device_role = nvs_cfg_get()->device_role;
     bool is_slave = (device_role == ESPNOW_ROLE_SLAVE);
-    const char *mode_str = is_slave ? "SLAVE"
-                         : (device_role == ESPNOW_ROLE_MASTER) ? "MASTER" : "STANDALONE";
-    const char *conn_label, *conn_name, *conn_status;
+    const char *mode_str = is_slave ? "从机"
+                         : (device_role == ESPNOW_ROLE_MASTER) ? "主机" : "独立";
+    const char *conn_name, *conn_status;
     if (is_slave) {
         bool linked = espnow_link_slave_has_data();
         const char *mname = espnow_link_get_master_name();
-        conn_label  = "SLAVE";
         conn_name   = (linked && mname[0]) ? mname : "--";
-        conn_status = linked ? "Linked" : "Waiting";
+        conn_status = linked ? "已连接" : "等待";
     } else {
         const char *ble_name = elm327_ble_get_connected_name();
         if (!ble_name || ble_name[0] == '\0') ble_name = "Not set";
-        conn_label  = "BLE";
         conn_name   = ble_name;
-        conn_status = elm327_ble_is_connected() ? "Connected" : "Disconnected";
+        conn_status = elm327_ble_is_connected() ? "已连接" : "未连接";
     }
 
     ui_LabelEasterEggInfo = lv_label_create(ui_ScreenPageEasterEgg);
     lv_label_set_long_mode(ui_LabelEasterEggInfo, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(ui_LabelEasterEggInfo, 280);
     lv_label_set_text_fmt(ui_LabelEasterEggInfo,
-        "MODE: %s\n"
-        "%s: %s\n"
-        "Status: %s\n"
-        "BUILD %s",
-        mode_str, conn_label, conn_name, conn_status, OBD_GAUGE_BUILD_TAG);
-    lv_obj_set_style_text_font(ui_LabelEasterEggInfo, &ui_font_FontTypoderSize16, LV_PART_MAIN | LV_STATE_DEFAULT);
+        "模式: %s\n"
+        "连接: %s\n"
+        "状态: %s\n"
+        "电压: --.- V\n"
+        "电量: --%%\n"
+        "固件: %s",
+        mode_str, conn_name, conn_status, OBD_GAUGE_BUILD_TAG);
+    lv_obj_set_style_text_font(ui_LabelEasterEggInfo, &ui_font_Chinese16, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_color(ui_LabelEasterEggInfo, lv_color_hex(0xAAAAAA), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_LabelEasterEggInfo, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_line_space(ui_LabelEasterEggInfo, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_align(ui_LabelEasterEggInfo, LV_ALIGN_CENTER, 0, 0);
-
-    // ---- OTA button (the BUILD tag already lives in the info block above) ----
-    lv_obj_t *btn_ota = lv_btn_create(ui_ScreenPageEasterEgg);
-    lv_obj_set_style_clip_corner(btn_ota, true, 0);
-    lv_obj_set_size(btn_ota, 140, 32);
-    lv_obj_align(btn_ota, LV_ALIGN_BOTTOM_MID, 0, -56);
-    lv_obj_set_style_bg_color(btn_ota, lv_color_hex(0x00AA55), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(btn_ota, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_radius(btn_ota, 16, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_all(btn_ota, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_t *lbl_ota = lv_label_create(btn_ota);
-    lv_label_set_text(lbl_ota, "OTA Mode");
-    lv_obj_set_style_text_font(lbl_ota, &ui_font_FontTypoderSize16, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_color(lbl_ota, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_center(lbl_ota);
-    lv_obj_add_event_cb(btn_ota, ui_event_easter_egg_ota_button, LV_EVENT_CLICKED, NULL);
 
     imageEasterEgg = NULL;
 

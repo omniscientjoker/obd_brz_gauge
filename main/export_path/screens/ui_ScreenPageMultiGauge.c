@@ -39,7 +39,7 @@ static void create_live_tile(lv_obj_t *parent, lv_obj_t **value_out,
     lv_label_set_text(name_label, name);
     lv_obj_set_width(name_label, 87);
     lv_obj_set_style_text_align(name_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_set_style_text_font(name_label, &ui_font_FontTypoderSize16, LV_PART_MAIN);
+    lv_obj_set_style_text_font(name_label, &ui_font_Chinese16, LV_PART_MAIN);
     lv_obj_set_style_text_color(name_label, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_MAIN);
     lv_obj_align(name_label, LV_ALIGN_CENTER, x, -10);
 
@@ -93,7 +93,7 @@ static void on_role_button_clicked(lv_event_t *e)
     nvs_cfg_set(&cfg);
     if (s_role_button_label) {
         lv_label_set_text(s_role_button_label,
-                          cfg.device_role == ESPNOW_ROLE_MASTER ? "SET SLAVE" : "SET MASTER");
+                          cfg.device_role == ESPNOW_ROLE_MASTER ? "设为从机" : "设为主机");
     }
 }
 
@@ -126,7 +126,6 @@ void ui_ScreenPageMultiGauge_screen_init(void)
     lv_obj_set_style_radius(ui_ScreenPageMultiGauge, 360, LV_PART_MAIN);
     ui_helpers_style_screen_bg(ui_ScreenPageMultiGauge);
     lv_obj_set_style_bg_opa(ui_ScreenPageMultiGauge, 255, LV_PART_MAIN);
-    ui_helpers_create_statusbar(ui_ScreenPageMultiGauge, "MULTI");
 
     // White border ring
     lv_obj_t *ring = ui_helpers_create_ring(ui_ScreenPageMultiGauge, 10);
@@ -141,23 +140,16 @@ void ui_ScreenPageMultiGauge_screen_init(void)
     lv_obj_add_flag(ear, LV_OBJ_FLAG_ADV_HITTEST);
     lv_obj_clear_flag(ear, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *title = lv_label_create(ui_ScreenPageMultiGauge);
-    lv_label_set_text(title, "MULTI-GAUGE");
-    lv_obj_set_style_text_font(title, &ui_font_FontTypoderSize20, LV_PART_MAIN);
-    lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-    lv_obj_align(title, LV_ALIGN_CENTER, 0, -106);
-    lv_obj_add_flag(title, LV_OBJ_FLAG_HIDDEN);
-
     // Live three-gauge strip mirrors the simulator. Values are filled by the
     // shared OBD snapshot in ui.c; settings remain below and keep their NVS callbacks.
-    create_live_tile(ui_ScreenPageMultiGauge, &ui_LabelMultiValue[0], "RPM", "rpm", -94);
-    create_live_tile(ui_ScreenPageMultiGauge, &ui_LabelMultiValue[1], "SPEED", "km/h", 0);
-    create_live_tile(ui_ScreenPageMultiGauge, &ui_LabelMultiValue[2], "VOLTAGE", "V", 94);
+    create_live_tile(ui_ScreenPageMultiGauge, &ui_LabelMultiValue[0], "转速", "rpm", -94);
+    create_live_tile(ui_ScreenPageMultiGauge, &ui_LabelMultiValue[1], "车速", "km/h", 0);
+    create_live_tile(ui_ScreenPageMultiGauge, &ui_LabelMultiValue[2], "电压", "V", 94);
     ui_LabelMultiRole = lv_label_create(ui_ScreenPageMultiGauge);
-    lv_label_set_text(ui_LabelMultiRole, "MASTER / MULTI-GAUGE");
+    lv_label_set_text(ui_LabelMultiRole, "主机多联表");
     lv_obj_set_width(ui_LabelMultiRole, 280);
     lv_obj_set_style_text_align(ui_LabelMultiRole, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_set_style_text_font(ui_LabelMultiRole, &ui_font_FontTypoderSize16, LV_PART_MAIN);
+    lv_obj_set_style_text_font(ui_LabelMultiRole, &ui_font_Chinese16, LV_PART_MAIN);
     lv_obj_set_style_text_color(ui_LabelMultiRole, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
     // The simulator places the role heading immediately above the three
     // circles; the old settings controls remain allocated for compatibility
@@ -165,8 +157,8 @@ void ui_ScreenPageMultiGauge_screen_init(void)
     lv_obj_align(ui_LabelMultiRole, LV_ALIGN_CENTER, 0, -60);
 
     s_role_button = lv_btn_create(ui_ScreenPageMultiGauge);
-    lv_obj_set_size(s_role_button, 72, 26);
-    lv_obj_align(s_role_button, LV_ALIGN_CENTER, -100, 69);
+    lv_obj_set_size(s_role_button, 94, 28);
+    lv_obj_align(s_role_button, LV_ALIGN_CENTER, 0, 76);
     lv_obj_set_style_radius(s_role_button, 3, LV_PART_MAIN);
     lv_obj_set_style_bg_color(s_role_button, lv_color_hex(0x121B1C), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(s_role_button, LV_OPA_COVER, LV_PART_MAIN);
@@ -174,10 +166,10 @@ void ui_ScreenPageMultiGauge_screen_init(void)
     lv_obj_set_style_border_color(s_role_button, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
     lv_obj_set_style_border_opa(s_role_button, 37, LV_PART_MAIN);
     s_role_button_label = lv_label_create(s_role_button);
-    lv_obj_set_style_text_font(s_role_button_label, &lv_font_montserrat_12, LV_PART_MAIN);
+    lv_obj_set_style_text_font(s_role_button_label, &ui_font_Chinese16, LV_PART_MAIN);
     lv_obj_set_style_text_color(s_role_button_label, lv_color_hex(0xA8B3B4), LV_PART_MAIN);
     lv_label_set_text(s_role_button_label,
-                      cfg->device_role == ESPNOW_ROLE_MASTER ? "SET SLAVE" : "SET MASTER");
+                      cfg->device_role == ESPNOW_ROLE_MASTER ? "设为从机" : "设为主机");
     lv_obj_center(s_role_button_label);
     lv_obj_add_event_cb(s_role_button, on_role_button_clicked, LV_EVENT_CLICKED, NULL);
 
