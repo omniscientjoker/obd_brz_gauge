@@ -81,6 +81,7 @@ idf_component_register(SRC_DIRS
                     "export_path/screens"
                     "export_path"
                     "app_obd_dsp"
+                    "app_media"
                     "bsp_obd_dsp"
                     "bsp_obd_dsp/lcd_driver"
                     "bsp_obd_dsp/lcd_driver/esp_lcd_st77916"
@@ -95,6 +96,10 @@ idf_component_register(SRC_DIRS
                     esp_wifi
                     bt
                     spiffs
+                    fatfs
+                    sdmmc
+                    esp_driver_i2s
+                    esp_codec_dev
                     mbedtls
                     nvs_flash
                     app_update

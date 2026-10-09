@@ -25,9 +25,8 @@ enum {
     // example 01 0B is MAP in kPa, not the derived boost gauge value.
     CH_MAP_KPA, CH_BAT_MV, CH_AFR_X100,
     CH_OIL_PRESSURE_HPA, CH_GEAR_RAW,
-    // Candidate Ford BCM TPMS channels. These are intentionally separate
-    // from engine oil pressure and are only enabled by an explicit vehicle
-    // composition rule pack.
+    // Ford BCM TPMS channels. These are intentionally separate from engine
+    // oil pressure and are only enabled by an explicit vehicle rule pack.
     CH_TPMS_FL_BAR_X100, CH_TPMS_FR_BAR_X100,
     CH_TPMS_RL_BAR_X100, CH_TPMS_RR_BAR_X100,
     CH_COUNT

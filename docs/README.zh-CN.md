@@ -11,9 +11,9 @@ OBD BRZ Gauge 是一个基于 ESP-IDF 的车载圆形仪表显示项目，运行
 - 硬件平台：微雪 Waveshare ESP32-S3-Touch-LCD-1.85
 - 软件栈：ESP-IDF 5.5.3、LVGL 8
 - 通信链路：BLE + ELM327（标准 OBD PID；只有 ZN/C6 CAN 使用 CAN 广播帧 ATMA 监听）
-- 已内置车型（18 个）：OBD2 Generic、ZN/C6 CAN、ZN/C6 PID、ZD8 OBD、ZD8、MX-5 ND、BMW F/G、Supra A90、BMW G OBD、BMW E、JCW F56、MINI R55、POS 997.2、POS 997.1、GIULIA 2.0T、jeep、Honda Integra、Ford Mondeo 2014 TPMS candidate（显式候选配置）
+- 已内置车型（18 个）：OBD2 Generic、ZN/C6 CAN、ZN/C6 PID、ZD8 OBD、ZD8、MX-5 ND、BMW F/G、Supra A90、BMW G OBD、BMW E、JCW F56、MINI R55、POS 997.2、POS 997.1、GIULIA 2.0T、jeep、Honda Integra、Ford Mondeo 2014（BCMii TPMS 已验证）
 - 三连表：一主多从，通过 ESP-NOW 联动
-- 当前验证状态：已在斯巴鲁 BRZ ZN/C6 上完整验证；其余车型已配置，部分仍需上车验证
+- 当前验证状态：已在斯巴鲁 BRZ ZN/C6 与福特蒙迪欧 2014 2.0T BCMii 胎压上验证；其余车型已配置，部分仍需上车验证
 
 ## 功能概览
 

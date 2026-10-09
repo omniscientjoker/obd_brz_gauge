@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-#include "ford_tpms_candidate.h"
+#include "ford_mondeo_tpms.h"
 #include "obd_special_bmw.h"
 #include "obd_special_mode21.h"
 
@@ -29,13 +29,12 @@ bool obd_vehicle_compositions_apply(const vehicle_profile_t *profile,
     const uint8_t original_pack_count = composition->rule_pack_count;
     const uint8_t original_handler_count = composition->handler_count;
 
-    // Public Ford Fusion/Mondeo data remains an explicit opt-in candidate.
-    // It is deliberately isolated so ordinary Mondeo profiles do not inherit
-    // unverified regional DID/header assumptions.
+    // BCMii TPMS is verified for this exact Mondeo configuration. Keep it
+    // profile-scoped: Ford regional variants can use different BCM layouts.
     if (profile->name &&
-        strcmp(profile->name, "Ford Mondeo 2014 TPMS candidate") == 0 &&
+        strcmp(profile->name, VEHICLE_PROFILE_NAME_FORD_MONDEO_2014) == 0 &&
         !obd_composition_add_rule_pack(composition,
-                                       obd_ford_tpms_candidate_rules_get())) {
+                                       obd_ford_mondeo_2014_tpms_rules_get())) {
         composition->rule_pack_count = original_pack_count;
         composition->handler_count = original_handler_count;
         return false;

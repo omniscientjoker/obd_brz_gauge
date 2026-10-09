@@ -11,6 +11,7 @@ extern "C" {
 #include <stdbool.h>
 
 #define VEHICLE_MAX_GEARS 9   // accommodates index0 + up to 8 forward gears (e.g. ZF 8HP)
+#define VEHICLE_PROFILE_NAME_FORD_MONDEO_2014 "Ford Mondeo 2014"
 
 // Oil temp query mode priority
 typedef enum {

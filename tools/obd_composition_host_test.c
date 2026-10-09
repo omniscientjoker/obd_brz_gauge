@@ -6,7 +6,7 @@
 #include "app_obd_dsp/obd_response_dispatch.h"
 #include "app_obd_dsp/obd_request_plan.h"
 #include "app_obd_dsp/obd_channel_arbiter.h"
-#include "app_obd_dsp/ford_tpms_candidate.h"
+#include "app_obd_dsp/ford_mondeo_tpms.h"
 #include "app_obd_dsp/obd_special_mode21.h"
 #include "app_obd_dsp/obd_special_bmw.h"
 #include "app_obd_dsp/obd_vehicle_compositions.h"
@@ -126,7 +126,7 @@ static void test_special_handler_composition(void)
 static void test_vehicle_composition_registry(void)
 {
     vehicle_profile_t ford = {0};
-    ford.name = "Ford Mondeo 2014 TPMS candidate";
+    ford.name = VEHICLE_PROFILE_NAME_FORD_MONDEO_2014;
     ford.oil_temp_strategy.primary = OIL_TEMP_MODE_TOYOTA_21_01;
     obd_vehicle_composition_t composition = {0};
     composition.legacy_override = NULL;
@@ -352,6 +352,50 @@ static void test_response_dispatch(void)
     assert(ambiguous_state.rule_id == 0x2815);
 }
 
+static void test_vehicle_battery_voltage(void)
+{
+    obd_data_rule_t battery = rule(0x0142, NULL, CH_BAT_MV);
+    battery.protocol = OBD_PROTOCOL_STANDARD;
+    battery.kind = OBD_RULE_MODE01;
+    battery.service = 0x01;
+    battery.address = 0x42;
+    battery.schedule_slot = 7;
+    battery.resp_bytes = 2;
+    battery.big_endian = true;
+    battery.scale = 1.0f;
+    battery.min_value = 0.0f;
+    battery.max_value = 65535.0f;
+
+    obd_rule_pack_t pack = {"battery", &battery, 1, 1};
+    obd_vehicle_composition_t composition = {0};
+    obd_composed_plan_t composed;
+    obd_request_plan_t request_plan;
+    obd_response_dispatcher_t dispatcher;
+    sink_state_t state = {0};
+    const obd_response_sink_t sink = {.on_value = capture_value};
+    char command[32];
+
+    composition.rule_packs[0] = &pack;
+    composition.rule_pack_count = 1;
+    assert(obd_composition_build_plan(&composition, &composed));
+    assert(obd_request_plan_build(&composition, &request_plan));
+    const obd_request_slot_t *slot = obd_request_plan_find(&request_plan, 7);
+    assert(slot && slot->rule == &battery);
+    assert(obd_protocol_build_request(slot->protocol, slot->rule,
+                                      command, sizeof(command)));
+    assert(strcmp(command, "01 42\r") == 0);
+
+    dispatcher = (obd_response_dispatcher_t){
+        .plan = &composed, .sink = &sink, .ctx = &state};
+    obd_text_response_context_t context = {
+        .dispatcher = &dispatcher,
+        .header = NULL,
+    };
+    assert(obd_response_dispatch_text_mode01(&context, "41 42 31 40\r>"));
+    assert(state.rule_id == 0x0142);
+    assert(state.value == 12608.0f);
+}
+
 static void test_request_plan(void)
 {
     obd_data_rule_t rpm = rule(0x0C, NULL, 0);
@@ -420,9 +464,9 @@ static void test_channel_arbiter(void)
     assert(obd_channel_arbiter_publish(&arbiter, &low, 5.0f, 2000000));
 }
 
-static void test_ford_tpms_candidate(void)
+static void test_ford_mondeo_2014_tpms(void)
 {
-    const obd_rule_pack_t *pack = obd_ford_tpms_candidate_rules_get();
+    const obd_rule_pack_t *pack = obd_ford_mondeo_2014_tpms_rules_get();
     obd_vehicle_composition_t composition = {0};
     obd_composed_plan_t plan;
     obd_request_plan_t request_plan;
@@ -449,11 +493,26 @@ static void test_ford_tpms_candidate(void)
         assert(strcmp(command, expected_commands[slot - 12]) == 0);
     }
     dispatcher = (obd_response_dispatcher_t){.plan = &plan, .sink = &sink, .ctx = &state};
-    assert(obd_response_dispatch_mode22(&dispatcher, 0x2813,
-                                        (const uint8_t[]){0x02, 0x80}, 2,
-                                        "ATSH726\r"));
-    assert(state.rule_id == 0xF813);
-    assert(state.value > 2.20f && state.value < 2.22f);
+    obd_text_response_context_t context = {
+        .dispatcher = &dispatcher,
+        .header = "ATSH726\r",
+    };
+    const struct {
+        const char *response;
+        uint16_t rule_id;
+        float bar;
+    } captures[] = {
+        {"72E 05 62 28 13 02 B2\r>", 0xF813, 2.3787f},
+        {"72E 05 62 28 14 02 D0\r>", 0xF814, 2.4821f},
+        {"72E 05 62 28 16 02 99\r>", 0xF816, 2.2925f},
+        {"72E 05 62 28 15 02 9E\r>", 0xF815, 2.3097f},
+    };
+    for (uint8_t i = 0; i < sizeof(captures) / sizeof(captures[0]); ++i) {
+        assert(obd_response_dispatch_text_mode22(&context, captures[i].response));
+        assert(state.rule_id == captures[i].rule_id);
+        assert(state.value > captures[i].bar - 0.001f);
+        assert(state.value < captures[i].bar + 0.001f);
+    }
 }
 
 static void test_mode21_special_handler(void)
@@ -528,9 +587,10 @@ int main(void)
     test_capacity_failure();
     test_plan_validation();
     test_response_dispatch();
+    test_vehicle_battery_voltage();
     test_request_plan();
     test_channel_arbiter();
-    test_ford_tpms_candidate();
+    test_ford_mondeo_2014_tpms();
     test_mode21_special_handler();
     test_bmw_special_script();
     puts("obd_composition_host_test: PASS");

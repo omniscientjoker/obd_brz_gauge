@@ -22,6 +22,7 @@
 #include "app_obd_dsp/vehicle_profiles.h"
 #include "app_obd_dsp/boot_block_player.h"
 #include "app_obd_dsp/boot_media_mount.h"
+#include "app_media/sd_media_manager.h"
 #include "theme_engine/theme_interface.h"
 #include "esp_timer.h"
 #include "esp_random.h"
@@ -30,6 +31,30 @@
 #include <stdio.h>
 
 static const char *TAG = "ui_ext";
+
+static bool boot_video_create_with_fallback(lv_obj_t *parent, lv_obj_t **out_canvas)
+{
+    static const char flash_manifest[] = "/bootmedia/boot_block.txt";
+    static const char flash_data[] = "/bootmedia/boot_block.bin";
+    const char *manifest = flash_manifest;
+    const char *data = flash_data;
+    bool sd_selected = sd_media_get_boot_video_paths(&manifest, &data);
+
+    boot_block_player_set_paths(manifest, data);
+    if (boot_block_player_create(parent, out_canvas)) {
+        if (sd_selected) {
+            ESP_LOGI(TAG, "Using SD boot video: %s", data);
+        }
+        return true;
+    }
+
+    if (sd_selected) {
+        ESP_LOGW(TAG, "SD boot video failed; retrying Flash bootmedia");
+        boot_block_player_set_paths(flash_manifest, flash_data);
+        return boot_block_player_create(parent, out_canvas);
+    }
+    return false;
+}
 
 /* ================================================================
  *  Sweep animation state
@@ -128,8 +153,6 @@ static void showroom_load_slot(uint8_t slot)
     if (page == 0) {
         // Video page
         if (s_boot_video_ready || s_boot_video_active) return;  // already loaded
-        // Single boot animation slot: the boot_block flashed via the phone app.
-        boot_block_player_set_paths("/bootmedia/boot_block.txt", "/bootmedia/boot_block.bin");
         if (boot_media_mount()) {
             if (s_showroom_video_scr) { lv_obj_del(s_showroom_video_scr); s_showroom_video_scr = NULL; }
             s_showroom_video_scr = lv_obj_create(NULL);
@@ -139,7 +162,7 @@ static void showroom_load_slot(uint8_t slot)
             lv_obj_set_style_radius(s_showroom_video_scr, 360, LV_PART_MAIN);
             lv_obj_clear_flag(s_showroom_video_scr, LV_OBJ_FLAG_SCROLLABLE);
             lv_obj_t *canvas = NULL;
-            if (boot_block_player_create(s_showroom_video_scr, &canvas)) {
+            if (boot_video_create_with_fallback(s_showroom_video_scr, &canvas)) {
                 s_boot_video_ready = true;
             } else {
                 lv_obj_del(s_showroom_video_scr);
@@ -284,7 +307,7 @@ static void boot_enter_default_page(void)
 
     lv_obj_t **target_scr = NULL;
     void (*target_init)(void) = NULL;
-    // Default page: 0=Temp,1=Info,2=Chart,3=Needle,4=Gear,5=Rpm,6=Speed
+    // Default page: 0=Temp,1=Info,2=Chart,3=Needle,4=Gear,5=Rpm,6=Speed,7=TPMS,8=MultiGauge
     switch(pg_cfg->default_page) {
         case 0: target_scr = &ui_ScreenPageTemp;  target_init = ui_ScreenPageTemp_screen_init;  break;
         case 1: target_scr = &ui_ScreenPageInfo;  target_init = ui_ScreenPageInfo_screen_init;  break;
@@ -293,6 +316,8 @@ static void boot_enter_default_page(void)
         case 4: target_scr = &ui_ScreenPageGear;  target_init = ui_ScreenPageGear_screen_init;  break;
         case 5: target_scr = &ui_ScreenPageRpm;   target_init = ui_ScreenPageRpm_screen_init;   break;
         case 6: target_scr = &ui_ScreenPageSpeed; target_init = ui_ScreenPageSpeed_screen_init; break;
+        case 7: target_scr = &ui_ScreenPageTpms;  target_init = ui_ScreenPageTpms_screen_init;  break;
+        case 8: target_scr = &ui_ScreenPageMultiGauge; target_init = ui_ScreenPageMultiGauge_screen_init; break;
         default: target_scr = &ui_ScreenPageTemp; target_init = ui_ScreenPageTemp_screen_init;  break;
     }
     if(*target_scr == NULL) target_init();
@@ -547,8 +572,6 @@ bool ui_ext_boot_video_tick(void)
 
     // Phase 1: prepare the video (single app-flashed boot_block slot)
     if (!s_boot_video_ready && !s_boot_video_active && s_boot_video_screen == NULL) {
-        boot_block_player_set_paths("/bootmedia/boot_block.txt", "/bootmedia/boot_block.bin");
-
         if (boot_media_mount()) {
             ESP_LOGI(TAG, "boot_media_mount() succeeded, attempting to create player");
             s_boot_video_screen = lv_obj_create(NULL);
@@ -558,7 +581,7 @@ bool ui_ext_boot_video_tick(void)
             lv_obj_set_style_radius(s_boot_video_screen, 360, LV_PART_MAIN);
             lv_obj_clear_flag(s_boot_video_screen, LV_OBJ_FLAG_SCROLLABLE);
             lv_obj_t *canvas = NULL;
-            if (boot_block_player_create(s_boot_video_screen, &canvas)) {
+            if (boot_video_create_with_fallback(s_boot_video_screen, &canvas)) {
                 // Delay the screen switch until the synchronized playback start.
                 s_boot_video_ready = true;
                 ESP_LOGI(TAG, "Boot video ready (legacy logo skipped)");

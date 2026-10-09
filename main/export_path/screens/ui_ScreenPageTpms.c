@@ -71,7 +71,7 @@ void ui_ScreenPageTpms_screen_init(void)
 
 
     ui_LabelTpmsHeader = lv_label_create(ui_ScreenPageTpms);
-    lv_label_set_text(ui_LabelTpmsHeader, "2.0-3.2 bar");
+    lv_label_set_text(ui_LabelTpmsHeader, "2.0-3.2");
     lv_obj_set_width(ui_LabelTpmsHeader, 150);
     lv_obj_set_style_text_align(ui_LabelTpmsHeader, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     lv_obj_set_style_text_font(ui_LabelTpmsHeader, &ui_font_FontTypoderSize16, LV_PART_MAIN);

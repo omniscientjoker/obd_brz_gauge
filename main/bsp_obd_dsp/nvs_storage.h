@@ -3,6 +3,10 @@
 #include <stdbool.h>
 #include "esp_err.h"
 
+// Built-in dashboard pages selectable as the boot destination. Keep this in
+// the storage contract so UI validation and boot routing cannot drift apart.
+#define NVS_DEFAULT_PAGE_COUNT 9
+
 // Theme config. The index/selectors are real now (see ui_theme.c); the two
 // color fields are legacy and unused, kept only to preserve struct layout.
 typedef struct {
@@ -18,7 +22,7 @@ typedef struct {
     uint8_t protocol;      // OBD protocol: 0=auto, 1~9=fixed
     theme_cfg_t theme_cfg;   // theme config
     char    ble_device_name[32]; // last connected BLE device name, empty = not configured
-    uint8_t default_page;   // default boot page: 0=Temp, 1=Info, 2=Chart, 3=Needle, 4=Gear, 5=RPM, 6=Speed
+    uint8_t default_page;   // 0=Temp, 1=Info, 2=Chart, 3=Needle, 4=Gear, 5=RPM, 6=Speed, 7=TPMS, 8=MultiGauge
     uint8_t brightness_day; // brightness 10-100, 0=unset (use 100)
     uint8_t vehicle_profile_idx; // vehicle profile index, 0=OBD2 Generic (full list in vehicle_profiles.c)
     uint16_t brake_temp_warn_c; // brake temp warning threshold, °C (x1)

@@ -83,7 +83,7 @@ Repository layout is in [this README](#repository-layout--目录结构) below.
 | Link / 通信链路 | BLE + ELM327 — standard OBD PID; only ZN/C6 CAN keeps ATMA monitoring |
 | Multi-gauge / 三连表 | One master + multiple slaves over ESP-NOW / 一主多从，ESP-NOW 联动 |
 | OBD architecture / 架构 | Composed common rules + vehicle packs + special handlers, with legacy fallback / 通用规则、车型包、特殊处理器组合，保留兼容回退 |
-| Verified on / 已验证 | Subaru BRZ ZN/C6 (fully); Ford TPMS candidate requires FORScan/vLinker capture / BRZ ZN/C6 已完整验证；福特胎压候选仍需 FORScan/vLinker 抓包 |
+| Verified on / 已验证 | Subaru BRZ ZN/C6 (fully); Ford Mondeo 2014 2.0T BCMii TPMS / BRZ ZN/C6 已完整验证；蒙迪欧 2014 2.0T BCMii 胎压已验证 |
 
 **Vehicle profiles / 内置车型** (18) — full list in
 [vehicle_profiles.c](main/app_obd_dsp/vehicle_profiles.c), selectable in Settings:
@@ -91,7 +91,7 @@ Repository layout is in [this README](#repository-layout--目录结构) below.
 `OBD2 Generic` · `ZN/C6 CAN` · `ZN/C6 PID` · `ZD8 OBD` · `ZD8` · `MX-5 ND` ·
 `BMW F/G` · `Supra A90` · `BMW G OBD` · `BMW E` · `JCW F56` · `MINI R55` ·
 `POS 997.2` · `POS 997.1` · `GIULIA 2.0T` · `jeep` · `Honda Integra` ·
-`Ford Mondeo 2014 TPMS candidate` (explicit opt-in candidate)
+`Ford Mondeo 2014` (BCMii TPMS, validated)
 
 ## Highlights / 主要特性
 

@@ -177,7 +177,7 @@ esp_err_t nvs_storage_init(void)
 
     /* Default-value repair for new fields (old NVS data has rsv[x] all zero) */
     if(s_cfg.brightness_day < 10) s_cfg.brightness_day = 100; // valid range 10-100; 0/unset/out-of-range all become 100
-    if(s_cfg.default_page > 6) s_cfg.default_page = 0; // 0=Temp,1=Info,2=Chart,3=Needle,4=Gear,5=Rpm,6=Speed (brake temp merged into Chart)
+    if(s_cfg.default_page >= NVS_DEFAULT_PAGE_COUNT) s_cfg.default_page = 0;
     if(s_cfg.needle_source_idx >= DISP_ITEM_COUNT) s_cfg.needle_source_idx = 0;
     if(s_cfg.device_role > 2) s_cfg.device_role = ESPNOW_ROLE_STANDALONE; // role: 0=master 1=slave 2=standalone; out-of-range -> standalone
     if(s_cfg.chart_source_idx >= DISP_ITEM_COUNT) s_cfg.chart_source_idx = DISP_ITEM_OILP;
@@ -386,7 +386,7 @@ static void cfg_normalize(nvs_user_cfg_t *cfg)
     if (!cfg) return;
     cfg->ble_device_name[sizeof(cfg->ble_device_name) - 1] = '\0';
     if (cfg->brightness_day < 10 || cfg->brightness_day > 100) cfg->brightness_day = 100;
-    if (cfg->default_page > 6) cfg->default_page = 0;
+    if (cfg->default_page >= NVS_DEFAULT_PAGE_COUNT) cfg->default_page = 0;
     if (cfg->needle_source_idx >= DISP_ITEM_COUNT) cfg->needle_source_idx = DISP_ITEM_CLT;
     if (cfg->chart_source_idx >= DISP_ITEM_COUNT) cfg->chart_source_idx = DISP_ITEM_OILP;
     if (cfg->device_role > ESPNOW_ROLE_STANDALONE) cfg->device_role = ESPNOW_ROLE_STANDALONE;
@@ -410,7 +410,7 @@ static bool cfg_validate(const nvs_user_cfg_t *cfg)
     vehicle_profile_get_all(&vehicle_count);
     if (!cfg || cfg->ble_device_name[sizeof(cfg->ble_device_name) - 1] != '\0' ||
         cfg->protocol > 9 ||
-        cfg->default_page > 6 || cfg->brightness_day < 10 || cfg->brightness_day > 100 ||
+        cfg->default_page >= NVS_DEFAULT_PAGE_COUNT || cfg->brightness_day < 10 || cfg->brightness_day > 100 ||
         cfg->needle_source_idx >= DISP_ITEM_COUNT || cfg->chart_source_idx >= DISP_ITEM_COUNT ||
         cfg->device_role > ESPNOW_ROLE_STANDALONE || cfg->rpm_warn_anim_en > 1 ||
         cfg->rpm_warn_linked_en > 1 || cfg->rc_enabled > 1 ||

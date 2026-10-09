@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "obd_common_rules.h"
-#include "ford_tpms_candidate.h"
+#include "ford_mondeo_tpms.h"
 #include "obd_legacy_adapter.h"
 #include "obd_protocol_registry.h"
 #include "obd_vehicle_compositions.h"
@@ -105,9 +105,8 @@ const obd_vehicle_composition_t *obd_composition_get_active(void)
     s_active_composition.rule_packs[s_active_composition.rule_pack_count++] =
         obd_common_rules_get();
 
-    // This profile is deliberately opt-in and explicitly marked as a
-    // candidate. It keeps the community Ford DID/header data isolated from
-    // other Mondeo/Fusion profiles until FORScan validates the vehicle.
+    // Vehicle-specific packs remain profile-scoped. In particular, the
+    // validated Mondeo BCMii TPMS pack must not affect other Ford variants.
     if (!obd_vehicle_compositions_apply(profile, &s_active_composition)) {
         // Keep the common/legacy composition usable if an optional registry
         // entry exceeds a fixed capacity or is malformed.

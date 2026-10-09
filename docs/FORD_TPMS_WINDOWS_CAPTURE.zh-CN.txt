@@ -3,7 +3,7 @@ Windows 采集 FORScan / vLinker TPMS 原始响应
 
 脚本：tools/windows_ford_tpms_capture.py
 
-脚本会自动依次探测 COM4、COM7，使用 38400 8N1 打开串口，以无写入风险的 ATZ 识别 ELM/vLinker，然后按顺序记录适配器初始化命令和四个候选 Mode 22 DID。
+脚本会自动依次探测 COM4、COM7，使用 38400 8N1 打开串口，以无写入风险的 ATZ 识别 ELM/vLinker，然后按顺序记录适配器初始化命令和四个 Mondeo BCMii Mode 22 DID。
 
 采集前
 ------
@@ -28,11 +28,11 @@ Windows 采集 FORScan / vLinker TPMS 原始响应
 
     py .\tools\windows_ford_tpms_capture.py --port COM7 --rounds 5 --output .\ford_tpms_capture
 
-脚本默认强制 ELM 协议 6（11-bit CAN、500 kbit/s），并采用候选 BCM 头 726。若所有 DID 都返回 NO DATA，可另行运行一次自动协议识别：
+脚本默认强制 ELM 协议 6（11-bit CAN、500 kbit/s），并采用已在 2014 款蒙迪欧 2.0T 上验证的 BCM 头 726。若其他车辆所有 DID 都返回 NO DATA，可另行运行一次自动协议识别：
 
     py .\tools\windows_ford_tpms_capture.py --protocol 0
 
-协议、DID 和头均为待验证候选。脚本只发送 ELM AT 设置命令及 UDS 读取服务 22，不会发送写入或配置服务。
+该协议、DID 和头已针对本车验证；其他 Ford 车型仍应先保留日志再决定是否接入。脚本只发送 ELM AT 设置命令及 UDS 读取服务 22，不会发送写入或配置服务。
 
 输出文件
 --------
@@ -40,10 +40,10 @@ Windows 采集 FORScan / vLinker TPMS 原始响应
 每次运行在输出目录生成三个文件：
 
 - ford_tpms_时间.txt：便于阅读的逐条 TX/RX transcript，包含时间戳、原始响应十六进制、ASCII 和超时标志。
-- ford_tpms_时间.json：结构化记录，保存串口设置、候选 ECU/header/DID、轮位、轮次以及每次交换的 tx_hex、rx_hex、rx_ascii、CAN header、十六进制 token 行、候选响应状态、耗时和超时状态，可用于生成项目请求规则及编写解码器。
+- ford_tpms_时间.json：结构化记录，保存串口设置、ECU/header/DID、轮位、轮次以及每次交换的 tx_hex、rx_hex、rx_ascii、CAN header、十六进制 token 行、响应状态、耗时和超时状态，可用于生成项目请求规则及编写解码器。
 - ford_tpms_时间_uart.bin：带记录分隔标记的原始 UART 交换字节。它是电脑与 ELM 适配器之间的串口数据，不是 CAN 控制器的无损总线抓包；ELM 会处理 CAN 分帧，因此若需验证 CAN ID、PCI 和完整总线时序，需要支持被动监听的 CAN 硬件。
 
-采集完成后把 JSON 与 TXT 发回即可。分析时应核对每条正响应是否包含 62 和请求 DID，并结合 FORScan 同时刻的四轮压力、传感器状态进行对照。FORScan 当前文件报告 2013 MY，而用户车辆为 2014 款，车型配置差异仍须保留为验证项。
+采集完成后把 JSON 与 TXT 发回即可。分析时应核对每条正响应是否包含 62 和请求 DID，并结合 FORScan 同时刻的四轮压力、传感器状态进行对照。本车已经完成该验证；其他年款或区域配置仍须单独验证。
 
 常见情况
 --------

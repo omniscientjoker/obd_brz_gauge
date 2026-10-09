@@ -12,6 +12,7 @@
 #include "app_obd_dsp/app_event.h"
 #include "app_obd_dsp/obd_data_cache.h"
 #include "app_obd_dsp/obd_tpms_cache.h"
+#include "app_media/media_alert.h"
 #include <driver/gpio.h>
 #include "bsp_obd_dsp/bsp_board.h"
 #include "bsp_obd_dsp/nvs_storage.h"
@@ -639,6 +640,31 @@ void my_timerMain(lv_timer_t * timer)
         }
     }
 
+    /* Media alerts are queued without blocking the LVGL task. The WAV service
+       applies its own duplicate suppression, so these checks can run at the
+       same cadence as the existing gauge refresh. */
+    if (!IN_SWEEP) {
+        if (bat_mv > 0 && bat_mv < (int32_t)user_cfg->tpms_voltage_min_mv) {
+            (void)media_alert_notify(MEDIA_ALERT_BATTERY_LOW);
+        }
+        if (clt > 110) {
+            (void)media_alert_notify(MEDIA_ALERT_TEMP_HIGH);
+        }
+        obd_tpms_snapshot_t tpms_alert;
+        obd_tpms_cache_expire(esp_timer_get_time(), 4000000);
+        obd_tpms_cache_get_snapshot(&tpms_alert);
+        for (uint8_t i = 0; i < OBD_TPMS_WHEEL_COUNT; ++i) {
+            if (tpms_alert.valid[i] &&
+                (tpms_alert.pressure_bar_x100[i] < (int16_t)user_cfg->tpms_pressure_min_bar_x100 ||
+                 tpms_alert.pressure_bar_x100[i] > (int16_t)user_cfg->tpms_pressure_max_bar_x100)) {
+                (void)media_alert_notify(tpms_alert.pressure_bar_x100[i] <
+                                          (int16_t)user_cfg->tpms_pressure_min_bar_x100
+                                              ? MEDIA_ALERT_TPMS_LOW : MEDIA_ALERT_TPMS_LEAK);
+                break;
+            }
+        }
+    }
+
     /* ---- Data source: sweep or real OBD (sweep state machine moved to ui_ext.c) ---- */
     float sweep_ratio = ui_ext_sweep_tick(is_slave, user_cfg->brightness_day);
     if (sweep_ratio >= 0.0f) {
@@ -1220,10 +1246,14 @@ void ui_init(void)
     ui_ScreenPageThemeGauge = NULL;     // theme-provided gauge page, lazy-loaded (only reachable if the active theme declares "main_gauge")
     ui____initial_actions0 = lv_obj_create(NULL);
 
-    // Pre-create the default boot page: build it before the boot switch so it isn't created synchronously mid-transition and cause a stutter.
-    // The other default pages (Temp/Brake/OilP/Needle/Gear/Rpm/Speed) were eagerly created above; only Info is lazy-loaded.
+    // Pre-create lazy boot pages before the boot switch so they do not build
+    // synchronously mid-transition. The other built-in gauge pages are eager.
     if (nvs_cfg_get()->default_page == 1 && ui_ScreenPageInfo == NULL) {
         ui_ScreenPageInfo_screen_init();
+    } else if (nvs_cfg_get()->default_page == 7 && ui_ScreenPageTpms == NULL) {
+        ui_ScreenPageTpms_screen_init();
+    } else if (nvs_cfg_get()->default_page == 8 && ui_ScreenPageMultiGauge == NULL) {
+        ui_ScreenPageMultiGauge_screen_init();
     }
 
     lv_timer_create(my_timerMain,

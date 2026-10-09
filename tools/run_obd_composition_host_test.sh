@@ -14,7 +14,7 @@ cc -std=c11 -Wall -Wextra -Werror \
   "$repo_dir/main/app_obd_dsp/obd_protocol_registry.c" \
   "$repo_dir/main/app_obd_dsp/obd_request_plan.c" \
   "$repo_dir/main/app_obd_dsp/obd_channel_arbiter.c" \
-  "$repo_dir/main/app_obd_dsp/ford_tpms_candidate.c" \
+  "$repo_dir/main/app_obd_dsp/ford_mondeo_tpms.c" \
   "$repo_dir/main/app_obd_dsp/obd_special_bmw.c" \
   "$repo_dir/main/app_obd_dsp/obd_special_mode21.c" \
   -o "$tmp_dir/obd_composition_host_test"

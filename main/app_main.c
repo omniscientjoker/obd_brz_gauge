@@ -35,6 +35,9 @@
 #include "bsp_obd_dsp/espnow_link.h"
 #include "bsp_obd_dsp/racechrono_ble_diy.h"
 #include "app_obd_dsp/boot_media_mount.h"
+#include "app_media/sd_media_manager.h"
+#include "app_media/es8311_audio.h"
+#include "app_media/wav_player.h"
 #include "bsp_obd_dsp/rs485_brake_temp.h"
 #if CONFIG_OBD_HW_VERSION_V1_WAVESHARE
 #include "bsp_obd_dsp/ads1115_oil_pressure.h"
@@ -217,6 +220,20 @@ void app_main(void)
 
     /* 2. I2C bus init (used by the TCA9554 IO expander + CST816 touch on V1, CST816 touch only on V2/V3) */
     I2C_Init();
+    /* Media peripherals are optional. Their failures must not prevent the display/BLE/OBD path from starting. */
+    esp_err_t audio_init_err = es8311_audio_init();
+    if (audio_init_err == ESP_OK) {
+        esp_err_t wav_init_err = wav_player_init();
+        if (wav_init_err != ESP_OK) {
+            ESP_LOGW(TAG, "WAV player unavailable (%s)", esp_err_to_name(wav_init_err));
+        }
+    } else {
+        ESP_LOGW(TAG, "ES8311 audio unavailable (%s)", esp_err_to_name(audio_init_err));
+    }
+    esp_err_t sd_init_err = sd_media_init();
+    if (sd_init_err != ESP_OK) {
+        ESP_LOGW(TAG, "SD media service unavailable (%s)", esp_err_to_name(sd_init_err));
+    }
     esp_battery_start();
 
     /* 3. IO expander init (TCA9554PWR, I2C address 0x20) — V1 board only; V2/V3 have no expander */

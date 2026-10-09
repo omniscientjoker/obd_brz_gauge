@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "esp_heap_caps.h"
 #include "esp_log.h"
@@ -32,6 +33,7 @@ typedef struct {
     uint8_t *stream_data;
     size_t stream_size;
     size_t stream_offset;
+    FILE *stream_file;
     lv_obj_t *canvas_obj;
     lv_color_t *canvas_buf;
     uint16_t *x_edges;
@@ -72,6 +74,10 @@ static void release_canvas(void) {
 }
 
 static void close_stream(void) {
+    if (s_state.stream_file) {
+        fclose(s_state.stream_file);
+        s_state.stream_file = NULL;
+    }
     free(s_state.stream_data); s_state.stream_data = NULL;
     s_state.stream_size = 0; s_state.stream_offset = 0;
 }
@@ -85,16 +91,30 @@ static bool parse_u32(const char *value, uint32_t *out) {
 }
 
 static bool manifest_load(boot_block_manifest_t *out) {
-    // Read the manifest text straight from the raw partition.
     char raw[1024];
     size_t manifest_max = boot_media_raw_manifest_max();
     if (manifest_max > sizeof(raw)) manifest_max = sizeof(raw);
-    esp_err_t rerr = boot_media_raw_read_manifest((uint8_t *)raw, manifest_max);
-    if (rerr != ESP_OK) {
-        ESP_LOGE(TAG, "boot_media_raw_read_manifest failed: %s", esp_err_to_name(rerr));
-        return false;
+    size_t manifest_read = 0;
+    if (strncmp(s_manifest_path, "/sdcard/", 8) == 0) {
+        FILE *fp = fopen(s_manifest_path, "rb");
+        if (!fp) {
+            ESP_LOGW(TAG, "SD manifest not found: %s", s_manifest_path);
+            return false;
+        }
+        manifest_read = fread(raw, 1, sizeof(raw) - 1, fp);
+        fclose(fp);
+        if (manifest_read == 0) {
+            return false;
+        }
+    } else {
+        esp_err_t rerr = boot_media_raw_read_manifest((uint8_t *)raw, manifest_max);
+        if (rerr != ESP_OK) {
+            ESP_LOGE(TAG, "boot_media_raw_read_manifest failed: %s", esp_err_to_name(rerr));
+            return false;
+        }
+        manifest_read = manifest_max;
     }
-    raw[manifest_max - 1] = '\0';
+    raw[manifest_read < sizeof(raw) ? manifest_read : sizeof(raw) - 1] = '\0';
     ESP_LOGI(TAG, "Raw manifest first 64 bytes: %.64s", raw);
 
     boot_block_manifest_t m = {0};
@@ -212,10 +232,17 @@ static bool prepare_canvas(lv_obj_t *parent, const boot_block_manifest_t *m) {
 static bool load_stream(void) {
     size_t file_size = s_state.manifest.binary_size;
     if (file_size == 0) {
-        // Fallback: read whatever the partition holds (capped by partition size).
-        size_t avail = 0;
-        boot_media_raw_read_bin(NULL, 0, &avail);
-        file_size = avail;
+        if (strncmp(s_data_path, "/sdcard/", 8) == 0) {
+            struct stat st = {0};
+            if (stat(s_data_path, &st) == 0 && st.st_size > 0) {
+                file_size = (size_t)st.st_size;
+            }
+        } else {
+            // Fallback: read whatever the raw partition holds (capped by partition size).
+            size_t avail = 0;
+            boot_media_raw_read_bin(NULL, 0, &avail);
+            file_size = avail;
+        }
     }
     if (file_size == 0) { ESP_LOGW(TAG, "boot block size is zero"); return false; }
 
@@ -224,8 +251,40 @@ static bool load_stream(void) {
     if (!data) { ESP_LOGW(TAG, "alloc %u bytes failed", (unsigned)file_size); return false; }
 
     size_t got = 0;
-    esp_err_t rerr = boot_media_raw_read_bin(data, file_size, &got);
-    if (rerr != ESP_OK || got != file_size) { free(data); ESP_LOGW(TAG, "read bin failed: %s", esp_err_to_name(rerr)); return false; }
+    if (strncmp(s_data_path, "/sdcard/", 8) == 0) {
+        FILE *fp = fopen(s_data_path, "rb");
+        if (!fp) {
+            free(data);
+            ESP_LOGW(TAG, "SD video data not found: %s", s_data_path);
+            return false;
+        }
+        if (fseek(fp, 0, SEEK_END) != 0) {
+            fclose(fp);
+            free(data);
+            return false;
+        }
+        long file_len = ftell(fp);
+        if (file_len < 0 || (size_t)file_len < file_size || fseek(fp, 0, SEEK_SET) != 0) {
+            fclose(fp);
+            free(data);
+            ESP_LOGW(TAG, "SD video size is smaller than manifest: %s", s_data_path);
+            return false;
+        }
+        got = fread(data, 1, file_size, fp);
+        fclose(fp);
+        if (got != file_size) {
+            free(data);
+            ESP_LOGW(TAG, "SD video read failed: %s", s_data_path);
+            return false;
+        }
+    } else {
+        esp_err_t rerr = boot_media_raw_read_bin(data, file_size, &got);
+        if (rerr != ESP_OK || got != file_size) {
+            free(data);
+            ESP_LOGW(TAG, "read bin failed: %s", esp_err_to_name(rerr));
+            return false;
+        }
+    }
 
     s_state.stream_data = data;
     s_state.stream_size = file_size;

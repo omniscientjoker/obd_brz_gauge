@@ -387,9 +387,9 @@ static const vehicle_profile_t s_profiles[] = {
         .obd_timeout = 0x19,               // default timeout; adjust if responses are slow
     },
     {
-        // Explicit candidate profile for the 2014 Mondeo 2.0T. The Ford BCM
-        // TPMS DID/header pack is opt-in and must be verified with FORScan.
-        .name = "Ford Mondeo 2014 TPMS candidate",
+        // BCMii TPMS layout is validated for this 2014 Mondeo 2.0T. It stays
+        // explicit so other Ford/Mondeo regional variants are unaffected.
+        .name = VEHICLE_PROFILE_NAME_FORD_MONDEO_2014,
         .final_drive_ratio = 3.070f,
         .tire_rolling_radius_m = 0.327f,
         .gear_count = 6,

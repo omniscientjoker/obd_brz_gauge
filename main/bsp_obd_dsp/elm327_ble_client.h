@@ -87,7 +87,15 @@ void elm327_ble_connect_by_addr(const uint8_t mac[6], const char *name);
 
 // Query the current connection state.
 bool elm327_ble_is_connected(void);
+// True while an exact-MAC OBD connection target is configured but the GATT link is not up yet.
+bool elm327_ble_is_connecting(void);
+// True after the current exact-MAC connection attempt failed. The target remains
+// configured so the caller can retry without losing the saved device.
+bool elm327_ble_is_connection_failed(void);
 void elm327_ble_disconnect(void);
+// Stop the current connection attempt/link and forget the saved runtime target so it cannot auto-reconnect.
+void elm327_ble_forget_device(void);
+const char *elm327_ble_get_connected_name(void);
 
 // WiFi OTA pause/resume: drop the ELM327 link and suppress auto-reconnect +
 // polling during OTA, so the SoftAP gets the full 2.4GHz radio; re-arm
@@ -96,8 +104,6 @@ void elm327_ble_pause_for_ota(void);
 void elm327_ble_resume_after_ota(void);
 
 // Get the currently connected / target device name.
-const char *elm327_ble_get_connected_name(void);
-
 // ---- Oil temperature calibration API ----
 // Set the oil-temp offset (calibration compensation), in °C.
 // Example: actual oil temp is 90°C but the reading shows 92°C -> set offset = -2.

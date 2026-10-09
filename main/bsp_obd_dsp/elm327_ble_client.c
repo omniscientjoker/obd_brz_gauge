@@ -58,6 +58,7 @@ static char s_target_name[32] = "OBDII";
 // Exact MAC match: once set, match_device_target accepts only this address and ignores the name (prevents misconnecting to same-named devices)
 static esp_bd_addr_t s_target_bda = {0};
 static bool s_target_bda_valid = false;
+static volatile bool s_connection_failed = false;
 
 // ---- Scan mode related ----
 static bool s_scan_only_mode = false;  // true=scan only, no connect
@@ -138,8 +139,9 @@ static bool s_composition_runtime_ready = false;
 // the immutable rule header for the single in-flight request so identical
 // DIDs addressed to different ECUs remain unambiguous.
 static const char *s_pending_response_header = NULL;
-// AT RV is the ELM327 adapter supply-voltage query.  It is used for the
-// battery display because many adapters/cars do not implement Mode 01 PID 42.
+// Legacy state for an optional ELM327 adapter-voltage query.  Vehicle battery
+// voltage is read from the declarative Mode 01 PID 42 rule below; this parser
+// remains only for compatibility with older command paths.
 static volatile bool s_pending_adapter_voltage = false;
 
 static void reset_composition_runtime(void);
@@ -460,12 +462,6 @@ static bool send_composed_slot(uint8_t slot_id)
         special_raw_gear_started = true;
         sent = obd_special_bmw_send_raw_gear(override, fixed_header,
                                              send_special_command, NULL);
-    } else if (sent && slot_id == 7) {
-        // AT RV returns the adapter supply voltage as text (for example
-        // "12.6V") and works even when the vehicle rejects PID 0142.
-        s_pending_adapter_voltage = true;
-        sent = elm327_ble_send_ascii_blocking("AT RV\r");
-        if (!sent) s_pending_adapter_voltage = false;
     } else if (sent) {
         char command[32];
         if (!obd_protocol_build_request(slot->protocol, rule, command, sizeof(command))) {
@@ -1238,7 +1234,7 @@ static void obd_poll_task(void *arg) {
     bool inited = false;
     uint8_t heal_attempts = 0;   // consecutive self-heal count; escalates to a forced reconnect if resending ATZ a few times still yields no data
 
-    // 12-slot poll: 0=RPM, 1=IAT, 2=Speed, 3=CLT, 4=Load(0x04), 5=TPS(0x11), 6=OIL(vehicle strategy), 7=adapter voltage(AT RV), 8=Boost, 9=AFR, 10=Oil pressure, 11=Gear
+    // 12-slot poll: 0=RPM, 1=IAT, 2=Speed, 3=CLT, 4=Load(0x04), 5=TPS(0x11), 6=OIL(vehicle strategy), 7=vehicle battery voltage (01 42), 8=Boost, 9=AFR, 10=Oil pressure, 11=Gear
     while (1)
     {
         // The first twelve slots are the legacy cadence. Opt-in rule packs
@@ -1553,6 +1549,7 @@ static void start_scan(void) {
     esp_err_t err = esp_ble_gap_start_scanning(10); // 10s
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "Auto scan start failed: %s", esp_err_to_name(err));
+        s_connection_failed = true;
     }
 }
 
@@ -1699,7 +1696,7 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
         // Only auto-start scanning when a target MAC is actually bound. Stack-only inits
         // (no OBD device bound) must not scan: scanning duty-cycles the radio and degrades
         // the SkyGauge pairing advert on MASTER devices.
-        if (s_target_bda_valid && !s_scan_only_mode && !s_ota_paused) {
+        if (s_target_bda_valid && !s_scan_only_mode && !s_connection_failed && !s_ota_paused) {
             start_scan();
         }
         break;
@@ -1747,7 +1744,12 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
                     ESP_LOGD(TAG, "Found target %s (dev=%s), connecting...",
                              s_target_name, dev_name[0] ? dev_name : "<no-name>");
                     esp_ble_gap_stop_scanning();
-                    esp_ble_gattc_open(s_gattc_if, pr->scan_rst.bda, pr->scan_rst.ble_addr_type, true);
+                    esp_err_t err = esp_ble_gattc_open(s_gattc_if, pr->scan_rst.bda,
+                                                       pr->scan_rst.ble_addr_type, true);
+                    if (err != ESP_OK) {
+                        ESP_LOGE(TAG, "Open request failed: %s", esp_err_to_name(err));
+                        s_connection_failed = true;
+                    }
                 }
             }
         } else if (pr->scan_rst.search_evt == ESP_GAP_SEARCH_INQ_CMPL_EVT) {
@@ -1759,9 +1761,11 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
                 if (cb) cb(NULL, s_scan_count);
                 break;
             }
-            // Scan window expired without a connection: keep auto-reconnect alive.
+            // A target scan is one connection attempt. Leave the target saved so
+            // the UI can offer an explicit retry instead of looping forever.
             if (!s_scan_only_mode && s_target_bda_valid && !s_connected && !s_ota_paused) {
-                start_scan();
+                s_connection_failed = true;
+                ESP_LOGW(TAG, "OBD target not found during scan");
             }
         }
         break;
@@ -1806,6 +1810,11 @@ static void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_
         break;
     }
     case ESP_GATTC_CONNECT_EVT: {
+        if (!s_target_bda_valid) {
+            ESP_LOGW(TAG, "Ignoring late BLE connect event after target was forgotten");
+            esp_ble_gattc_close(gattc_if, param->connect.conn_id);
+            break;
+        }
         s_connected = true;
         s_conn_id = param->connect.conn_id;
         memcpy(s_peer_bda, param->connect.remote_bda, sizeof(esp_bd_addr_t));
@@ -1816,7 +1825,7 @@ static void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_
     case ESP_GATTC_OPEN_EVT: {
         if (param->open.status != ESP_GATT_OK) {
             ESP_LOGE(TAG, "Open failed status=%d", param->open.status);
-            if (!s_ota_paused) start_scan();
+            s_connection_failed = true;
         }
         break;
     }
@@ -2557,7 +2566,7 @@ normalized_response_done:
         // Stack-only inits (no bound target) stay off the radio so advertising isn't duty-cycled.
         // During WiFi OTA (s_ota_paused) stay off the radio entirely — the ELM327 link is
         // dropped on purpose so the SoftAP gets the whole radio for the upload.
-        if ((s_target_bda_valid || s_scan_only_mode) && !s_ota_paused) {
+        if ((s_target_bda_valid || s_scan_only_mode) && !s_ota_paused && !s_connection_failed) {
             start_scan();
         }
         break;
@@ -2593,8 +2602,10 @@ void elm327_ble_start_default(const char *target_name, const uint8_t mac[6]) {
     if (mac_set) {
         memcpy(s_target_bda, mac, sizeof(esp_bd_addr_t));
         s_target_bda_valid = true;
+        s_connection_failed = false;
     } else {
         s_target_bda_valid = false;
+        s_connection_failed = false;
     }
     elm327_ble_init_and_start(target_name, &cbs);
     if (!s_poll_task_started) {
@@ -2636,6 +2647,7 @@ void elm327_ble_scan_only_start(int duration_s, ble_scan_found_cb_t cb) {
 }
 
 void elm327_ble_scan_only_stop(void) {
+    if (!s_scan_only_mode) return;
     s_scan_start_pending = false;
     esp_ble_gap_stop_scanning();
     s_scan_only_mode = false;
@@ -2648,6 +2660,7 @@ void elm327_ble_connect_by_addr(const uint8_t mac[6], const char *name) {
     ESP_LOGD(TAG, "Connect by addr: %02X:%02X:%02X:%02X:%02X:%02X (%s)",
              mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], name ? name : "");
     s_scan_only_mode = false;
+    s_connection_failed = false;
     if (name && name[0]) {
         strncpy(s_target_name, name, sizeof(s_target_name) - 1);
         s_target_name[sizeof(s_target_name) - 1] = '\0';
@@ -2684,10 +2697,48 @@ bool elm327_ble_is_connected(void) {
     return s_connected;
 }
 
+bool elm327_ble_is_connecting(void) {
+    return s_target_bda_valid && !s_connected && !s_connection_failed && !s_ota_paused;
+}
+
+bool elm327_ble_is_connection_failed(void) {
+    return s_target_bda_valid && !s_connected && s_connection_failed && !s_ota_paused;
+}
+
 void elm327_ble_disconnect(void) {
     if (s_connected && s_gattc_if != 0 && s_conn_id != 0xFFFF) {
         ESP_LOGD(TAG, "Disconnecting from BLE device...");
         esp_ble_gattc_close(s_gattc_if, s_conn_id);
+    }
+}
+
+void elm327_ble_forget_device(void) {
+    const bool was_connected = s_connected;
+    const esp_gatt_if_t gattc_if = s_gattc_if;
+    const uint16_t conn_id = s_conn_id;
+
+    // Clear the target before closing the link. The disconnect callback then cannot
+    // restart the reconnect scan, and a late CONNECT event is rejected above.
+    s_target_bda_valid = false;
+    s_connection_failed = false;
+    memset(s_target_bda, 0, sizeof(s_target_bda));
+    s_scan_start_pending = false;
+    s_scan_only_mode = false;
+    s_scan_cb = NULL;
+    esp_ble_gap_stop_scanning();
+    // The GATTC close and DISCONNECT_EVT are asynchronous. Clear the runtime
+    // state now so the UI cannot briefly re-enter the connected view while the
+    // close event is still queued.
+    s_connected = false;
+    s_notify_ready = false;
+    s_elm_ready = true;
+    s_conn_id = 0xFFFF;
+    if (s_poll_task_handle) xTaskNotify(s_poll_task_handle, 0, eNoAction);
+    if (was_connected && gattc_if != ESP_GATT_IF_NONE && conn_id != 0xFFFF) {
+        ESP_LOGI(TAG, "Forgetting OBD target and closing BLE link");
+        esp_ble_gattc_close(gattc_if, conn_id);
+    } else {
+        ESP_LOGI(TAG, "Forgetting pending OBD target");
     }
 }
 
