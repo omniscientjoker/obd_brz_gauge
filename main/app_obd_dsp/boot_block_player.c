@@ -9,6 +9,7 @@
 
 #include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "app_media/sd_media_manager.h"
 #include "app_obd_dsp/boot_media_mount.h"
 
 typedef struct {
@@ -345,10 +346,21 @@ bool boot_block_player_create(lv_obj_t *parent, lv_obj_t **out_obj) {
     if (out_obj) *out_obj = NULL;
     boot_block_player_destroy();
 
+    const bool uses_sd = strncmp(s_manifest_path, "/sdcard/", 8) == 0 ||
+                         strncmp(s_data_path, "/sdcard/", 8) == 0;
+    bool sd_locked = false;
+    bool created = false;
+    if (uses_sd) {
+        if (!sd_media_is_ready() || !sd_media_lock(1000)) {
+            return false;
+        }
+        sd_locked = true;
+    }
+
     boot_block_manifest_t manifest;
     if (!manifest_load(&manifest)) {
         ESP_LOGW(TAG, "manifest load failed: %s", s_manifest_path);
-        return false;
+        goto done;
     }
 
     s_state.manifest = manifest;
@@ -360,7 +372,7 @@ bool boot_block_player_create(lv_obj_t *parent, lv_obj_t **out_obj) {
         !prepare_canvas(parent, &manifest) ||
         !load_stream()) {
         boot_block_player_destroy();
-        return false;
+        goto done;
     }
     lv_obj_align(s_state.canvas_obj, LV_ALIGN_CENTER, 0, 0);
 
@@ -376,7 +388,7 @@ bool boot_block_player_create(lv_obj_t *parent, lv_obj_t **out_obj) {
         if (s_state.canvas_obj) lv_obj_invalidate(s_state.canvas_obj);
     } else {
         boot_block_player_destroy();
-        return false;
+        goto done;
     }
 
     if (out_obj) *out_obj = s_state.canvas_obj;
@@ -384,7 +396,11 @@ bool boot_block_player_create(lv_obj_t *parent, lv_obj_t **out_obj) {
              manifest.canvas_width, manifest.canvas_height,
              manifest.grid_width, manifest.grid_height,
              manifest.fps, manifest.frame_count, manifest.duration_ms);
-    return true;
+    created = true;
+
+done:
+    if (sd_locked) sd_media_unlock();
+    return created;
 }
 
 void boot_block_player_destroy(void) {

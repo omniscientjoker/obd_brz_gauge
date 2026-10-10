@@ -42,6 +42,7 @@ typedef struct {
     int16_t  brake_temp_x10;
     int8_t   gear;
     int16_t  afr_x100;
+    int16_t  fuel_pct;
     brake_rs485_status_t brake_rs485_status;
 } obd_data_snapshot_t;
 
@@ -63,6 +64,7 @@ void obd_data_set_brake_temp_x10(int16_t temp_x10); // brake temp, 0.1°C
 void obd_data_set_gear(int8_t gear);               // direct gear value: -1=R, 0=N, 1+=forward gear, 127=invalid
 void obd_data_set_brake_rs485_status(brake_rs485_status_t status);
 void obd_data_set_afr_x100(int16_t afr_x100);      // air-fuel ratio AFR, ×100 (1470=14.7:1), -1=invalid
+void obd_data_set_fuel_pct(int16_t fuel_pct);      // fuel level percentage, -1=invalid
 uint16_t obd_data_get_rpm(void);
 uint8_t  obd_data_get_speed(void);
 int16_t  obd_data_get_coolant_temp(void);
@@ -76,6 +78,7 @@ int16_t  obd_data_get_boost_x10(void); // -32768 = invalid
 int16_t  obd_data_get_brake_temp_x10(void); // -1000 = invalid
 int8_t   obd_data_get_gear(void);            // 127 = invalid (falls back to the computed gear)
 int16_t  obd_data_get_afr_x100(void);        // -1 = invalid
+int16_t  obd_data_get_fuel_pct(void);        // -1 = invalid
 void     obd_data_get_snapshot(obd_data_snapshot_t *out);
 enGear calculate_gear(float rpm, float speed);
 void vMileageDataStatisticTask(void);

@@ -11,6 +11,8 @@ lv_obj_t *ui_LabelInfoOil = NULL;
 lv_obj_t *ui_LabelInfoValue[5] = {NULL, NULL, NULL, NULL, NULL};
 lv_obj_t *ui_LabelInfoName[5] = {NULL, NULL, NULL, NULL, NULL};
 lv_obj_t *ui_LabelInfoUnit[5] = {NULL, NULL, NULL, NULL, NULL};
+lv_obj_t *ui_LabelInfoFuel = NULL;
+lv_obj_t *ui_LabelInfoFuelNeed = NULL;
 
 static lv_obj_t *create_info_tile(lv_obj_t *parent, uint8_t index,
                                   const char *name, const char *unit,
@@ -71,16 +73,23 @@ void ui_ScreenPageInfo_screen_init(void)
     // INFO is already represented by the simulator-compatible status row.
     lv_obj_add_flag(title, LV_OBJ_FLAG_HIDDEN);
 
-    // Four primary tiles mirror the simulator grid. The fifth configured slot
-    // remains available to the updater but is kept outside the primary layout.
-    // The simulator's four-tile grid starts at y=118 and uses 134px tiles on
-    // the 360px screen. Keep the fifth configurable slot hidden as before.
-    ui_LabelInfoCLT = create_info_tile(ui_ScreenPageInfo, 0, "RPM", "rpm", -70, -30, 134);
-    ui_LabelInfoOil = create_info_tile(ui_ScreenPageInfo, 1, "SPEED", "km/h",  70, -30, 134);
-    ui_LabelInfoLoad = create_info_tile(ui_ScreenPageInfo, 2, "CLT", "'C", -70,  41, 134);
-    ui_LabelInfoTPS = create_info_tile(ui_ScreenPageInfo, 3, "BAT", "V",  70,  41, 134);
-    ui_LabelInfoIAT = create_info_tile(ui_ScreenPageInfo, 4, "IAT", "'C",   0, 121, 160);
-    lv_obj_add_flag(lv_obj_get_parent(ui_LabelInfoIAT), LV_OBJ_FLAG_HIDDEN);
+    ui_LabelInfoFuel = lv_label_create(ui_ScreenPageInfo);
+    lv_label_set_text(ui_LabelInfoFuel, "油量 --% 约 --.-L");
+    lv_obj_set_style_text_font(ui_LabelInfoFuel, &ui_font_Chinese16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(ui_LabelInfoFuel, lv_color_hex(0x91A1A1), LV_PART_MAIN);
+    lv_obj_align(ui_LabelInfoFuel, LV_ALIGN_CENTER, -80, -112);
+    ui_LabelInfoFuelNeed = lv_label_create(ui_ScreenPageInfo);
+    lv_label_set_text(ui_LabelInfoFuelNeed, "加满 --% 约 --.-L");
+    lv_obj_set_style_text_font(ui_LabelInfoFuelNeed, &ui_font_Chinese16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(ui_LabelInfoFuelNeed, lv_color_hex(0x91A1A1), LV_PART_MAIN);
+    lv_obj_align(ui_LabelInfoFuelNeed, LV_ALIGN_CENTER, 80, -112);
+
+    // Four primary tiles mirror the simulator grid, with the fifth configured
+    // slot centered below them inside the circular display safe area.
+    ui_LabelInfoCLT = create_info_tile(ui_ScreenPageInfo, 0, "RPM", "rpm", -70, -18, 134);
+    ui_LabelInfoOil = create_info_tile(ui_ScreenPageInfo, 1, "SPEED", "km/h",  70, -18, 134);
+    ui_LabelInfoLoad = create_info_tile(ui_ScreenPageInfo, 2, "CLT", "'C", -70,  53, 134);
+    ui_LabelInfoTPS = create_info_tile(ui_ScreenPageInfo, 3, "BAT", "V",  70,  53, 134);
 
     lv_obj_t *ear = lv_img_create(ui_ScreenPageInfo);
     lv_img_set_src(ear, &ui_img_pngblackear_png);

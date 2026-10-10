@@ -6,6 +6,7 @@ const state = {
   connected: true,
   rpm: 3280,
   speed: 86,
+  speedMax: 240,
   temp: 92,
   voltage: 13.8,
   tires: { fl: 2.4, fr: 2.4, rl: 2.3, rr: 2.3 },
@@ -46,9 +47,12 @@ function setPressureLimit(input) {
   if (state.page === 'tpms') renderPage();
 }
 
-function gauge(name, value, unit, percent, extras = '') {
+function gauge(name, value, unit, percent, extras = '', speedRing = false) {
   const amount = Math.min(100, Math.max(0, percent));
-  return `<div class="gauge" style="--value:${amount}">
+  const dashOffset = (565.49 * (1 - amount / 100)).toFixed(2);
+  const ring = speedRing ? `<svg class="gauge-ring" viewBox="0 0 240 240" aria-hidden="true"><defs><linearGradient id="speedGradient" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#00cc66"/><stop offset="25%" stop-color="#00cc66"/><stop offset="50%" stop-color="#ffd166"/><stop offset="75%" stop-color="#ff8c42"/><stop offset="100%" stop-color="#ff4d4d"/></linearGradient></defs><circle class="gauge-track" cx="120" cy="120" r="90"/><circle class="gauge-progress" cx="120" cy="120" r="90" stroke-dashoffset="${dashOffset}"/></svg>` : '';
+  return `<div class="gauge ${speedRing ? 'speed-gauge' : ''}" style="--value:${amount}">
+    ${ring}
     <div class="gauge-content"><span class="gauge-name">${name}</span><strong class="gauge-value">${value}</strong><span class="gauge-unit">${unit}</span></div>${extras}
   </div>`;
 }
@@ -56,7 +60,8 @@ function gauge(name, value, unit, percent, extras = '') {
 function renderPage(direction = '') {
   const renderers = {
     rpm: () => gauge('发动机转速', format(state.rpm), 'rpm', state.rpm / 80, `<div class="mini-row"><span>水温 <b>${state.temp} C</b></span><span>电压 <b>${format(state.voltage, 1)} V</b></span></div>`),
-    speed: () => gauge('车辆速度', format(state.speed), 'km/h', state.speed / 2.6, `<div class="mini-row"><span>档位 <b>${state.speed > 15 ? 'D' : 'N'}</b></span><span>转速 <b>${format(state.rpm)}</b></span></div>`),
+    speed: () => gauge('车辆速度', format(state.speed), 'km/h', state.speed / state.speedMax * 100, `<div class="mini-row"><span>档位 <b>${state.speed > 15 ? 'D' : 'N'}</b></span><span>转速 <b>${format(state.rpm)}</b></span></div>`, true),
+    speedConfig: renderSpeedConfig,
     temp: () => gauge('冷却液温度', format(state.temp), 'C', (state.temp - 40) / .85, `<div class="mini-row"><span>机油 <b>98 C</b></span><span>进气 <b>34 C</b></span></div>`),
     needle: () => gauge('增压压力', '0.82', 'bar', 66, `<div class="mini-row"><span>数据源 <b>OBD PID</b></span></div>`),
     info: renderInfo,
@@ -69,6 +74,14 @@ function renderPage(direction = '') {
   pageElement.className = `page ${direction ? `enter-${direction}` : ''}`;
   pageElement.innerHTML = renderers[state.page]();
   updateStatus();
+}
+
+function renderSpeedConfig() {
+  return `<form class="settings speed-config" id="speedConfigForm">
+    <h2>速度设置</h2>
+    <label>最大速度 <output id="speedMaxOutput">${state.speedMax} km/h</output><input id="speedMax" type="range" min="160" max="300" step="10" value="${state.speedMax}"></label>
+    <small>速度页面进度 = 当前速度 / 最大速度</small>
+  </form>`;
 }
 
 function renderInfo() {
@@ -160,10 +173,16 @@ function bindPageControls() {
     if (event.target.id === 'theme') { state.theme = event.target.value; screen.dataset.theme = state.theme; }
     if (event.target.id === 'vehicle') state.vehicle = event.target.value;
     if (event.target.id === 'brightness') { state.brightness = Number(event.target.value); updateStatus(); }
+    if (event.target.id === 'speedMax') { state.speedMax = Number(event.target.value); renderPage(); }
   });
   pageElement.addEventListener('input', (event) => {
     if (event.target.id === 'brightness') { state.brightness = Number(event.target.value); updateStatus(); }
     if (event.target.id === 'pressureMin' || event.target.id === 'pressureMax') setPressureLimit(event.target);
+    if (event.target.id === 'speedMax') {
+      state.speedMax = Number(event.target.value);
+      const output = document.querySelector('#speedMaxOutput');
+      if (output) output.value = `${state.speedMax} km/h`;
+    }
   });
 }
 
@@ -203,6 +222,8 @@ screen.addEventListener('pointerup', (event) => {
     changePage(deltaX < 0 ? 1 : -1);
   } else if (deltaY < -35 && Math.abs(deltaY) > Math.abs(deltaX)) {
     openPageMenu();
+  } else if (deltaY > 35 && Math.abs(deltaY) > Math.abs(deltaX) && state.page === 'speed') {
+    goTo('speedConfig', 'left');
   }
 });
 screen.addEventListener('pointercancel', () => { gestureStart = null; });

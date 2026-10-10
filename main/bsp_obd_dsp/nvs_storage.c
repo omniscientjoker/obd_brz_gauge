@@ -17,6 +17,7 @@
 #define CHART_ALARM_N         DISP_ITEM_COUNT
 #define CHART_ALARM_OFF       32767 // "off" sentinel for alarm thresholds (unreachable, avoids false alarms)
 #define KEY_MG_EXTRA          "mgextra"   // multi-gauge boot animation settings
+#define KEY_MEDIA_ALERT       "alertmedia"
 #define KEY_CFG_VERSION       "cfgver"    // config version (missing = v0)
 #define CFG_VERSION_CURRENT   4           // current version; bump on field add/semantic change (migration in nvs_storage_init)
 #define INTRO_MODE_COUNT      3
@@ -38,8 +39,19 @@ static nvs_user_cfg_t s_cfg =   {
                         .tpms_pressure_min_bar_x100 = 200,
                         .tpms_pressure_max_bar_x100 = 320,
                         .tpms_voltage_min_mv = 12000,
+                        .speed_max_kmh = NVS_SPEED_MAX_DEFAULT_KMH,
                     };
 static nvs_stat_t     s_stat = {0};   // runtime-only stats, not persisted (reset every boot to save flash)
+static nvs_media_alert_cfg_t s_media_alert_cfg = {
+    .mode = {
+        NVS_MEDIA_ALERT_AUDIO, NVS_MEDIA_ALERT_AUDIO, NVS_MEDIA_ALERT_AUDIO,
+        NVS_MEDIA_ALERT_AUDIO, NVS_MEDIA_ALERT_AUDIO, NVS_MEDIA_ALERT_AUDIO,
+    },
+    .resource = {
+        "TPMSLOW.WAV", "BATLOW.WAV", "SPEED.WAV", "TEMPHIGH.WAV",
+        "FUELLOW.WAV", "RPMHIGH.WAV",
+    },
+};
 static SemaphoreHandle_t s_mux;
 
 typedef enum {
@@ -107,6 +119,7 @@ esp_err_t nvs_storage_init(void)
         if (s_mg.boot_mode > 2) s_mg.boot_mode = 0;
         ESP_LOGD("nvs", "mg loaded: intro=%u pos=%u boot=%u (load=%d)", s_mg.intro_enable, s_mg.device_position, s_mg.boot_mode, (int)mg_load);
     }
+    load_blob(NS_CFG, KEY_MEDIA_ALERT, &s_media_alert_cfg, sizeof(s_media_alert_cfg));
 
     /* ---- Config version migration ----
        NOTE: this version migration currently only covers the separate s_mg (KEY_MG_EXTRA) blob.
@@ -204,6 +217,9 @@ esp_err_t nvs_storage_init(void)
     }
     if (s_cfg.tpms_voltage_min_mv < 10000 || s_cfg.tpms_voltage_min_mv > 15000)
         s_cfg.tpms_voltage_min_mv = 12000;
+    if (s_cfg.speed_max_kmh < NVS_SPEED_MAX_MIN_KMH ||
+        s_cfg.speed_max_kmh > NVS_SPEED_MAX_MAX_KMH)
+        s_cfg.speed_max_kmh = NVS_SPEED_MAX_DEFAULT_KMH;
 
     // Validate TEMP/INFO custom display-item maps: 0..(DISP_ITEM_COUNT-1)
     for (int i = 0; i < 3; ++i) {
@@ -243,6 +259,63 @@ esp_err_t nvs_cfg_set(const nvs_user_cfg_t *cfg)
         xSemaphoreGive(s_mux);
         return ESP_OK;
     }
+    esp_err_t err = save_blob(NS_CFG, KEY_CFG, &next, sizeof(next));
+    if (err == ESP_OK) s_cfg = next;
+    xSemaphoreGive(s_mux);
+    return err;
+}
+
+esp_err_t nvs_media_alert_cfg_get(nvs_media_alert_cfg_t *out)
+{
+    if (!out || !s_mux) return ESP_ERR_INVALID_ARG;
+    if (xSemaphoreTake(s_mux, portMAX_DELAY) != pdTRUE) return ESP_ERR_TIMEOUT;
+    *out = s_media_alert_cfg;
+    xSemaphoreGive(s_mux);
+    return ESP_OK;
+}
+
+esp_err_t nvs_media_alert_cfg_set(const nvs_media_alert_cfg_t *cfg)
+{
+    if (!cfg || !s_mux) return ESP_ERR_INVALID_ARG;
+    nvs_media_alert_cfg_t next = *cfg;
+    for (size_t i = 0; i < NVS_MEDIA_ALERT_COUNT; ++i) {
+        if (next.mode[i] > NVS_MEDIA_ALERT_VIDEO) return ESP_ERR_INVALID_ARG;
+        next.resource[i][NVS_MEDIA_RESOURCE_NAME_MAX - 1] = '\0';
+    }
+    if (xSemaphoreTake(s_mux, portMAX_DELAY) != pdTRUE) return ESP_ERR_TIMEOUT;
+    if (memcmp(&next, &s_media_alert_cfg, sizeof(next)) == 0) {
+        xSemaphoreGive(s_mux);
+        return ESP_OK;
+    }
+    esp_err_t err = save_blob(NS_CFG, KEY_MEDIA_ALERT, &next, sizeof(next));
+    if (err == ESP_OK) s_media_alert_cfg = next;
+    xSemaphoreGive(s_mux);
+    return err;
+}
+
+uint16_t nvs_speed_max_kmh_get(void)
+{
+    if (!s_mux) return NVS_SPEED_MAX_DEFAULT_KMH;
+    if (xSemaphoreTake(s_mux, portMAX_DELAY) != pdTRUE)
+        return NVS_SPEED_MAX_DEFAULT_KMH;
+    uint16_t speed_max_kmh = s_cfg.speed_max_kmh;
+    xSemaphoreGive(s_mux);
+    return speed_max_kmh;
+}
+
+esp_err_t nvs_speed_max_kmh_set(uint16_t speed_max_kmh)
+{
+    if (speed_max_kmh < NVS_SPEED_MAX_MIN_KMH ||
+        speed_max_kmh > NVS_SPEED_MAX_MAX_KMH)
+        return ESP_ERR_INVALID_ARG;
+    if (!s_mux) return ESP_ERR_INVALID_STATE;
+    if (xSemaphoreTake(s_mux, portMAX_DELAY) != pdTRUE) return ESP_ERR_TIMEOUT;
+    if (s_cfg.speed_max_kmh == speed_max_kmh) {
+        xSemaphoreGive(s_mux);
+        return ESP_OK;
+    }
+    nvs_user_cfg_t next = s_cfg;
+    next.speed_max_kmh = speed_max_kmh;
     esp_err_t err = save_blob(NS_CFG, KEY_CFG, &next, sizeof(next));
     if (err == ESP_OK) s_cfg = next;
     xSemaphoreGive(s_mux);
@@ -399,6 +472,9 @@ static void cfg_normalize(nvs_user_cfg_t *cfg)
     if (cfg->tpms_pressure_min_bar_x100 < 100 || cfg->tpms_pressure_min_bar_x100 > 400) cfg->tpms_pressure_min_bar_x100 = 200;
     if (cfg->tpms_pressure_max_bar_x100 < 100 || cfg->tpms_pressure_max_bar_x100 > 400 || cfg->tpms_pressure_max_bar_x100 <= cfg->tpms_pressure_min_bar_x100) cfg->tpms_pressure_max_bar_x100 = 320;
     if (cfg->tpms_voltage_min_mv < 10000 || cfg->tpms_voltage_min_mv > 15000) cfg->tpms_voltage_min_mv = 12000;
+    if (cfg->speed_max_kmh < NVS_SPEED_MAX_MIN_KMH ||
+        cfg->speed_max_kmh > NVS_SPEED_MAX_MAX_KMH)
+        cfg->speed_max_kmh = NVS_SPEED_MAX_DEFAULT_KMH;
     for (size_t i = 0; i < 3; ++i) if (cfg->temp_display_map[i] >= DISP_ITEM_COUNT) cfg->temp_display_map[i] = (uint8_t)i;
     static const uint8_t default_info_map[5] = {0, 2, 3, 4, 1};
     for (size_t i = 0; i < 5; ++i) if (cfg->info_display_map[i] >= DISP_ITEM_COUNT) cfg->info_display_map[i] = default_info_map[i];
@@ -420,6 +496,8 @@ static bool cfg_validate(const nvs_user_cfg_t *cfg)
         cfg->tpms_pressure_max_bar_x100 < 100 || cfg->tpms_pressure_max_bar_x100 > 400 ||
         cfg->tpms_pressure_max_bar_x100 <= cfg->tpms_pressure_min_bar_x100 ||
         cfg->tpms_voltage_min_mv < 10000 || cfg->tpms_voltage_min_mv > 15000 ||
+        cfg->speed_max_kmh < NVS_SPEED_MAX_MIN_KMH ||
+        cfg->speed_max_kmh > NVS_SPEED_MAX_MAX_KMH ||
         (vehicle_count > 0 && cfg->vehicle_profile_idx >= vehicle_count)) return false;
     for (size_t i = 0; i < 3; ++i) if (cfg->temp_display_map[i] >= DISP_ITEM_COUNT) return false;
     for (size_t i = 0; i < 5; ++i) if (cfg->info_display_map[i] >= DISP_ITEM_COUNT) return false;

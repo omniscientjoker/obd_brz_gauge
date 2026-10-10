@@ -653,7 +653,7 @@ void ui_ScreenPageBLEScan_screen_init(void)
 
     // Device list (scan results)
     s_list = lv_list_create(ui_ScreenPageBLEScan);
-    lv_obj_set_size(s_list, 264, 145);
+    lv_obj_set_size(s_list, 244, 132);
     lv_obj_align(s_list, LV_ALIGN_TOP_MID, 0, has_saved ? 152 : 96);
     lv_obj_set_style_bg_color(s_list, lv_color_hex(0x111111), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(s_list, 255, LV_PART_MAIN);

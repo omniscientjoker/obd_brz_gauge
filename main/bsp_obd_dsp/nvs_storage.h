@@ -6,6 +6,21 @@
 // Built-in dashboard pages selectable as the boot destination. Keep this in
 // the storage contract so UI validation and boot routing cannot drift apart.
 #define NVS_DEFAULT_PAGE_COUNT 9
+#define NVS_SPEED_MAX_MIN_KMH 160
+#define NVS_SPEED_MAX_MAX_KMH 300
+#define NVS_SPEED_MAX_DEFAULT_KMH 240
+#define NVS_MEDIA_ALERT_COUNT 6
+#define NVS_MEDIA_RESOURCE_NAME_MAX 13
+
+typedef enum {
+    NVS_MEDIA_ALERT_AUDIO = 0,
+    NVS_MEDIA_ALERT_VIDEO = 1,
+} nvs_media_alert_mode_t;
+
+typedef struct __attribute__((packed)) {
+    uint8_t mode[NVS_MEDIA_ALERT_COUNT];
+    char resource[NVS_MEDIA_ALERT_COUNT][NVS_MEDIA_RESOURCE_NAME_MAX];
+} nvs_media_alert_cfg_t;
 
 // Theme config. The index/selectors are real now (see ui_theme.c); the two
 // color fields are legacy and unused, kept only to preserve struct layout.
@@ -46,6 +61,7 @@ typedef struct {
     uint16_t tpms_pressure_min_bar_x100; // TPMS lower pressure limit, bar x100
     uint16_t tpms_pressure_max_bar_x100; // TPMS upper pressure limit, bar x100
     uint16_t tpms_voltage_min_mv;        // lower limit for the voltage shown on TPMS page, mV
+    uint16_t speed_max_kmh;              // speed page full-scale speed, 160-300 km/h
 } nvs_user_cfg_t;
 
 /*------------------ Runtime statistics (persisted periodically) ------------------*/
@@ -67,6 +83,12 @@ const nvs_user_cfg_t * nvs_cfg_get(void);
 /* Copy the current configuration while holding the storage lock. */
 esp_err_t nvs_cfg_get_snapshot(nvs_user_cfg_t *out);
 esp_err_t nvs_cfg_set(const nvs_user_cfg_t *cfg);
+uint16_t nvs_speed_max_kmh_get(void);
+esp_err_t nvs_speed_max_kmh_set(uint16_t speed_max_kmh);
+
+/* Per-alert media source. Resource names are FAT 8.3 names only. */
+esp_err_t nvs_media_alert_cfg_get(nvs_media_alert_cfg_t *out);
+esp_err_t nvs_media_alert_cfg_set(const nvs_media_alert_cfg_t *cfg);
 
 // Per-item alarm threshold for the chart page (raw units; value>=threshold alarms; 32767=off). item = disp_item_t value.
 int16_t nvs_chart_alarm_get(uint8_t item);

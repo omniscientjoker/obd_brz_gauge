@@ -60,6 +60,9 @@ BINS = {
     "bootloader": "bootloader/bootloader.bin",
     "ota_data_initial": "ota_data_initial.bin",
 }
+CONFIG_FILES = {
+    "vehicle_fuel_tanks": "config/vehicle_fuel_tanks.json",
+}
 ALIASES = {
     "firmware.bin": "obd_brz_gauge.bin",
     "bootloader.bin": "bootloader/bootloader.bin",
@@ -99,6 +102,16 @@ def main():
         shutil.copy2(os.path.join(RELEASE_DIR, canonical), os.path.join(RELEASE_DIR, alias))
         print(f"copied {alias}")
 
+    # Keep vehicle capacities alongside each release so the packaged values are
+    # inspectable without reverse-engineering the application binary.
+    for key, rel in CONFIG_FILES.items():
+        src = os.path.join(ROOT, rel)
+        dst = os.path.join(RELEASE_DIR, os.path.basename(rel))
+        if not os.path.isfile(src):
+            sys.exit(f"missing release configuration: {src}")
+        shutil.copy2(src, dst)
+        print(f"copied {rel}")
+
     # 2. Build the version metadata from the current git HEAD.
     branch = git("rev-parse", "--abbrev-ref", "HEAD")
     count = int(git("rev-list", "--count", "HEAD"))
@@ -113,6 +126,10 @@ def main():
     for key, rel in BINS.items():
         p = os.path.join(RELEASE_DIR, rel)
         files[key] = {"path": rel, "size": os.path.getsize(p), "sha256": sha256(p)}
+    for key, rel in CONFIG_FILES.items():
+        packaged_rel = os.path.basename(rel)
+        p = os.path.join(RELEASE_DIR, packaged_rel)
+        files[key] = {"path": packaged_rel, "size": os.path.getsize(p), "sha256": sha256(p)}
 
     manifest = {
         "device": DEVICE,

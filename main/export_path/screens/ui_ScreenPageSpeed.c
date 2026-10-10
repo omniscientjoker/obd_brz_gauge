@@ -4,6 +4,22 @@
 // Project name: OBD_PRJ
 
 #include "../ui.h"
+#include "../ui_color_arc.h"
+#include "bsp_obd_dsp/nvs_storage.h"
+
+#define SPEED_ARC_WIDTH 17
+
+static ui_color_arc_t s_speed_arc;
+
+void ui_speed_arc_set_range(uint16_t min_speed, uint16_t max_speed)
+{
+    ui_color_arc_set_range(&s_speed_arc, min_speed, max_speed);
+}
+
+void ui_speed_arc_set_value(uint16_t speed)
+{
+    ui_color_arc_set_value(&s_speed_arc, speed);
+}
 
 void ui_ScreenPageSpeed_screen_init(void)
 {
@@ -13,26 +29,30 @@ void ui_ScreenPageSpeed_screen_init(void)
     ui_helpers_style_screen_bg(ui_ScreenPageSpeed);
     lv_obj_set_style_bg_opa(ui_ScreenPageSpeed, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_SpeedPageArcSpeedBack = lv_arc_create(ui_ScreenPageSpeed);
-    // Match the simulator's 230px primary gauge ring on the 360px display.
-    lv_obj_set_size(ui_SpeedPageArcSpeedBack, 230, 230);
-    lv_obj_set_align(ui_SpeedPageArcSpeedBack, LV_ALIGN_CENTER);
-    lv_obj_clear_flag(ui_SpeedPageArcSpeedBack, LV_OBJ_FLAG_CLICKABLE);      /// Flags
-    lv_arc_set_value(ui_SpeedPageArcSpeedBack, 0);
-    lv_arc_set_bg_angles(ui_SpeedPageArcSpeedBack, 0, 360);
-    lv_arc_set_rotation(ui_SpeedPageArcSpeedBack, 0);
-    lv_obj_set_style_arc_color(ui_SpeedPageArcSpeedBack, ui_theme_color_lv(UI_COLOR_ARC_TRACK), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_opa(ui_SpeedPageArcSpeedBack, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_width(ui_SpeedPageArcSpeedBack, 11, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_rounded(ui_SpeedPageArcSpeedBack, false, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_set_style_arc_color(ui_SpeedPageArcSpeedBack, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_opa(ui_SpeedPageArcSpeedBack, 255, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_width(ui_SpeedPageArcSpeedBack, 11, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_rounded(ui_SpeedPageArcSpeedBack, false, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-
-    lv_obj_set_style_bg_color(ui_SpeedPageArcSpeedBack, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_KNOB | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_SpeedPageArcSpeedBack, 0, LV_PART_KNOB | LV_STATE_DEFAULT);
+    static const ui_color_arc_stop_t speed_stops[] = {
+        {0, LV_COLOR_MAKE(0x00, 0xCC, 0x66)},
+        {250, LV_COLOR_MAKE(0x00, 0xCC, 0x66)},
+        {500, LV_COLOR_MAKE(0xFF, 0xD1, 0x66)},
+        {750, LV_COLOR_MAKE(0xFF, 0x8C, 0x42)},
+        {1000, LV_COLOR_MAKE(0xFF, 0x4D, 0x4D)},
+    };
+    const nvs_user_cfg_t *cfg = nvs_cfg_get();
+    uint16_t max_speed = cfg->speed_max_kmh;
+    if (max_speed < NVS_SPEED_MAX_MIN_KMH || max_speed > NVS_SPEED_MAX_MAX_KMH)
+        max_speed = NVS_SPEED_MAX_DEFAULT_KMH;
+    ui_color_arc_config_t arc_config = {
+        .min_value = 0,
+        .max_value = max_speed,
+        .size = 230,
+        .width = SPEED_ARC_WIDTH,
+        .start_angle = 90,
+        .track_color = ui_theme_color_lv(UI_COLOR_ARC_TRACK),
+        .stops = speed_stops,
+        .stop_count = sizeof(speed_stops) / sizeof(speed_stops[0]),
+        .slice_count = 32,
+    };
+    ui_color_arc_create(&s_speed_arc, ui_ScreenPageSpeed, &arc_config);
+    ui_SpeedPageArcSpeedBack = s_speed_arc.track;
 
     ui_LabelSpeedTitle = lv_label_create(ui_ScreenPageSpeed);
     lv_label_set_text(ui_LabelSpeedTitle, "VEHICLE SPEED");

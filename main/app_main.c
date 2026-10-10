@@ -56,6 +56,24 @@
 
 static const char *TAG = "obd_dsp";
 
+static void start_media_services(void)
+{
+    esp_err_t audio_init_err = es8311_audio_init();
+    if (audio_init_err == ESP_OK) {
+        esp_err_t wav_init_err = wav_player_init();
+        if (wav_init_err != ESP_OK) {
+            ESP_LOGW(TAG, "WAV player unavailable (%s)", esp_err_to_name(wav_init_err));
+        }
+    } else {
+        ESP_LOGW(TAG, "ES8311 audio unavailable (%s)", esp_err_to_name(audio_init_err));
+    }
+
+    esp_err_t sd_init_err = sd_media_init();
+    if (sd_init_err != ESP_OK) {
+        ESP_LOGW(TAG, "SD media service unavailable (%s)", esp_err_to_name(sd_init_err));
+    }
+}
+
 static void mark_app_valid_task(void *arg)
 {
     (void)arg;
@@ -220,20 +238,6 @@ void app_main(void)
 
     /* 2. I2C bus init (used by the TCA9554 IO expander + CST816 touch on V1, CST816 touch only on V2/V3) */
     I2C_Init();
-    /* Media peripherals are optional. Their failures must not prevent the display/BLE/OBD path from starting. */
-    esp_err_t audio_init_err = es8311_audio_init();
-    if (audio_init_err == ESP_OK) {
-        esp_err_t wav_init_err = wav_player_init();
-        if (wav_init_err != ESP_OK) {
-            ESP_LOGW(TAG, "WAV player unavailable (%s)", esp_err_to_name(wav_init_err));
-        }
-    } else {
-        ESP_LOGW(TAG, "ES8311 audio unavailable (%s)", esp_err_to_name(audio_init_err));
-    }
-    esp_err_t sd_init_err = sd_media_init();
-    if (sd_init_err != ESP_OK) {
-        ESP_LOGW(TAG, "SD media service unavailable (%s)", esp_err_to_name(sd_init_err));
-    }
     esp_battery_start();
 
     /* 3. IO expander init (TCA9554PWR, I2C address 0x20) — V1 board only; V2/V3 have no expander */
@@ -363,25 +367,20 @@ void app_main(void)
 #endif
 
     if (dev_role == ESPNOW_ROLE_SLAVE) {
-        /* ---- Slave: does not connect to ELM327, only starts ESP-NOW receive; UI displays the data broadcast by the master ----
+        /* ---- Slave: does not connect to ELM327; data arrives through the paired BLE path. ----
            Screen navigation (not bound to a master → BLE pairing page; bound → normal boot flow) is handled
            centrally by boot_enter_default_page() in ui.c; nothing to do here. */
-        ESP_LOGI(TAG, "Device role: SLAVE (ESP-NOW receiver, no BLE/OBD)");
-        espnow_link_start_slave();
+        ESP_LOGI(TAG, "Device role: SLAVE (paired BLE receiver, no ELM327)");
         {
             const uint8_t *bm = espnow_link_get_bound_master_mac();
             ESP_LOGD(TAG, "Bound master MAC at boot: %02x:%02x:%02x:%02x:%02x:%02x (0=unbound)",
                      bm[0], bm[1], bm[2], bm[3], bm[4], bm[5]);
         }
-        /* Slave: start BLE GATTS for pairing immediately after ESP-NOW receive setup */
+        /* Slave: start BLE GATTS for pairing. */
         racechrono_ble_diy_start(user_cfg->rc_enabled);
     } else {
-        /* ---- Master / standalone: both run the full BLE OBD chain; the only difference is whether ESP-NOW (=WiFi) starts ----
-           STANDALONE: does not start WiFi/ESP-NOW; existing devices (already set to master/slave) are unaffected. */
-        bool espnow_on = (dev_role == ESPNOW_ROLE_MASTER);
-        ESP_LOGI(TAG, "Device role: %s (BLE/OBD%s)",
-                 espnow_on ? "MASTER" : "STANDALONE",
-                 espnow_on ? " + ESP-NOW broadcast" : ", no WiFi/ESP-NOW");
+        ESP_LOGI(TAG, "Device role: %s (BLE/OBD, Wi-Fi deferred to OTA)",
+                 dev_role == ESPNOW_ROLE_MASTER ? "MASTER" : "STANDALONE");
 
         /* 8.1 Start BLE OBD - auto-connect only when a MAC is already bound in NVS (exact MAC match only, no fuzzy name matching);
                legacy configs with a name but no MAC no longer auto-connect; the user must re-select on the scan page to bind the MAC.
@@ -399,8 +398,8 @@ void app_main(void)
             ESP_LOGD(TAG, "Saved device '%s' has no bound MAC, auto-connect disabled; re-select it on BLE SCAN page to bind MAC",
                      user_cfg->ble_device_name);
             elm327_ble_ensure_stack_init();   // the stack must still be started for RaceChrono/the scan page
-        } else if (espnow_on) {
-            ESP_LOGD(TAG, "No saved BLE device, but MASTER needs BLE stack for SkyGauge pairing broadcast");
+        } else if (dev_role == ESPNOW_ROLE_MASTER) {
+            ESP_LOGD(TAG, "No saved BLE device; MASTER starts the BLE stack for pairing");
             elm327_ble_ensure_stack_init();
         } else {
             ESP_LOGD(TAG, "No saved BLE device, waiting for user selection");
@@ -427,17 +426,16 @@ void app_main(void)
         }
 #endif
 
-        /* 9.8 Start ESP-NOW broadcast (sends this unit's OBD data cache to the slave) -- MASTER only;
-               STANDALONE skips it; WiFi is never initialized (saves RF/power and does not interfere with BLE). */
-        if (espnow_on) {
-            espnow_link_start_master();
-        }
+        /* 9.8 Wi-Fi is OTA-only. Multi-gauge traffic remains on BLE. */
 
-        /* 9.9 Start RaceChrono BLE GATTS immediately after ESP-NOW (Master/Standalone) to claim memory before theme loads */
+        /* 9.9 Start RaceChrono BLE GATTS (Master/Standalone). */
         racechrono_ble_diy_start(user_cfg->rc_enabled);
 
         /* 10. Mileage statistics task (only the master counts, to avoid double counting by the slave) */
         vMileageDataStatisticTask();
     }
+
+    /* Media services run after the BLE role has been established. */
+    start_media_services();
 
 }

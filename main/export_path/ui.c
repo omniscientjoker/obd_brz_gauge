@@ -144,6 +144,8 @@ lv_obj_t * ui_ScreenPageOilPressure;
 // SCREEN: ui_ScreenPageInfo
 void ui_ScreenPageInfo_screen_init(void);
 extern lv_obj_t * ui_ScreenPageInfo;
+extern lv_obj_t * ui_LabelInfoFuel;
+extern lv_obj_t * ui_LabelInfoFuelNeed;
 
 // SCREEN: ui_ScreenPageInfoCustom
 void ui_ScreenPageInfoCustom_screen_init(void);
@@ -154,6 +156,8 @@ lv_obj_t * ui_ScreenPageInfoCustom;
 // SCREEN: ui_ScreenPageSettings
 void ui_ScreenPageSettings_screen_init(void);
 lv_obj_t * ui_ScreenPageSettings;
+void ui_ScreenPageAlertMedia_screen_init(void);
+lv_obj_t * ui_ScreenPageAlertMedia;
 // CUSTOM VARIABLES
 
 // SCREEN: ui_ScreenPageOilWarn
@@ -161,6 +165,8 @@ void ui_ScreenPageOilWarn_screen_init(void);
 lv_obj_t * ui_ScreenPageOilWarn;
 void ui_ScreenPageRpmWarn_screen_init(void);
 lv_obj_t * ui_ScreenPageRpmWarn;
+void ui_ScreenPageSpeedConfig_screen_init(void);
+lv_obj_t * ui_ScreenPageSpeedConfig;
 // CUSTOM VARIABLES
 
 // SCREEN: ui_ScreenPageNeedle (needle-style configurable gauge)
@@ -493,7 +499,7 @@ static uint32_t ui_refresh_period_ms_for_screen(lv_obj_t *scr,
         scr == ui_ScreenPageNeedleConfig || scr == ui_ScreenPageChartConfig ||
         scr == ui_ScreenPageChartAlarm || scr == ui_ScreenPageOilWarn ||
         scr == ui_ScreenPageRpmWarn || scr == ui_ScreenPageEasterEgg ||
-        scr == ui_ScreenPageTpmsConfig) {
+        scr == ui_ScreenPageTpmsConfig || scr == ui_ScreenPageSpeedConfig) {
         return 200;
     }
     return 50;
@@ -594,6 +600,7 @@ void my_timerMain(lv_timer_t * timer)
     int esp_bat_pct = -1;
     int16_t boost_x10 = 0;
     int16_t afr_x100 = 0;
+    int16_t fuel_pct = -1;
 
     esp_battery_get_snapshot(&esp_bat_mv, &esp_bat_pct);
 
@@ -625,6 +632,7 @@ void my_timerMain(lv_timer_t * timer)
         bat_mv    = obd.bat_mv;
         boost_x10 = obd.boost_x10; // boost gauge pressure 0.1bar, -32768=invalid
         afr_x100  = obd.afr_x100;   // air-fuel ratio ×100, -1=invalid
+        fuel_pct  = obd.fuel_pct;
         usRpm     = obd.rpm;
         ucSpeed   = obd.speed;
         int8_t decoded_gear = obd.gear;
@@ -645,7 +653,7 @@ void my_timerMain(lv_timer_t * timer)
        same cadence as the existing gauge refresh. */
     if (!IN_SWEEP) {
         if (bat_mv > 0 && bat_mv < (int32_t)user_cfg->tpms_voltage_min_mv) {
-            (void)media_alert_notify(MEDIA_ALERT_BATTERY_LOW);
+            (void)media_alert_notify(MEDIA_ALERT_VOLTAGE);
         }
         if (clt > 110) {
             (void)media_alert_notify(MEDIA_ALERT_TEMP_HIGH);
@@ -657,9 +665,7 @@ void my_timerMain(lv_timer_t * timer)
             if (tpms_alert.valid[i] &&
                 (tpms_alert.pressure_bar_x100[i] < (int16_t)user_cfg->tpms_pressure_min_bar_x100 ||
                  tpms_alert.pressure_bar_x100[i] > (int16_t)user_cfg->tpms_pressure_max_bar_x100)) {
-                (void)media_alert_notify(tpms_alert.pressure_bar_x100[i] <
-                                          (int16_t)user_cfg->tpms_pressure_min_bar_x100
-                                              ? MEDIA_ALERT_TPMS_LOW : MEDIA_ALERT_TPMS_LEAK);
+                (void)media_alert_notify(MEDIA_ALERT_TPMS);
                 break;
             }
         }
@@ -739,12 +745,21 @@ void my_timerMain(lv_timer_t * timer)
     if (scr == ui_ScreenPageSpeed) {
         static int32_t s_disp_spd = 0;
         static int32_t s_last_spd = -1;
+        static uint16_t s_last_speed_max = 0;
+        static lv_obj_t *s_last_speed_screen = NULL;
         if (IN_SWEEP) { s_disp_spd = ucSpeed; }
         else { s_disp_spd = anim_step_i32(s_disp_spd, (int32_t)ucSpeed, ANIM_THRESH_SPD); }
-        if (s_disp_spd != s_last_spd) {
+        uint16_t speed_max = user_cfg->speed_max_kmh;
+        if (speed_max < NVS_SPEED_MAX_MIN_KMH || speed_max > NVS_SPEED_MAX_MAX_KMH)
+            speed_max = NVS_SPEED_MAX_DEFAULT_KMH;
+        if (s_disp_spd != s_last_spd || speed_max != s_last_speed_max ||
+            scr != s_last_speed_screen) {
             s_last_spd = s_disp_spd;
+            s_last_speed_max = speed_max;
+            s_last_speed_screen = scr;
             lv_label_set_text_fmt(ui_SpeedPageArcLabelSpeedText, "%d", (int)s_disp_spd);
-            lv_arc_set_value(ui_SpeedPageArcSpeedBack, (uint32_t)s_disp_spd*100/SWEEP_SPEED_PEAK);
+            ui_speed_arc_set_range(0, speed_max);
+            ui_speed_arc_set_value((uint16_t)s_disp_spd);
         }
         if (ui_LabelSpeedMiniRpm) {
             lv_label_set_text_fmt(ui_LabelSpeedMiniRpm, "RPM %d", (int)usRpm);
@@ -938,8 +953,23 @@ void my_timerMain(lv_timer_t * timer)
 
     /* Info page update */
     if (scr == ui_ScreenPageInfo && ui_LabelInfoValue[0]) {
-        static int32_t s_disp_info[5] = {0};
-        static uint8_t s_last_info_map[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+        static int32_t s_disp_info[4] = {0};
+        static uint8_t s_last_info_map[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+
+        if (ui_LabelInfoFuel && ui_LabelInfoFuelNeed) {
+            const uint16_t tank_capacity_dl = vehicle_profile_get_active()->fuel_tank_capacity_dl;
+            if (fuel_pct >= 0 && fuel_pct <= 100 && tank_capacity_dl > 0) {
+                const uint16_t fuel_dl = (uint16_t)((fuel_pct * tank_capacity_dl + 50) / 100);
+                const uint16_t refill_dl = tank_capacity_dl - fuel_dl;
+                lv_label_set_text_fmt(ui_LabelInfoFuel, "油量 %d%% 约 %u.%uL",
+                                      fuel_pct, fuel_dl / 10, fuel_dl % 10);
+                lv_label_set_text_fmt(ui_LabelInfoFuelNeed, "加满 %d%% 约 %u.%uL",
+                                      100 - fuel_pct, refill_dl / 10, refill_dl % 10);
+            } else {
+                lv_label_set_text(ui_LabelInfoFuel, "油量 --% 约 --.-L");
+                lv_label_set_text(ui_LabelInfoFuelNeed, "加满 --% 约 --.-L");
+            }
+        }
 
         if (IN_SWEEP) {
             int step = ui_ext_sweep_get_step() - 1; // already incremented above
@@ -947,7 +977,7 @@ void my_timerMain(lv_timer_t * timer)
             if (step <= SWEEP_STEPS_UP) r = (float)step / (float)SWEEP_STEPS_UP;
             else r = 1.0f;   // hold at max (hold phase)
 
-            for (int i = 0; i < 5; ++i) {
+            for (int i = 0; i < 4; ++i) {
                 uint8_t map_idx = user_cfg->info_display_map[i];
                 disp_item_t item = (disp_item_t)(map_idx % DISP_ITEM_COUNT);
 
@@ -962,7 +992,7 @@ void my_timerMain(lv_timer_t * timer)
                 disp_item_set_value_color(ui_LabelInfoValue[i], item, sw, true);
             }
         } else {
-            for (int i = 0; i < 5; ++i) {
+            for (int i = 0; i < 4; ++i) {
                 uint8_t map_idx = user_cfg->info_display_map[i];
                 disp_item_t item = (disp_item_t)(map_idx % DISP_ITEM_COUNT);
 
@@ -1186,6 +1216,7 @@ void ui_init(void)
     ui_nav_register_page(UI_NAV_PAGE_SKY_GAUGE, &ui_ScreenPageEasterEgg, ui_ScreenPageEasterEgg_screen_init);
     ui_nav_register_page(UI_NAV_PAGE_BLE_SCAN, &ui_ScreenPageBLEScan, ui_ScreenPageBLEScan_screen_init);
     ui_nav_register_page(UI_NAV_PAGE_SETTINGS, &ui_ScreenPageSettings, ui_ScreenPageSettings_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_ALERT_MEDIA, &ui_ScreenPageAlertMedia, ui_ScreenPageAlertMedia_screen_init);
     ui_nav_register_page(UI_NAV_PAGE_MULTI_GAUGE, &ui_ScreenPageMultiGauge, ui_ScreenPageMultiGauge_screen_init);
     ui_nav_register_page(UI_NAV_PAGE_TEMP_CONFIG, &ui_ScreenPageTempCustom, ui_ScreenPageTempCustom_screen_init);
     ui_nav_register_page(UI_NAV_PAGE_TPMS_CONFIG, &ui_ScreenPageTpmsConfig, ui_ScreenPageTpmsConfig_screen_init);
@@ -1195,6 +1226,7 @@ void ui_init(void)
     ui_nav_register_page(UI_NAV_PAGE_CHART_ALARM, &ui_ScreenPageChartAlarm, ui_ScreenPageChartAlarm_screen_init);
     ui_nav_register_page(UI_NAV_PAGE_OIL_WARN, &ui_ScreenPageOilWarn, ui_ScreenPageOilWarn_screen_init);
     ui_nav_register_page(UI_NAV_PAGE_RPM_WARN, &ui_ScreenPageRpmWarn, ui_ScreenPageRpmWarn_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_SPEED_CONFIG, &ui_ScreenPageSpeedConfig, ui_ScreenPageSpeedConfig_screen_init);
     ui_nav_register_page(UI_NAV_PAGE_OBD_PROTOCOL, &ui_ScreenPageODBProtocal, ui_ScreenPageODBProtocal_screen_init);
     ui_nav_register_page(UI_NAV_PAGE_OTA_MODE, &ui_ScreenPageOTAMode, ui_ScreenPageOTAMode_screen_init);
     ui_nav_register_leave_cb(UI_NAV_PAGE_BLE_SCAN, ui_nav_ble_leave);
@@ -1240,6 +1272,7 @@ void ui_init(void)
     ui_ScreenPageInfoCustom = NULL;
     ui_ScreenPageNeedleConfig = NULL;   // config page lazy-loaded
     ui_ScreenPageMultiGauge = NULL;     // triple-gauge settings page lazy-loaded
+    ui_ScreenPageAlertMedia = NULL;
     ui_ScreenPageChartConfig = NULL;    // chart data-source selection page lazy-loaded
     ui_ScreenPageChartAlarm = NULL;     // chart alarm settings page lazy-loaded
     ui_ScreenPageIntro = NULL;          // boot animation page lazy-loaded

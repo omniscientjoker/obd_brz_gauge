@@ -19,6 +19,7 @@ static int16_t  s_brake_temp_x10 = -1000;
 static int16_t  s_boost_x10 = -32768;
 static int8_t   s_gear = 127;
 static int16_t  s_afr_x100 = -1;
+static int16_t  s_fuel_pct = -1;
 static brake_rs485_status_t s_brake_rs485_status = BRAKE_RS485_IDLE;
 static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
 
@@ -57,6 +58,7 @@ void obd_data_reset_temp_cache(void)
     s_coolant_temp = -40;
     s_oil_temp = -100;
     s_intake_temp = -40;
+    s_fuel_pct = -1;
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -291,6 +293,23 @@ int16_t obd_data_get_afr_x100(void)
     return val;
 }
 
+void obd_data_set_fuel_pct(int16_t fuel_pct)
+{
+    if (fuel_pct < 0 || fuel_pct > 100) return;
+    portENTER_CRITICAL(&s_mux);
+    s_fuel_pct = fuel_pct;
+    portEXIT_CRITICAL(&s_mux);
+}
+
+int16_t obd_data_get_fuel_pct(void)
+{
+    int16_t val;
+    portENTER_CRITICAL(&s_mux);
+    val = s_fuel_pct;
+    portEXIT_CRITICAL(&s_mux);
+    return val;
+}
+
 void obd_data_get_snapshot(obd_data_snapshot_t *out)
 {
     if (!out) return;
@@ -309,6 +328,7 @@ void obd_data_get_snapshot(obd_data_snapshot_t *out)
     out->brake_temp_x10 = s_brake_temp_x10;
     out->gear = s_gear;
     out->afr_x100 = s_afr_x100;
+    out->fuel_pct = s_fuel_pct;
     out->brake_rs485_status = s_brake_rs485_status;
     portEXIT_CRITICAL(&s_mux);
 }

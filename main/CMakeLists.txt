@@ -1,6 +1,14 @@
 file(GLOB_RECURSE SOURCES_C *.c)
 file(GLOB_RECURSE SOURCES_CPP *.cpp)
 
+# Vehicle fuel capacity is maintained in a release-visible JSON file. Generate
+# the matching firmware constants before ESP-IDF collects component sources.
+set(VEHICLE_FUEL_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/../config/vehicle_fuel_tanks.json")
+set(VEHICLE_FUEL_CONFIG_GENERATOR "${CMAKE_CURRENT_SOURCE_DIR}/../tools/gen_vehicle_fuel_config.py")
+set(VEHICLE_FUEL_CONFIG_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/app_obd_dsp/vehicle_fuel_config.generated.h")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+             "${VEHICLE_FUEL_CONFIG}" "${VEHICLE_FUEL_CONFIG_GENERATOR}")
+
 # ---- UI theme table codegen ------------------------------------------------
 # themes/registry.txt + themes/*/<id>/theme.toml -> export_path/ui_theme_generated.c
 # Runs BEFORE idf_component_register because SRC_DIRS is globbed at register time.
@@ -15,6 +23,16 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
 # cmake / IDE reconfigures. gen_themes.py has no third-party dependencies.
 if(NOT DEFINED python)
     set(python "python3")
+endif()
+
+execute_process(
+    COMMAND "${python}" "${VEHICLE_FUEL_CONFIG_GENERATOR}"
+            "${VEHICLE_FUEL_CONFIG}" "${VEHICLE_FUEL_CONFIG_HEADER}"
+    RESULT_VARIABLE VEHICLE_FUEL_CONFIG_RESULT
+    ERROR_VARIABLE VEHICLE_FUEL_CONFIG_ERROR
+    ERROR_STRIP_TRAILING_WHITESPACE)
+if(NOT VEHICLE_FUEL_CONFIG_RESULT EQUAL 0)
+    message(FATAL_ERROR "Vehicle fuel configuration generation failed: ${VEHICLE_FUEL_CONFIG_ERROR}")
 endif()
 
 execute_process(

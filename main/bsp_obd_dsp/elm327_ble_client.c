@@ -144,6 +144,19 @@ static const char *s_pending_response_header = NULL;
 // remains only for compatibility with older command paths.
 static volatile bool s_pending_adapter_voltage = false;
 
+// SAE J1979 PID 00 only advertises 01..20. Fuel level is PID 2F, so probe
+// PID 20 and require its support bitmap before sending any 01 2F request.
+// This prevents a vehicle such as a 2013 Mondeo from receiving an unsupported
+// command merely because another vehicle profile has a fuel-tank capacity.
+typedef enum {
+    FUEL_PID_SUPPORT_UNKNOWN = 0,
+    FUEL_PID_SUPPORT_PROBING,
+    FUEL_PID_SUPPORT_AVAILABLE,
+    FUEL_PID_SUPPORT_UNAVAILABLE,
+} fuel_pid_support_t;
+static volatile fuel_pid_support_t s_fuel_pid_support = FUEL_PID_SUPPORT_UNKNOWN;
+static const vehicle_profile_t *s_fuel_pid_profile = NULL;
+
 static void reset_composition_runtime(void);
 
 // Oil-temp diagnostic stats
@@ -314,6 +327,9 @@ static void composition_on_value(void *ctx, const obd_data_rule_t *rule, float v
         case CH_AFR_X100:
             if (s_cbs.on_parsed_afr) s_cbs.on_parsed_afr((uint32_t)value);
             break;
+        case CH_FUEL_PCT:
+            if (s_cbs.on_parsed_fuel_level) s_cbs.on_parsed_fuel_level((uint32_t)value);
+            break;
         case CH_OIL_PRESSURE_HPA:
             if (s_cbs.on_parsed_oil_pressure)
                 s_cbs.on_parsed_oil_pressure((uint32_t)value);
@@ -383,6 +399,11 @@ static bool send_composed_slot(uint8_t slot_id)
     const vehicle_profile_t *profile = vehicle_profile_get_active();
     const vehicle_override_t *override = vehicle_profile_get_override();
 
+    if (profile != s_fuel_pid_profile) {
+        s_fuel_pid_profile = profile;
+        s_fuel_pid_support = FUEL_PID_SUPPORT_UNKNOWN;
+    }
+
     const obd_vehicle_composition_t *composition = obd_composition_get_active();
     if (!s_composition_runtime_ready ||
         !composition || composition->mechanical_profile != s_composed_plan.mechanical_profile) {
@@ -446,6 +467,17 @@ static bool send_composed_slot(uint8_t slot_id)
         return true;
     }
     if (rule->channel == CH_MAP_KPA && (!profile || !profile->has_boost)) return true;
+    if (rule->channel == CH_FUEL_PCT) {
+        if (s_fuel_pid_support == FUEL_PID_SUPPORT_UNKNOWN) {
+            s_fuel_pid_support = FUEL_PID_SUPPORT_PROBING;
+            if (!elm327_ble_send_ascii_blocking("01 20\r")) {
+                s_fuel_pid_support = FUEL_PID_SUPPORT_UNAVAILABLE;
+                return false;
+            }
+            return true;
+        }
+        if (s_fuel_pid_support != FUEL_PID_SUPPORT_AVAILABLE) return true;
+    }
 
     const char *fixed_header = get_vehicle_fixed_header_cmd();
     bool sent = true;
@@ -856,6 +888,7 @@ static void default_on_parsed_oil_temp(uint32_t oil_temp)
 }
 static void default_on_parsed_load_pct(uint32_t load_pct) { obd_data_set_load_pct((int16_t)load_pct); }
 static void default_on_parsed_control_module_voltage(uint32_t bat_mv) { obd_data_set_bat_mv((int32_t)bat_mv); }
+static void default_on_parsed_fuel_level(uint32_t fuel_pct) { obd_data_set_fuel_pct((int16_t)fuel_pct); }
 static void default_on_parsed_throttle_position(uint32_t tps_pct) { obd_data_set_tps((int16_t)tps_pct); }
 static void default_on_parsed_gear(int8_t gear) {
     // Direct gear decode when available, raw value -> UI gear:
@@ -1221,6 +1254,8 @@ static void do_elm_init(void) {
     // ---- Init the oil-temp query strategy (based on vehicle profile config) ----
     init_oil_temp_strategy();
     obd_data_reset_temp_cache();
+    s_fuel_pid_support = FUEL_PID_SUPPORT_UNKNOWN;
+    s_fuel_pid_profile = NULL;
     s_zc_can_obd_phase = false;
     s_zc_can_obd_round_started = false;
     s_zc6_can_temp_probe_last_us = 0;
@@ -1504,6 +1539,15 @@ static void obd_poll_task(void *arg) {
                         if (rx_filter) elm327_ble_send_ascii_blocking("ATCRA\r");
                         elm327_ble_send_ascii_blocking(get_vehicle_fixed_header_cmd());
                     }
+                }
+                break;
+            case 12:// Fuel level (0x2F, 0~100%)
+                if (s_fuel_pid_support == FUEL_PID_SUPPORT_UNKNOWN) {
+                    s_fuel_pid_support = FUEL_PID_SUPPORT_PROBING;
+                    if (!elm327_ble_send_ascii_blocking("01 20\r"))
+                        s_fuel_pid_support = FUEL_PID_SUPPORT_UNAVAILABLE;
+                } else if (s_fuel_pid_support == FUEL_PID_SUPPORT_AVAILABLE) {
+                    elm327_ble_send_ascii_blocking("01 2F\r");
                 }
                 break;
         default:
@@ -2197,6 +2241,18 @@ static void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_
             if (values >= 3 && mode == 0x41) {
                 int dc = values - 2;
 
+                // 41 20 A B C D is the Mode 01 PID 21..40 capability
+                // bitmap. PID 2F occupies bit 1 of B (0x02).
+                if (pid == 0x20 && s_fuel_pid_support == FUEL_PID_SUPPORT_PROBING) {
+                    s_fuel_pid_support = (dc >= 4 && (d[1] & 0x02u))
+                        ? FUEL_PID_SUPPORT_AVAILABLE
+                        : FUEL_PID_SUPPORT_UNAVAILABLE;
+                    ESP_LOGI(TAG, "Fuel PID 01 2F %s",
+                             s_fuel_pid_support == FUEL_PID_SUPPORT_AVAILABLE ?
+                             "supported" : "not supported");
+                    goto normalized_response_done;
+                }
+
                 // The normalized rule dispatcher is authoritative for
                 // declarative Mode 01 rules. Keep the switch below as the
                 // compatibility path for PIDs not yet represented by a
@@ -2282,6 +2338,10 @@ static void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_
                     case 0x42: // Battery voltage (mV)
                         if (dc >= 2 && s_cbs.on_parsed_control_module_voltage && s_protocol_detect_idx < 0)
                             s_cbs.on_parsed_control_module_voltage((d[0] << 8) | d[1]);
+                        break;
+                    case 0x2F: // Fuel level (0~100%)
+                        if (dc >= 1 && s_cbs.on_parsed_fuel_level && s_protocol_detect_idx < 0)
+                            s_cbs.on_parsed_fuel_level((uint32_t)d[0] * 100 / 255);
                         break;
                     case 0x44: // Air-fuel ratio AFR - Commanded Equivalence Ratio (λ)
                         // λ = (A*256+B)/32768, range 0~<2
@@ -2500,6 +2560,13 @@ static void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_
         }
 
 normalized_response_done:
+        // A complete probe response without a valid 41 20 bitmap is a
+        // negative result. Do not retry 01 2F against an ECU that replied
+        // NO DATA or does not implement the PID.
+        if (s_fuel_pid_support == FUEL_PID_SUPPORT_PROBING) {
+            s_fuel_pid_support = FUEL_PID_SUPPORT_UNAVAILABLE;
+            ESP_LOGI(TAG, "Fuel PID 01 2F not supported");
+        }
         if (s_pending_oil_query && !s_pending_oil_value_handled &&
             s_composition_runtime_ready) {
             // A complete ELM response without a valid oil value is a
@@ -2540,6 +2607,8 @@ normalized_response_done:
         s_expect_mode21 = false;
         s_pending_response_header = NULL;
         s_pending_adapter_voltage = false;
+        s_fuel_pid_support = FUEL_PID_SUPPORT_UNKNOWN;
+        s_fuel_pid_profile = NULL;
         reset_composition_runtime();
         s_char_write_handle = s_char_notify_handle = s_cccd_handle = 0;
         s_accum_len = 0; s_accum_buf[0] = '\0'; // clear the response accumulation buffer
@@ -2590,6 +2659,7 @@ void elm327_ble_start_default(const char *target_name, const uint8_t mac[6]) {
         .on_parsed_oil_temp = default_on_parsed_oil_temp,
         .on_parsed_load_pct = default_on_parsed_load_pct,
         .on_parsed_control_module_voltage = default_on_parsed_control_module_voltage,
+        .on_parsed_fuel_level = default_on_parsed_fuel_level,
         .on_parsed_throttle_position = default_on_parsed_throttle_position,
         .on_parsed_gear = default_on_parsed_gear,
         .on_parsed_manifold_pressure = default_on_parsed_manifold_pressure,

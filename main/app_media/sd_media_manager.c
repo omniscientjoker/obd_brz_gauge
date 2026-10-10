@@ -1,6 +1,8 @@
 #include "app_media/sd_media_manager.h"
 
+#include <dirent.h>
 #include <stdio.h>
+#include <strings.h>
 #include <string.h>
 #include <sys/stat.h>
 
@@ -17,22 +19,128 @@
 static const char *TAG = "sd_media";
 
 #define SD_MEDIA_MOUNT_POINT "/sdcard"
+#define SD_MEDIA_ALERT_DIR "/sdcard/ALERT"
 #define SD_MEDIA_TASK_STACK 4096
 #define SD_MEDIA_RETRY_MS 5000
 
 static SemaphoreHandle_t s_media_lock;
-static TaskHandle_t s_mount_task;
 static sdmmc_card_t *s_card;
 static volatile bool s_ready;
 static volatile bool s_started;
+static volatile bool s_scan_requested = true;
+static volatile sd_media_state_t s_state = SD_MEDIA_STATE_NO_CARD;
+static sd_media_resource_snapshot_t s_resources = {
+    .state = SD_MEDIA_STATE_NO_CARD,
+};
 
 static bool path_is_safe(const char *path)
 {
-    if (!path || (strncmp(path, "/sdcard", 7) != 0) ||
-        (path[7] != '/' && path[7] != '\0')) {
+    if (!path || strncmp(path, "/sdcard", 7) != 0 ||
+        (path[7] != '/' && path[7] != '\0')) return false;
+    return strstr(path, "..") == NULL;
+}
+
+static bool resource_name_has_extension(const char *name, const char *extension)
+{
+    if (!name || !extension) return false;
+    size_t name_len = strnlen(name, SD_MEDIA_RESOURCE_NAME_MAX);
+    size_t extension_len = strlen(extension);
+    if (name_len == 0 || name_len >= SD_MEDIA_RESOURCE_NAME_MAX || name_len <= extension_len) {
         return false;
     }
-    return strstr(path, "..") == NULL;
+    return strcasecmp(name + name_len - extension_len, extension) == 0;
+}
+
+static bool resource_name_is_83(const char *name, const char *extension)
+{
+    if (!resource_name_has_extension(name, extension)) return false;
+    const char *dot = strrchr(name, '.');
+    return dot && dot != name && (size_t)(dot - name) <= 8 && strlen(dot + 1) == 3;
+}
+
+static void sort_names(char names[][SD_MEDIA_RESOURCE_NAME_MAX], uint8_t count)
+{
+    for (uint8_t i = 0; i < count; ++i) {
+        for (uint8_t j = i + 1; j < count; ++j) {
+            if (strcasecmp(names[i], names[j]) > 0) {
+                char tmp[SD_MEDIA_RESOURCE_NAME_MAX];
+                memcpy(tmp, names[i], sizeof(tmp));
+                memcpy(names[i], names[j], sizeof(tmp));
+                memcpy(names[j], tmp, sizeof(tmp));
+            }
+        }
+    }
+}
+
+static bool resource_name_seen(char names[][SD_MEDIA_RESOURCE_NAME_MAX], uint8_t count,
+                               const char *name)
+{
+    for (uint8_t i = 0; i < count; ++i) {
+        if (strcasecmp(names[i], name) == 0) return true;
+    }
+    return false;
+}
+
+static bool regular_media_file(const char *name)
+{
+    char path[96];
+    int written = snprintf(path, sizeof(path), "%s/%s", SD_MEDIA_ALERT_DIR, name);
+    if (written <= 0 || (size_t)written >= sizeof(path)) return false;
+    struct stat st = {0};
+    return stat(path, &st) == 0 && S_ISREG(st.st_mode) && st.st_size > 0;
+}
+
+static bool paired_video_exists(const char *txt_name)
+{
+    const char *dot = strrchr(txt_name, '.');
+    if (!dot) return false;
+    char bin_path[96];
+    int written = snprintf(bin_path, sizeof(bin_path), "%s/%.*s.BIN", SD_MEDIA_ALERT_DIR,
+                           (int)(dot - txt_name), txt_name);
+    struct stat st = {0};
+    return written > 0 && (size_t)written < sizeof(bin_path) && stat(bin_path, &st) == 0 &&
+           S_ISREG(st.st_mode) && st.st_size > 0;
+}
+
+static void scan_resources_locked(void)
+{
+    memset(&s_resources.audio, 0, sizeof(s_resources.audio));
+    memset(&s_resources.video, 0, sizeof(s_resources.video));
+    s_resources.audio_count = 0;
+    s_resources.video_count = 0;
+    s_resources.state = s_state;
+    s_resources.indexing = true;
+
+    DIR *dir = opendir(SD_MEDIA_ALERT_DIR);
+    if (!dir) {
+        s_resources.indexing = false;
+        return;
+    }
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        const char *name = entry->d_name;
+        if (resource_name_is_83(name, ".WAV") && regular_media_file(name) &&
+            !resource_name_seen(s_resources.audio, s_resources.audio_count, name) &&
+            s_resources.audio_count < SD_MEDIA_RESOURCE_MAX) {
+            strncpy(s_resources.audio[s_resources.audio_count++], name,
+                    SD_MEDIA_RESOURCE_NAME_MAX - 1);
+        } else if (resource_name_is_83(name, ".TXT") && paired_video_exists(name) &&
+                   !resource_name_seen(s_resources.video, s_resources.video_count, name) &&
+                   s_resources.video_count < SD_MEDIA_RESOURCE_MAX) {
+            strncpy(s_resources.video[s_resources.video_count++], name,
+                    SD_MEDIA_RESOURCE_NAME_MAX - 1);
+        }
+    }
+    closedir(dir);
+    sort_names(s_resources.audio, s_resources.audio_count);
+    sort_names(s_resources.video, s_resources.video_count);
+    s_resources.indexing = false;
+}
+
+static void clear_resources_locked(void)
+{
+    memset(&s_resources, 0, sizeof(s_resources));
+    s_resources.state = s_state;
 }
 
 static esp_err_t mount_once(void)
@@ -40,8 +148,6 @@ static esp_err_t mount_once(void)
 #if CONFIG_OBD_HW_VERSION_V1_WAVESHARE
     sdmmc_host_t host = SDMMC_HOST_DEFAULT();
     sdmmc_slot_config_t slot = SDMMC_SLOT_CONFIG_DEFAULT();
-
-    /* These pins are the verified V1 SDMMC 4-bit wiring. */
     slot.clk = GPIO_NUM_15;
     slot.cmd = GPIO_NUM_14;
     slot.d0 = GPIO_NUM_16;
@@ -52,7 +158,6 @@ static esp_err_t mount_once(void)
     slot.cd = SDMMC_SLOT_NO_CD;
     slot.wp = SDMMC_SLOT_NO_WP;
     slot.flags &= ~SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
-
     esp_vfs_fat_sdmmc_mount_config_t mount_cfg = {
         .format_if_mount_failed = false,
         .max_files = 8,
@@ -60,30 +165,61 @@ static esp_err_t mount_once(void)
         .disk_status_check_enable = true,
         .use_one_fat = false,
     };
-    esp_err_t err = esp_vfs_fat_sdmmc_mount(SD_MEDIA_MOUNT_POINT, &host, &slot,
-                                             &mount_cfg, &s_card);
-    if (err == ESP_OK) {
-        sdmmc_card_print_info(stdout, s_card);
-    }
-    return err;
+    return esp_vfs_fat_sdmmc_mount(SD_MEDIA_MOUNT_POINT, &host, &slot, &mount_cfg, &s_card);
 #else
     return ESP_ERR_NOT_SUPPORTED;
 #endif
+}
+
+static void unmount_locked(void)
+{
+    if (s_card) {
+        esp_err_t err = esp_vfs_fat_sdcard_unmount(SD_MEDIA_MOUNT_POINT, s_card);
+        if (err != ESP_OK) ESP_LOGW(TAG, "SDMMC unmount failed: %s", esp_err_to_name(err));
+    }
+    s_card = NULL;
+    s_ready = false;
+    s_state = SD_MEDIA_STATE_NO_CARD;
+    clear_resources_locked();
 }
 
 static void sd_media_mount_task(void *arg)
 {
     (void)arg;
     while (true) {
+        if (s_ready && sd_media_lock(1000)) {
+            if (!s_card || sdmmc_get_status(s_card) != ESP_OK) {
+                ESP_LOGW(TAG, "SD card removed or unavailable");
+                unmount_locked();
+            }
+            sd_media_unlock();
+        }
         if (!s_ready) {
+            s_state = SD_MEDIA_STATE_MOUNTING;
             esp_err_t err = mount_once();
             if (err == ESP_OK) {
-                s_ready = true;
+                if (sd_media_lock(1000)) {
+                    s_ready = true;
+                    s_state = SD_MEDIA_STATE_READY;
+                    s_scan_requested = false;
+                    scan_resources_locked();
+                    sd_media_unlock();
+                }
                 ESP_LOGI(TAG, "SDMMC mounted at %s", SD_MEDIA_MOUNT_POINT);
             } else {
                 s_card = NULL;
+                s_state = (err == ESP_ERR_NOT_FOUND || err == ESP_ERR_TIMEOUT) ?
+                          SD_MEDIA_STATE_NO_CARD : SD_MEDIA_STATE_ERROR;
+                if (sd_media_lock(1000)) {
+                    clear_resources_locked();
+                    sd_media_unlock();
+                }
                 ESP_LOGW(TAG, "SDMMC mount unavailable: %s; retrying", esp_err_to_name(err));
             }
+        } else if (s_scan_requested && sd_media_lock(1000)) {
+            s_scan_requested = false;
+            scan_resources_locked();
+            sd_media_unlock();
         }
         vTaskDelay(pdMS_TO_TICKS(SD_MEDIA_RETRY_MS));
     }
@@ -91,9 +227,7 @@ static void sd_media_mount_task(void *arg)
 
 esp_err_t sd_media_init(void)
 {
-    if (s_started) {
-        return ESP_OK;
-    }
+    if (s_started) return ESP_OK;
     s_started = true;
     s_media_lock = xSemaphoreCreateMutex();
     if (!s_media_lock) {
@@ -102,7 +236,7 @@ esp_err_t sd_media_init(void)
     }
 #if CONFIG_OBD_HW_VERSION_V1_WAVESHARE
     if (xTaskCreate(sd_media_mount_task, "sd_media", SD_MEDIA_TASK_STACK, NULL,
-                    tskIDLE_PRIORITY + 1, &s_mount_task) != pdPASS) {
+                    tskIDLE_PRIORITY + 1, NULL) != pdPASS) {
         vSemaphoreDelete(s_media_lock);
         s_media_lock = NULL;
         s_started = false;
@@ -110,7 +244,7 @@ esp_err_t sd_media_init(void)
     }
     return ESP_OK;
 #else
-    ESP_LOGW(TAG, "SD media is disabled for this board pin mapping");
+    s_state = SD_MEDIA_STATE_ERROR;
     return ESP_ERR_NOT_SUPPORTED;
 #endif
 }
@@ -122,29 +256,46 @@ bool sd_media_is_ready(void)
 
 bool sd_media_lock(int timeout_ms)
 {
-    if (!s_media_lock) {
-        return false;
-    }
+    if (!s_media_lock) return false;
     TickType_t timeout = timeout_ms < 0 ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
     return xSemaphoreTake(s_media_lock, timeout) == pdTRUE;
 }
 
 void sd_media_unlock(void)
 {
-    if (s_media_lock) {
-        xSemaphoreGive(s_media_lock);
-    }
+    if (s_media_lock) xSemaphoreGive(s_media_lock);
 }
 
 bool sd_media_file_exists(const char *path)
 {
-    if (!s_ready || !path_is_safe(path) || !sd_media_lock(100)) {
-        return false;
-    }
+    if (!s_ready || !path_is_safe(path) || !sd_media_lock(100)) return false;
     struct stat st = {0};
     bool exists = stat(path, &st) == 0 && S_ISREG(st.st_mode) && st.st_size > 0;
     sd_media_unlock();
     return exists;
+}
+
+void sd_media_request_resource_scan(void)
+{
+    s_scan_requested = true;
+    if (s_ready && s_media_lock && xSemaphoreTake(s_media_lock, pdMS_TO_TICKS(20)) == pdTRUE) {
+        s_resources.state = s_state;
+        s_resources.indexing = true;
+        xSemaphoreGive(s_media_lock);
+    }
+}
+
+void sd_media_get_resource_snapshot(sd_media_resource_snapshot_t *out)
+{
+    if (!out) return;
+    memset(out, 0, sizeof(*out));
+    if (!sd_media_lock(100)) {
+        out->state = s_state;
+        return;
+    }
+    *out = s_resources;
+    out->state = s_state;
+    sd_media_unlock();
 }
 
 bool sd_media_get_boot_video_paths(const char **manifest_path, const char **data_path)
@@ -152,9 +303,7 @@ bool sd_media_get_boot_video_paths(const char **manifest_path, const char **data
     static const char manifest[] = "/sdcard/VIDEO/BOOT.TXT";
     static const char data[] = "/sdcard/VIDEO/BOOT.BIN";
     if (!manifest_path || !data_path || !sd_media_file_exists(manifest) ||
-        !sd_media_file_exists(data)) {
-        return false;
-    }
+        !sd_media_file_exists(data)) return false;
     *manifest_path = manifest;
     *data_path = data;
     return true;

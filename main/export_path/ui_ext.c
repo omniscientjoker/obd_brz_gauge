@@ -23,6 +23,7 @@
 #include "app_obd_dsp/boot_block_player.h"
 #include "app_obd_dsp/boot_media_mount.h"
 #include "app_media/sd_media_manager.h"
+#include "app_media/media_alert.h"
 #include "theme_engine/theme_interface.h"
 #include "esp_timer.h"
 #include "esp_random.h"
@@ -114,6 +115,11 @@ static int64_t s_boot_video_start_us = 0;
 static lv_obj_t *s_boot_video_screen = NULL;
 static lv_timer_t *s_boot_video_timer = NULL;
 static bool    s_boot_done = false;
+static bool s_alert_video_active = false;
+static int64_t s_alert_video_start_us = 0;
+static lv_obj_t *s_alert_video_screen = NULL;
+static lv_obj_t *s_alert_video_return_screen = NULL;
+static lv_timer_t *s_alert_video_timer = NULL;
 
 // Video sync signals (reuses intro_step; values >5 never trigger RACE/AS/ONE rendering)
 #define VIDEO_SYNC_READY  250
@@ -256,6 +262,65 @@ static void boot_video_timer_cb(lv_timer_t *t)
             s_boot_video_screen = NULL;
         }
     }
+}
+
+static void alert_video_timer_cb(lv_timer_t *timer)
+{
+    LV_UNUSED(timer);
+    if (!s_alert_video_active) return;
+    uint32_t elapsed_ms = (uint32_t)((esp_timer_get_time() - s_alert_video_start_us) / 1000);
+    boot_block_player_update(elapsed_ms);
+    if (!boot_block_player_is_finished()) return;
+
+    boot_block_player_destroy();
+    s_alert_video_active = false;
+    if (s_alert_video_timer) {
+        lv_timer_del(s_alert_video_timer);
+        s_alert_video_timer = NULL;
+    }
+    if (s_alert_video_return_screen) {
+        lv_scr_load_anim(s_alert_video_return_screen, LV_SCR_LOAD_ANIM_FADE_ON, 150, 0, true);
+    }
+    s_alert_video_screen = NULL;
+    s_alert_video_return_screen = NULL;
+}
+
+static esp_err_t play_alert_video(const char *manifest_path, const char *data_path)
+{
+    if (!manifest_path || !data_path || s_alert_video_active || s_boot_video_active ||
+        s_boot_video_ready || s_showroom_active) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    lv_obj_t *return_screen = lv_scr_act();
+    lv_obj_t *screen = lv_obj_create(NULL);
+    if (!screen) return ESP_ERR_NO_MEM;
+    lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_bg_color(screen, lv_color_black(), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_width(screen, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(screen, 360, LV_PART_MAIN);
+
+    boot_block_player_set_paths(manifest_path, data_path);
+    lv_obj_t *canvas = NULL;
+    if (!boot_block_player_create(screen, &canvas)) {
+        lv_obj_del(screen);
+        return ESP_FAIL;
+    }
+    s_alert_video_screen = screen;
+    s_alert_video_return_screen = return_screen;
+    s_alert_video_active = true;
+    s_alert_video_start_us = esp_timer_get_time();
+    lv_scr_load(screen);
+    s_alert_video_timer = lv_timer_create(alert_video_timer_cb, 33, NULL);
+    if (!s_alert_video_timer) {
+        boot_block_player_destroy();
+        lv_obj_del(screen);
+        s_alert_video_screen = NULL;
+        s_alert_video_return_screen = NULL;
+        s_alert_video_active = false;
+        return ESP_ERR_NO_MEM;
+    }
+    return ESP_OK;
 }
 
 // Jump to the BLE scan page and mark the boot flow done (shared by slaves not bound to a master, and masters/standalone units with no OBD device configured)
@@ -758,6 +823,7 @@ void ui_ext_no_signal_update(bool signal_ok)
 
 void ui_ext_init(void)
 {
+    media_alert_set_video_handler(play_alert_video);
 }
 
 void ui_ext_tick(void)

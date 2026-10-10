@@ -53,6 +53,7 @@ typedef struct {
     const char *name;                    // display name (e.g. "BRZ ZC6")
     float final_drive_ratio;             // final drive ratio
     float tire_rolling_radius_m;         // tire rolling radius (m)
+    uint16_t fuel_tank_capacity_dl;      // fuel tank capacity, decilitres; 0=unknown
     uint8_t gear_count;                  // number of forward gears (5 or 6)
     float gear_ratios[VEHICLE_MAX_GEARS]; // per-gear ratios, index 0 unused, 1~gear_count valid
     float gear_tolerance;                // gear detection tolerance (e.g. 0.15 = ±15%)

@@ -4,6 +4,7 @@
 // Swipe navigation is defined centrally in ui_navigation.c.
 
 #include "../ui.h"
+#include "../ui_navigation.h"
 #include "bsp_obd_dsp/nvs_storage.h"
 #include "bsp_obd_dsp/lcd_driver/ST77916.h"
 #include "app_obd_dsp/vehicle_profiles.h"
@@ -115,7 +116,7 @@ static void picker_add_option(lv_obj_t *list, const char *text,
                               lv_event_cb_t callback, uint8_t value)
 {
     lv_obj_t *button = lv_list_add_btn(list, NULL, text);
-    lv_obj_set_height(button, 34);
+    lv_obj_set_height(button, 30);
     lv_obj_set_style_bg_color(button, ui_theme_color_lv(UI_COLOR_PANEL), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(button, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_width(button, 0, LV_PART_MAIN);
@@ -140,7 +141,7 @@ static void picker_show(settings_picker_t picker, const char *title)
     lv_obj_add_event_cb(s_picker_overlay, on_picker_backdrop, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *panel = lv_obj_create(s_picker_overlay);
-    lv_obj_set_size(panel, 304, 274);
+    lv_obj_set_size(panel, 270, 240);
     lv_obj_center(panel);
     lv_obj_set_style_bg_color(panel, ui_theme_color_lv(UI_COLOR_PANEL), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(panel, LV_OPA_COVER, LV_PART_MAIN);
@@ -157,7 +158,7 @@ static void picker_show(settings_picker_t picker, const char *title)
     lv_obj_align(title_label, LV_ALIGN_TOP_LEFT, 4, 1);
 
     lv_obj_t *close_button = lv_btn_create(panel);
-    lv_obj_set_size(close_button, 28, 28);
+    lv_obj_set_size(close_button, 24, 24);
     lv_obj_align(close_button, LV_ALIGN_TOP_RIGHT, -1, 0);
     lv_obj_set_style_bg_color(close_button, lv_color_hex(0x333333), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(close_button, LV_OPA_COVER, LV_PART_MAIN);
@@ -170,7 +171,7 @@ static void picker_show(settings_picker_t picker, const char *title)
     lv_obj_add_event_cb(close_button, on_picker_close, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *list = lv_list_create(panel);
-    lv_obj_set_size(list, 286, 222);
+    lv_obj_set_size(list, 252, 190);
     lv_obj_align(list, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_set_style_bg_opa(list, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(list, 0, LV_PART_MAIN);
@@ -262,19 +263,19 @@ void ui_ScreenPageSettings_screen_init(void)
     lv_label_set_text(label_page, "启动页");
     lv_obj_set_style_text_font(label_page, &ui_font_Chinese16, LV_PART_MAIN);
     lv_obj_set_style_text_color(label_page, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
-    lv_obj_align(label_page, LV_ALIGN_CENTER, -82, -64);
+    lv_obj_align(label_page, LV_ALIGN_CENTER, -82, -72);
 
     uint8_t boot_page = (cfg->default_page < NVS_DEFAULT_PAGE_COUNT) ? cfg->default_page : 0;
     s_label_page_value = create_picker_value_button(ui_ScreenPageSettings,
                                                      s_boot_page_names[boot_page],
-                                                     -64, on_page_button);
+                                                     -72, on_page_button);
 
     // ====== Row 2: Vehicle ======
     lv_obj_t *label_vehicle = lv_label_create(ui_ScreenPageSettings);
     lv_label_set_text(label_vehicle, "车型");
     lv_obj_set_style_text_font(label_vehicle, &ui_font_Chinese16, LV_PART_MAIN);
     lv_obj_set_style_text_color(label_vehicle, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
-    lv_obj_align(label_vehicle, LV_ALIGN_CENTER, -82, -30);
+    lv_obj_align(label_vehicle, LV_ALIGN_CENTER, -82, -38);
 
     uint8_t vehicle_count = 0;
     const vehicle_profile_t *vehicle_list = vehicle_profile_get_all(&vehicle_count);
@@ -284,27 +285,27 @@ void ui_ScreenPageSettings_screen_init(void)
                                vehicle_list[vehicle_idx].name : "OBD2 Generic";
     s_label_vehicle_value = create_picker_value_button(ui_ScreenPageSettings,
                                                         vehicle_name,
-                                                        -30, on_vehicle_button);
+                                                        -38, on_vehicle_button);
 
     // ====== Row 3: UI Theme ======
     lv_obj_t *label_theme = lv_label_create(ui_ScreenPageSettings);
     lv_label_set_text(label_theme, "主题");
     lv_obj_set_style_text_font(label_theme, &ui_font_Chinese16, LV_PART_MAIN);
     lv_obj_set_style_text_color(label_theme, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
-    lv_obj_align(label_theme, LV_ALIGN_CENTER, -82, 4);
+    lv_obj_align(label_theme, LV_ALIGN_CENTER, -82, -4);
 
     uint8_t theme_count = ui_theme_count();
     uint8_t theme_idx = (cfg->theme_cfg.theme < theme_count) ? cfg->theme_cfg.theme : 0;
     s_label_theme_value = create_picker_value_button(ui_ScreenPageSettings,
                                                       ui_theme_get(theme_idx)->name,
-                                                      4, on_theme_button);
+                                                      -4, on_theme_button);
 
     // ====== Row 4: Brightness ======
     lv_obj_t *label_bright = lv_label_create(ui_ScreenPageSettings);
     lv_label_set_text(label_bright, "亮度");
     lv_obj_set_style_text_font(label_bright, &ui_font_Chinese16, LV_PART_MAIN);
     lv_obj_set_style_text_color(label_bright, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
-    lv_obj_align(label_bright, LV_ALIGN_CENTER, -82, 38);
+    lv_obj_align(label_bright, LV_ALIGN_CENTER, -82, 30);
 
     s_slider_bright = lv_slider_create(ui_ScreenPageSettings);
     lv_obj_set_style_clip_corner(s_slider_bright, true, 0);
@@ -312,7 +313,7 @@ void ui_ScreenPageSettings_screen_init(void)
     lv_slider_set_value(s_slider_bright, cfg->brightness_day, LV_ANIM_OFF);
     lv_obj_set_width(s_slider_bright, 80);
     lv_obj_set_height(s_slider_bright, 10);
-    lv_obj_align(s_slider_bright, LV_ALIGN_CENTER, 32, 38);
+    lv_obj_align(s_slider_bright, LV_ALIGN_CENTER, 32, 30);
     lv_obj_set_style_bg_color(s_slider_bright, ui_theme_color_lv(UI_COLOR_ARC_TRACK), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(s_slider_bright, 255, LV_PART_MAIN);
     lv_obj_set_style_bg_color(s_slider_bright, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_INDICATOR);
@@ -326,20 +327,20 @@ void ui_ScreenPageSettings_screen_init(void)
     lv_label_set_text_fmt(s_label_bright_val, "%d%%", cfg->brightness_day);
     lv_obj_set_style_text_font(s_label_bright_val, &ui_font_FontTypoderSize16, LV_PART_MAIN);
     lv_obj_set_style_text_color(s_label_bright_val, ui_theme_color_lv(UI_COLOR_TEXT_PRIMARY), LV_PART_MAIN);
-    lv_obj_align(s_label_bright_val, LV_ALIGN_CENTER, 104, 38);
+    lv_obj_align(s_label_bright_val, LV_ALIGN_CENTER, 104, 30);
 
     // ====== Row 5: RaceChrono Toggle ======
     lv_obj_t *label_rc = lv_label_create(ui_ScreenPageSettings);
     lv_label_set_text(label_rc, "赛道记录");
     lv_obj_set_style_text_font(label_rc, &ui_font_Chinese16, LV_PART_MAIN);
     lv_obj_set_style_text_color(label_rc, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
-    lv_obj_align(label_rc, LV_ALIGN_CENTER, -82, 76);
+    lv_obj_align(label_rc, LV_ALIGN_CENTER, -82, 68);
 
     s_rc_enabled = cfg->rc_enabled;
     s_btn_rc = lv_btn_create(ui_ScreenPageSettings);
     lv_obj_set_style_clip_corner(s_btn_rc, true, 0);
     lv_obj_set_size(s_btn_rc, 60, 26);
-    lv_obj_align(s_btn_rc, LV_ALIGN_CENTER, 60, 76);
+    lv_obj_align(s_btn_rc, LV_ALIGN_CENTER, 60, 68);
     lv_obj_set_style_bg_color(s_btn_rc, s_rc_enabled ? lv_color_hex(0x00AA55) : lv_color_hex(0x333333), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(s_btn_rc, 255, LV_PART_MAIN);
     lv_obj_set_style_radius(s_btn_rc, 13, LV_PART_MAIN);
@@ -353,11 +354,11 @@ void ui_ScreenPageSettings_screen_init(void)
 
     // ====== Hint ======
     lv_obj_t *hint = lv_label_create(ui_ScreenPageSettings);
-    lv_label_set_text(hint, "上滑返回 · 下滑多联表");
+    lv_label_set_text(hint, "上滑返回 · 下滑告警媒体");
     lv_obj_set_style_text_font(hint, &ui_font_Chinese16, LV_PART_MAIN);
     lv_obj_set_style_text_color(hint, lv_color_hex(0x555555), LV_PART_MAIN);
     lv_obj_set_style_text_align(hint, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_align(hint, LV_ALIGN_CENTER, 0, 124);
+    lv_obj_align(hint, LV_ALIGN_CENTER, 0, 108);
 
     // Events - swipe to go back / down to multi-gauge
     ui_nav_attach_gesture(ui_ScreenPageSettings, UI_NAV_PAGE_SETTINGS);

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "unit": "L",
+  "vehicles": [
+    {"id": "OBD2_GENERIC", "name": "OBD2 Generic", "model_scope": "车型未知", "tank_capacity_l": null},
+    {"id": "ZN_C6_CAN", "name": "ZN/C6 CAN", "model_scope": "2013-2020 Subaru BRZ ZC6 / Toyota 86 ZN6", "tank_capacity_l": 50, "source_url": "https://www.toyota.co.uk/new-cars/gr86"},
+    {"id": "ZN_C6_PID", "name": "ZN/C6 PID", "model_scope": "2013-2020 Subaru BRZ ZC6 / Toyota 86 ZN6", "tank_capacity_l": 50, "source_url": "https://www.toyota.co.uk/new-cars/gr86"},
+    {"id": "ZD8_OBD", "name": "ZD8 OBD", "model_scope": "2022-2025 Subaru BRZ ZD8", "tank_capacity_l": 50, "source_url": "https://www.subaru.com/vehicles/brz/specs-trim.html"},
+    {"id": "ZD8", "name": "ZD8", "model_scope": "2022-2025 Subaru BRZ ZD8", "tank_capacity_l": 50, "source_url": "https://www.subaru.com/vehicles/brz/specs-trim.html"},
+    {"id": "MX5_ND", "name": "MX-5 ND", "model_scope": "Mazda MX-5 Miata ND", "tank_capacity_l": 45, "source_url": "https://www.mazdausa.com/vehicles/mx-5-miata/specs"},
+    {"id": "BMW_FG", "name": "BMW F/G", "model_scope": "BMW G20/G22 B48/B58 reference configuration", "tank_capacity_l": 59, "source_url": "https://www.bmwusa.com/vehicles/3-series/sedan/bmw-3-series-sedan.html"},
+    {"id": "SUPRA_A90", "name": "Supra A90", "model_scope": "Toyota GR Supra A90", "tank_capacity_l": 52, "source_url": "https://www.toyota.com/grsupra/"},
+    {"id": "BMW_G_OBD", "name": "BMW G OBD", "model_scope": "BMW G20/G22 B48/B58 reference configuration", "tank_capacity_l": 59, "source_url": "https://www.bmwusa.com/vehicles/3-series/sedan/bmw-3-series-sedan.html"},
+    {"id": "BMW_E", "name": "BMW E", "model_scope": "BMW E92 M3 reference configuration", "tank_capacity_l": 63, "source_url": "https://www.press.bmwgroup.com/global/article/detail/T0016206EN"},
+    {"id": "JCW_F56", "name": "JCW F56", "model_scope": "MINI John Cooper Works F56", "tank_capacity_l": 44, "source_url": "https://www.miniusa.com/model/john-cooper-works-hardtop-2-door.html"},
+    {"id": "MINI_R55", "name": "MINI R55", "model_scope": "MINI Clubman R55", "tank_capacity_l": 50, "source_url": "https://www.press.bmwgroup.com/global/article/detail/T0086297EN"},
+    {"id": "POS_997_2", "name": "POS 997.2", "model_scope": "Porsche 997.2 / 987.2 standard tank", "tank_capacity_l": 64, "source_url": "https://media.porsche.com/mediakit/911/en"},
+    {"id": "POS_997_1", "name": "POS 997.1", "model_scope": "Porsche 997.1 / 987.1 standard tank", "tank_capacity_l": 64, "source_url": "https://media.porsche.com/mediakit/911/en"},
+    {"id": "GIULIA_20T", "name": "GIULIA 2.0T", "model_scope": "Alfa Romeo Giulia 2.0T", "tank_capacity_l": 52, "source_url": "https://www.alfaromeousa.com/giulia"},
+    {"id": "JEEP", "name": "jeep", "model_scope": "车型未知", "tank_capacity_l": null},
+    {"id": "HONDA_INTEGRA", "name": "Honda Integra", "model_scope": "2023+ Acura Integra L15C7", "tank_capacity_l": 47, "source_url": "https://www.acura.com/cars/integra/specs"},
+    {"id": "FORD_MONDEO_2014", "name": "Ford Mondeo 2014", "model_scope": "2014 Ford Mondeo 2.0T", "tank_capacity_l": 62, "source_url": "https://www.ford.co.uk/cars/mondeo"}
+  ]
+}

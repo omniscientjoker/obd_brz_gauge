@@ -2,7 +2,8 @@
 #include "bsp_obd_dsp/nvs_storage.h"
 
 extern lv_obj_t *ui_ScreenPageInfoCustom;
-static lv_obj_t *s_info_rollers[5] = {NULL, NULL, NULL, NULL, NULL};
+#define INFO_SLOT_COUNT 4
+static lv_obj_t *s_info_rollers[INFO_SLOT_COUNT] = {NULL, NULL, NULL, NULL};
 
 static const char *k_data_options =
     "CLT\n"
@@ -21,7 +22,7 @@ static const char *k_data_options =
 static void on_info_map_changed(lv_event_t *e)
 {
     uintptr_t idx = (uintptr_t)lv_event_get_user_data(e);
-    if (idx >= 5) return;
+    if (idx >= INFO_SLOT_COUNT) return;
 
     nvs_user_cfg_t cfg = *nvs_cfg_get();
     cfg.info_display_map[idx] = (uint8_t)lv_roller_get_selected(s_info_rollers[idx]);
@@ -70,9 +71,8 @@ void ui_ScreenPageInfoCustom_screen_init(void)
     create_row(ui_ScreenPageInfoCustom, 1, "SLOT 2", -38);
     create_row(ui_ScreenPageInfoCustom, 2, "SLOT 3", 6);
     create_row(ui_ScreenPageInfoCustom, 3, "SLOT 4", 50);
-    create_row(ui_ScreenPageInfoCustom, 4, "SLOT 5", 94);
 
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < INFO_SLOT_COUNT; ++i) {
         lv_roller_set_selected(s_info_rollers[i], cfg->info_display_map[i], LV_ANIM_OFF);
     }
 

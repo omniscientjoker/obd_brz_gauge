@@ -82,6 +82,8 @@ extern lv_obj_t * ui_LabelRpmMiniVoltage;
 
 // SCREEN: ui_ScreenPageSpeed
 void ui_ScreenPageSpeed_screen_init(void);
+void ui_speed_arc_set_range(uint16_t min_speed, uint16_t max_speed);
+void ui_speed_arc_set_value(uint16_t speed);
 extern lv_obj_t * ui_ScreenPageSpeed;
 extern lv_obj_t * ui_SpeedPageArcSpeedBack;
 extern lv_obj_t * ui_SpeedPageArcLabelSpeedText;
@@ -200,6 +202,10 @@ void ui_ScreenPageSettings_screen_init(void);
 extern lv_obj_t * ui_ScreenPageSettings;
 // CUSTOM VARIABLES
 
+// SCREEN: ui_ScreenPageAlertMedia
+void ui_ScreenPageAlertMedia_screen_init(void);
+extern lv_obj_t * ui_ScreenPageAlertMedia;
+
 // SCREEN: ui_ScreenPageOilWarn
 void ui_ScreenPageOilWarn_screen_init(void);
 extern lv_obj_t * ui_ScreenPageOilWarn;
@@ -207,6 +213,10 @@ extern lv_obj_t * ui_ScreenPageOilWarn;
 // SCREEN: ui_ScreenPageRpmWarn (RPM warning settings)
 void ui_ScreenPageRpmWarn_screen_init(void);
 extern lv_obj_t * ui_ScreenPageRpmWarn;
+
+// SCREEN: ui_ScreenPageSpeedConfig (speed full-scale setting)
+void ui_ScreenPageSpeedConfig_screen_init(void);
+extern lv_obj_t * ui_ScreenPageSpeedConfig;
 
 // SCREEN: ui_ScreenPageNeedle (needle-style configurable gauge)
 void ui_ScreenPageNeedle_screen_init(void);

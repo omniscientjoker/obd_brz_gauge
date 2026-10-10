@@ -17,19 +17,19 @@
   "firmware": {
     "project": "obd_brz_gauge",
     "version": "1",
-    "build_tag": "feature_newgradle-127-cda903f13526",
-    "git": "cda903f13526",
+    "build_tag": "feature_newgradle-133-561fa7806fc2",
+    "git": "561fa7806fc2",
     "branch": "feature_newgradle",
-    "count": 127,
-    "built": "Oct 07 2026 00:46:33",
+    "count": 133,
+    "built": "Oct 10 2026 10:25:07",
     "idf": "v5.5.3",
     "slot": "ota_0"
   },
   "files": {
     "firmware": {
       "path": "obd_brz_gauge.bin",
-      "size": 2243296,
-      "sha256": "5c108bcc4661d407044b9367fc324db88a95bfca1a1c73441210c5d6f5251190"
+      "size": 2692768,
+      "sha256": "486456e1670eeedadc1d569ed941c7f073f92a7fa25140e2dbf15fcc98d63d43"
     },
     "bootmedia": {
       "path": "bootmedia.bin",
@@ -44,12 +44,17 @@
     "bootloader": {
       "path": "bootloader/bootloader.bin",
       "size": 20912,
-      "sha256": "10272e4bb94fbcbe15166e54663fd16b8afbb6c171eec0a56b6e9e2acef3a88f"
+      "sha256": "1cd953b0bf363d7041bea5957719e96b67d6cd29ab61570a52c9e5d02dea5723"
     },
     "ota_data_initial": {
       "path": "ota_data_initial.bin",
       "size": 8192,
       "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f"
+    },
+    "vehicle_fuel_tanks": {
+      "path": "vehicle_fuel_tanks.json",
+      "size": 3191,
+      "sha256": "92b2d4b60c5b652d87c7cccb463ebe30182e03f2628515315b39f4e91d384370"
     }
   }
 }
