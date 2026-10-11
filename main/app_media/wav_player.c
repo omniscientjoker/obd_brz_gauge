@@ -16,7 +16,11 @@ static const char *TAG = "wav_player";
 
 #define WAV_QUEUE_DEPTH 4
 #define WAV_PATH_MAX 160
-#define WAV_READ_BYTES 2048
+#define WAV_READ_BYTES 1024
+/* 8 kHz mono is the worst supported input: one input chunk expands to
+ * exactly WAV_READ_BYTES output frames at the fixed 16 kHz codec rate. */
+#define WAV_OUTPUT_FRAMES WAV_READ_BYTES
+#define WAV_OUTPUT_RATE 16000
 
 typedef struct {
     char path[WAV_PATH_MAX];
@@ -96,7 +100,7 @@ static bool wav_find_data(FILE *fp, uint16_t *channels, uint32_t *sample_rate,
         }
     }
     return have_fmt && have_data && format == 1 && *channels >= 1 && *channels <= 2 &&
-           *sample_rate == 16000 && *bits_per_sample == 16;
+           *sample_rate >= 8000 && *sample_rate <= 96000 && *bits_per_sample == 16;
 }
 
 static bool job_is_current(const wav_job_t *job)
@@ -107,7 +111,16 @@ static bool job_is_current(const wav_job_t *job)
 static void play_file(const wav_job_t *job)
 {
     const char *path = job ? job->path : NULL;
-    if (!path || !sd_media_is_ready() || !sd_media_lock(1000)) {
+    if (!path) {
+        ESP_LOGW(TAG, "Playback skipped: invalid path");
+        return;
+    }
+    if (!sd_media_is_ready()) {
+        ESP_LOGW(TAG, "Playback skipped: SD card is not ready (%s)", path);
+        return;
+    }
+    if (!sd_media_lock(1000)) {
+        ESP_LOGW(TAG, "Playback skipped: SD card lock timeout (%s)", path);
         return;
     }
     FILE *fp = fopen(path, "rb");
@@ -123,7 +136,7 @@ static void play_file(const wav_job_t *job)
     long data_offset = 0;
     bool valid = wav_find_data(fp, &channels, &sample_rate, &bits, &data_offset, &data_size);
     if (!valid || fseek(fp, data_offset, SEEK_SET) != 0) {
-        ESP_LOGW(TAG, "Unsupported WAV %s (PCM16/16kHz mono or stereo required)", path);
+        ESP_LOGW(TAG, "Unsupported WAV %s (PCM16, 8-96kHz, mono or stereo required)", path);
         fclose(fp);
         sd_media_unlock();
         return;
@@ -137,9 +150,11 @@ static void play_file(const wav_job_t *job)
         return;
     }
     uint32_t remaining = data_size;
+    uint32_t rate_accum = 0;
     while (remaining > 0 && job_is_current(job)) {
+        const size_t frame_bytes = channels * sizeof(int16_t);
         size_t want = remaining < WAV_READ_BYTES ? remaining : WAV_READ_BYTES;
-        want -= want % (channels * sizeof(int16_t));
+        want -= want % frame_bytes;
         if (want == 0) {
             break;
         }
@@ -148,18 +163,24 @@ static void play_file(const wav_job_t *job)
             ESP_LOGW(TAG, "Short WAV read for %s", path);
             break;
         }
-        size_t samples = got / sizeof(int16_t);
-        size_t output_samples = channels == 1 ? samples * 2 : samples;
-        if (channels == 1) {
-            const int16_t *mono = (const int16_t *)input;
-            for (size_t i = 0; i < samples; i++) {
-                stereo[i * 2] = mono[i];
-                stereo[i * 2 + 1] = mono[i];
+        const int16_t *pcm = (const int16_t *)input;
+        const size_t input_frames = got / frame_bytes;
+        size_t output_frames = 0;
+        for (size_t frame = 0; frame < input_frames; ++frame) {
+            rate_accum += WAV_OUTPUT_RATE;
+            while (rate_accum >= sample_rate) {
+                if (output_frames >= WAV_OUTPUT_FRAMES) break;
+                const int16_t left = pcm[frame * channels];
+                const int16_t right = channels == 2 ? pcm[frame * channels + 1] : left;
+                stereo[output_frames * 2] = left;
+                stereo[output_frames * 2 + 1] = right;
+                ++output_frames;
+                rate_accum -= sample_rate;
             }
-        } else {
-            memcpy(stereo, input, got);
+            if (output_frames >= WAV_OUTPUT_FRAMES) break;
         }
-        if (es8311_audio_write(stereo, output_samples * sizeof(int16_t)) != ESP_OK) {
+        if (output_frames > 0 &&
+            es8311_audio_write(stereo, output_frames * 2 * sizeof(int16_t)) != ESP_OK) {
             ESP_LOGW(TAG, "I2S write failed for %s", path);
             break;
         }
@@ -167,7 +188,7 @@ static void play_file(const wav_job_t *job)
     }
     fclose(fp);
     sd_media_unlock();
-    ESP_LOGD(TAG, "Played %s (%u Hz, %u ch, %u bit)", path,
+    ESP_LOGI(TAG, "Played %s (%u Hz, %u ch, %u bit)", path,
              (unsigned)sample_rate, (unsigned)channels, (unsigned)bits);
 }
 
@@ -194,7 +215,7 @@ esp_err_t wav_player_init(void)
         return ESP_ERR_NOT_SUPPORTED;
     }
     s_input = heap_caps_malloc(WAV_READ_BYTES, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
-    s_stereo = heap_caps_malloc(WAV_READ_BYTES * sizeof(int16_t),
+    s_stereo = heap_caps_malloc(WAV_OUTPUT_FRAMES * 2 * sizeof(int16_t),
                                 MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
     if (!s_input || !s_stereo) {
         ESP_LOGE(TAG, "Cannot allocate DMA audio buffers");
@@ -256,7 +277,9 @@ esp_err_t wav_player_preview(const char *path)
     wav_job_t job = {0};
     strncpy(job.path, path, sizeof(job.path) - 1);
     job.generation = s_generation;
-    return xQueueSend(s_queue, &job, 0) == pdTRUE ? ESP_OK : ESP_ERR_TIMEOUT;
+    esp_err_t err = xQueueSend(s_queue, &job, 0) == pdTRUE ? ESP_OK : ESP_ERR_TIMEOUT;
+    ESP_LOGI(TAG, "Preview %s: %s", path, esp_err_to_name(err));
+    return err;
 }
 
 bool wav_player_is_playing(void)

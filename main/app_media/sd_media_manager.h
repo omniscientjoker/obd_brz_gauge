@@ -39,7 +39,9 @@ bool sd_media_file_exists(const char *path);
 
 /* Legacy compatibility hook; mounted-card resources are scanned once at mount. */
 void sd_media_request_resource_scan(void);
-void sd_media_get_resource_snapshot(sd_media_resource_snapshot_t *out);
+/* Returns false when the SD mutex is busy; callers must keep their current
+ * view instead of treating a transient lock miss as an empty resource table. */
+bool sd_media_get_resource_snapshot(sd_media_resource_snapshot_t *out);
 
 /* Select the SD boot animation when both files are present. */
 bool sd_media_get_boot_video_paths(const char **manifest_path, const char **data_path);

@@ -64,6 +64,15 @@ esp_err_t es8311_audio_init(void)
         s_tx = NULL;
         return err;
     }
+    /* The codec data interface does not enable the channel on open.  The
+     * Waveshare BSP enables TX explicitly before any codec writes. */
+    err = i2s_channel_enable(s_tx);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "I2S TX channel enable failed: %s", esp_err_to_name(err));
+        i2s_del_channel(s_tx);
+        s_tx = NULL;
+        return err;
+    }
 
     i2c_master_bus_handle_t bus = I2C_GetBusHandle();
     if (!bus) {

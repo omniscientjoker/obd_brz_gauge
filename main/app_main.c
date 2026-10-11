@@ -58,8 +58,13 @@ static const char *TAG = "obd_dsp";
 
 static void start_media_services(void)
 {
+    nvs_user_cfg_t cfg = {0};
+    nvs_cfg_get_snapshot(&cfg);
     esp_err_t audio_init_err = es8311_audio_init();
     if (audio_init_err == ESP_OK) {
+        esp_err_t volume_err = es8311_audio_set_volume(cfg.audio_volume);
+        ESP_LOGI(TAG, "Audio volume: %u%% (%s)", cfg.audio_volume,
+                 esp_err_to_name(volume_err));
         esp_err_t wav_init_err = wav_player_init();
         if (wav_init_err != ESP_OK) {
             ESP_LOGW(TAG, "WAV player unavailable (%s)", esp_err_to_name(wav_init_err));

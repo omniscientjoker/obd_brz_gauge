@@ -62,6 +62,7 @@ typedef struct {
     uint16_t tpms_pressure_max_bar_x100; // TPMS upper pressure limit, bar x100
     uint16_t tpms_voltage_min_mv;        // lower limit for the voltage shown on TPMS page, mV
     uint16_t speed_max_kmh;              // speed page full-scale speed, 160-300 km/h
+    uint8_t audio_volume;                // ES8311 output volume, 0-100%
 } nvs_user_cfg_t;
 
 /*------------------ Runtime statistics (persisted periodically) ------------------*/

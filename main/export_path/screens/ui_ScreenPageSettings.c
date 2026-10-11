@@ -8,6 +8,8 @@
 #include "bsp_obd_dsp/nvs_storage.h"
 #include "bsp_obd_dsp/lcd_driver/ST77916.h"
 #include "app_obd_dsp/vehicle_profiles.h"
+#include "app_media/es8311_audio.h"
+#include "esp_log.h"
 #include "esp_system.h"
 
 // Page order is shared with the boot router in ui_ext.c.
@@ -28,6 +30,8 @@ static lv_obj_t *s_label_vehicle_value = NULL;
 static lv_obj_t *s_label_theme_value = NULL;
 static lv_obj_t *s_slider_bright = NULL;
 static lv_obj_t *s_label_bright_val = NULL;
+static lv_obj_t *s_slider_volume = NULL;
+static lv_obj_t *s_label_volume_val = NULL;
 static lv_obj_t *s_btn_rc = NULL;
 static lv_obj_t *s_label_rc = NULL;
 static bool s_rc_enabled = false;
@@ -84,6 +88,23 @@ static void on_rc_toggle(lv_event_t *e)
     nvs_user_cfg_t cfg = *nvs_cfg_get();
     cfg.rc_enabled = s_rc_enabled ? 1 : 0;
     nvs_cfg_set(&cfg);
+}
+
+static void on_volume_slider_change(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    int32_t val = lv_slider_get_value(s_slider_volume);
+    if (val < 10) val = 10;
+    if (val > 100) val = 100;
+    lv_label_set_text_fmt(s_label_volume_val, "%ld%%", (long)val);
+    nvs_user_cfg_t cfg = *nvs_cfg_get();
+    cfg.audio_volume = (uint8_t)val;
+    nvs_cfg_set(&cfg);
+    esp_err_t err = es8311_audio_set_volume((uint8_t)val);
+    if (err != ESP_OK) {
+        ESP_LOGW("settings", "Audio volume %ld%% unavailable: %s", (long)val,
+                 esp_err_to_name(err));
+    }
 }
 
 static void on_vehicle_selected(lv_event_t *e)
@@ -329,18 +350,47 @@ void ui_ScreenPageSettings_screen_init(void)
     lv_obj_set_style_text_color(s_label_bright_val, ui_theme_color_lv(UI_COLOR_TEXT_PRIMARY), LV_PART_MAIN);
     lv_obj_align(s_label_bright_val, LV_ALIGN_CENTER, 104, 30);
 
-    // ====== Row 5: RaceChrono Toggle ======
+    // ====== Row 5: Audio volume ======
+    lv_obj_t *label_volume = lv_label_create(ui_ScreenPageSettings);
+    lv_label_set_text(label_volume, "音量");
+    lv_obj_set_style_text_font(label_volume, &ui_font_Chinese16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(label_volume, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
+    lv_obj_align(label_volume, LV_ALIGN_CENTER, -82, 68);
+
+    s_slider_volume = lv_slider_create(ui_ScreenPageSettings);
+    lv_obj_set_style_clip_corner(s_slider_volume, true, 0);
+    lv_slider_set_range(s_slider_volume, 10, 100);
+    lv_slider_set_value(s_slider_volume, cfg->audio_volume, LV_ANIM_OFF);
+    lv_obj_set_width(s_slider_volume, 80);
+    lv_obj_set_height(s_slider_volume, 10);
+    lv_obj_align(s_slider_volume, LV_ALIGN_CENTER, 32, 68);
+    lv_obj_set_style_bg_color(s_slider_volume, ui_theme_color_lv(UI_COLOR_ARC_TRACK), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(s_slider_volume, 255, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(s_slider_volume, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(s_slider_volume, 255, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(s_slider_volume, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_KNOB);
+    lv_obj_set_style_pad_all(s_slider_volume, 5, LV_PART_KNOB);
+    lv_obj_clear_flag(s_slider_volume, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    lv_obj_add_event_cb(s_slider_volume, on_volume_slider_change, LV_EVENT_VALUE_CHANGED, NULL);
+
+    s_label_volume_val = lv_label_create(ui_ScreenPageSettings);
+    lv_label_set_text_fmt(s_label_volume_val, "%u%%", cfg->audio_volume);
+    lv_obj_set_style_text_font(s_label_volume_val, &ui_font_FontTypoderSize16, LV_PART_MAIN);
+    lv_obj_set_style_text_color(s_label_volume_val, ui_theme_color_lv(UI_COLOR_TEXT_PRIMARY), LV_PART_MAIN);
+    lv_obj_align(s_label_volume_val, LV_ALIGN_CENTER, 104, 68);
+
+    // ====== Row 6: RaceChrono Toggle ======
     lv_obj_t *label_rc = lv_label_create(ui_ScreenPageSettings);
     lv_label_set_text(label_rc, "赛道记录");
     lv_obj_set_style_text_font(label_rc, &ui_font_Chinese16, LV_PART_MAIN);
     lv_obj_set_style_text_color(label_rc, ui_theme_color_lv(UI_COLOR_TEXT_SECONDARY), LV_PART_MAIN);
-    lv_obj_align(label_rc, LV_ALIGN_CENTER, -82, 68);
+    lv_obj_align(label_rc, LV_ALIGN_CENTER, -82, 104);
 
     s_rc_enabled = cfg->rc_enabled;
     s_btn_rc = lv_btn_create(ui_ScreenPageSettings);
     lv_obj_set_style_clip_corner(s_btn_rc, true, 0);
     lv_obj_set_size(s_btn_rc, 60, 26);
-    lv_obj_align(s_btn_rc, LV_ALIGN_CENTER, 60, 68);
+    lv_obj_align(s_btn_rc, LV_ALIGN_CENTER, 60, 104);
     lv_obj_set_style_bg_color(s_btn_rc, s_rc_enabled ? lv_color_hex(0x00AA55) : lv_color_hex(0x333333), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(s_btn_rc, 255, LV_PART_MAIN);
     lv_obj_set_style_radius(s_btn_rc, 13, LV_PART_MAIN);
@@ -358,7 +408,7 @@ void ui_ScreenPageSettings_screen_init(void)
     lv_obj_set_style_text_font(hint, &ui_font_Chinese16, LV_PART_MAIN);
     lv_obj_set_style_text_color(hint, lv_color_hex(0x555555), LV_PART_MAIN);
     lv_obj_set_style_text_align(hint, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_align(hint, LV_ALIGN_CENTER, 0, 108);
+    lv_obj_align(hint, LV_ALIGN_CENTER, 0, 140);
 
     // Events - swipe to go back / down to multi-gauge
     ui_nav_attach_gesture(ui_ScreenPageSettings, UI_NAV_PAGE_SETTINGS);

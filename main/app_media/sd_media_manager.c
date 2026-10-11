@@ -300,17 +300,14 @@ void sd_media_request_resource_scan(void)
      * for the lifetime of a mounted card and are indexed during mount only. */
 }
 
-void sd_media_get_resource_snapshot(sd_media_resource_snapshot_t *out)
+bool sd_media_get_resource_snapshot(sd_media_resource_snapshot_t *out)
 {
-    if (!out) return;
-    memset(out, 0, sizeof(*out));
-    if (!sd_media_lock(100)) {
-        out->state = s_state;
-        return;
-    }
+    if (!out) return false;
+    if (!sd_media_lock(100)) return false;
     *out = s_resources;
     out->state = s_state;
     sd_media_unlock();
+    return true;
 }
 
 bool sd_media_get_boot_video_paths(const char **manifest_path, const char **data_path)

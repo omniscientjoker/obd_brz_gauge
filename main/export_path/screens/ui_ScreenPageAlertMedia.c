@@ -5,6 +5,8 @@
 #include <strings.h>
 #include <string.h>
 
+#include "esp_log.h"
+
 #include "app_media/sd_media_manager.h"
 #include "app_media/wav_player.h"
 #include "bsp_obd_dsp/nvs_storage.h"
@@ -49,7 +51,7 @@ static void refresh_status(void)
 {
     if (!s_status_label) return;
     sd_media_resource_snapshot_t snapshot;
-    sd_media_get_resource_snapshot(&snapshot);
+    if (!sd_media_get_resource_snapshot(&snapshot)) return;
     if (snapshot.state == SD_MEDIA_STATE_NO_CARD) {
         lv_label_set_text(s_status_label, "未检测到 SD 卡");
     } else if (snapshot.state == SD_MEDIA_STATE_MOUNTING || snapshot.indexing) {
@@ -109,11 +111,22 @@ static bool resource_path(char *path, size_t path_len, const char *name, const c
 static void on_audio_resource_selected(lv_event_t *event)
 {
     uint8_t index = (uint8_t)(uintptr_t)lv_event_get_user_data(event);
-    if (index >= SD_MEDIA_RESOURCE_MAX || s_picker_names[index][0] == '\0') return;
+    if (index >= SD_MEDIA_RESOURCE_MAX || s_picker_names[index][0] == '\0') {
+        ESP_LOGW("alert_media", "Audio selection ignored: invalid index %u", index);
+        return;
+    }
     apply_resource(s_picker_names[index]);
     char path[160] = {0};
     if (resource_path(path, sizeof(path), s_picker_names[index], ".WAV")) {
-        (void)wav_player_preview(path);
+        ESP_LOGI("alert_media", "Audio selected: %s", path);
+        esp_err_t err = wav_player_preview(path);
+        if (err != ESP_OK) {
+            ESP_LOGW("alert_media", "Audio preview failed for %s: %s", path,
+                     esp_err_to_name(err));
+        }
+    } else {
+        ESP_LOGW("alert_media", "Audio selection has invalid file name: %s",
+                 s_picker_names[index]);
     }
 }
 
@@ -176,7 +189,7 @@ static void refresh_picker_list(void)
 {
     if (!s_picker_list) return;
     sd_media_resource_snapshot_t snapshot;
-    sd_media_get_resource_snapshot(&snapshot);
+    if (!sd_media_get_resource_snapshot(&snapshot)) return;
     if (s_picker_snapshot_valid && picker_snapshot_equals(&snapshot, &s_picker_snapshot)) {
         return;
     }
@@ -327,8 +340,7 @@ static void on_refresh_timer(lv_timer_t *timer)
     refresh_status();
     if (s_picker_overlay) {
         sd_media_resource_snapshot_t snapshot;
-        sd_media_get_resource_snapshot(&snapshot);
-        if (!snapshot.indexing &&
+        if (sd_media_get_resource_snapshot(&snapshot) && !snapshot.indexing &&
             (!s_picker_snapshot_valid ||
              !picker_snapshot_equals(&snapshot, &s_picker_snapshot))) {
             refresh_picker_list();
