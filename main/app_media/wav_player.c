@@ -6,6 +6,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 
 #include "app_media/es8311_audio.h"
@@ -14,7 +15,7 @@
 static const char *TAG = "wav_player";
 
 #define WAV_QUEUE_DEPTH 4
-#define WAV_PATH_MAX 96
+#define WAV_PATH_MAX 160
 #define WAV_READ_BYTES 2048
 
 typedef struct {
@@ -37,6 +38,8 @@ static QueueHandle_t s_queue;
 static TaskHandle_t s_task;
 static volatile bool s_playing;
 static volatile uint32_t s_generation = 1;
+static uint8_t *s_input;
+static int16_t *s_stereo;
 
 static bool read_exact(FILE *fp, void *buf, size_t len)
 {
@@ -125,11 +128,17 @@ static void play_file(const wav_job_t *job)
         sd_media_unlock();
         return;
     }
-    uint8_t input[WAV_READ_BYTES];
-    int16_t stereo[WAV_READ_BYTES];
+    uint8_t *input = s_input;
+    int16_t *stereo = s_stereo;
+    if (!input || !stereo) {
+        ESP_LOGE(TAG, "Audio buffers are not initialized");
+        fclose(fp);
+        sd_media_unlock();
+        return;
+    }
     uint32_t remaining = data_size;
     while (remaining > 0 && job_is_current(job)) {
-        size_t want = remaining < sizeof(input) ? remaining : sizeof(input);
+        size_t want = remaining < WAV_READ_BYTES ? remaining : WAV_READ_BYTES;
         want -= want % (channels * sizeof(int16_t));
         if (want == 0) {
             break;
@@ -184,14 +193,33 @@ esp_err_t wav_player_init(void)
     if (!es8311_audio_is_ready()) {
         return ESP_ERR_NOT_SUPPORTED;
     }
+    s_input = heap_caps_malloc(WAV_READ_BYTES, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
+    s_stereo = heap_caps_malloc(WAV_READ_BYTES * sizeof(int16_t),
+                                MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
+    if (!s_input || !s_stereo) {
+        ESP_LOGE(TAG, "Cannot allocate DMA audio buffers");
+        heap_caps_free(s_input);
+        heap_caps_free(s_stereo);
+        s_input = NULL;
+        s_stereo = NULL;
+        return ESP_ERR_NO_MEM;
+    }
     s_queue = xQueueCreate(WAV_QUEUE_DEPTH, sizeof(wav_job_t));
     if (!s_queue) {
+        heap_caps_free(s_input);
+        heap_caps_free(s_stereo);
+        s_input = NULL;
+        s_stereo = NULL;
         return ESP_ERR_NO_MEM;
     }
     if (xTaskCreate(wav_player_task, "wav_player", 6144, NULL,
                     tskIDLE_PRIORITY + 2, &s_task) != pdPASS) {
         vQueueDelete(s_queue);
         s_queue = NULL;
+        heap_caps_free(s_input);
+        heap_caps_free(s_stereo);
+        s_input = NULL;
+        s_stereo = NULL;
         return ESP_ERR_NO_MEM;
     }
     return ESP_OK;
@@ -215,7 +243,6 @@ void wav_player_stop(void)
     s_playing = false;
     ++s_generation;
     if (s_generation == 0) ++s_generation;
-    xQueueReset(s_queue);
 }
 
 esp_err_t wav_player_preview(const char *path)

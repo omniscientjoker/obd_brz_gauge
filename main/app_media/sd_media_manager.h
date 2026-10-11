@@ -8,9 +8,9 @@
 extern "C" {
 #endif
 
-/* FATFS is configured without long-file-name support. */
+/* FATFS long-file-name buffer used by the media index and NVS contract. */
 #define SD_MEDIA_RESOURCE_MAX 16
-#define SD_MEDIA_RESOURCE_NAME_MAX 13
+#define SD_MEDIA_RESOURCE_NAME_MAX 65
 
 typedef enum {
     SD_MEDIA_STATE_NO_CARD = 0,
@@ -37,7 +37,7 @@ bool sd_media_is_ready(void);
 /* Check a resource without exposing the mount implementation to callers. */
 bool sd_media_file_exists(const char *path);
 
-/* Request an asynchronous scan of /sdcard/ALERT. */
+/* Legacy compatibility hook; mounted-card resources are scanned once at mount. */
 void sd_media_request_resource_scan(void);
 void sd_media_get_resource_snapshot(sd_media_resource_snapshot_t *out);
 

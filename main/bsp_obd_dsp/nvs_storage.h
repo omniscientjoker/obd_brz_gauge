@@ -10,7 +10,7 @@
 #define NVS_SPEED_MAX_MAX_KMH 300
 #define NVS_SPEED_MAX_DEFAULT_KMH 240
 #define NVS_MEDIA_ALERT_COUNT 6
-#define NVS_MEDIA_RESOURCE_NAME_MAX 13
+#define NVS_MEDIA_RESOURCE_NAME_MAX 65
 
 typedef enum {
     NVS_MEDIA_ALERT_AUDIO = 0,
@@ -86,7 +86,7 @@ esp_err_t nvs_cfg_set(const nvs_user_cfg_t *cfg);
 uint16_t nvs_speed_max_kmh_get(void);
 esp_err_t nvs_speed_max_kmh_set(uint16_t speed_max_kmh);
 
-/* Per-alert media source. Resource names are FAT 8.3 names only. */
+/* Per-alert media source. Resource names are relative FAT long names. */
 esp_err_t nvs_media_alert_cfg_get(nvs_media_alert_cfg_t *out);
 esp_err_t nvs_media_alert_cfg_set(const nvs_media_alert_cfg_t *cfg);
 

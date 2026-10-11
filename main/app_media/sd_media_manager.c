@@ -20,6 +20,7 @@ static const char *TAG = "sd_media";
 
 #define SD_MEDIA_MOUNT_POINT "/sdcard"
 #define SD_MEDIA_ALERT_DIR "/sdcard/ALERT"
+#define SD_MEDIA_PATH_MAX 160
 #define SD_MEDIA_TASK_STACK 4096
 #define SD_MEDIA_RETRY_MS 5000
 
@@ -27,7 +28,6 @@ static SemaphoreHandle_t s_media_lock;
 static sdmmc_card_t *s_card;
 static volatile bool s_ready;
 static volatile bool s_started;
-static volatile bool s_scan_requested = true;
 static volatile sd_media_state_t s_state = SD_MEDIA_STATE_NO_CARD;
 static sd_media_resource_snapshot_t s_resources = {
     .state = SD_MEDIA_STATE_NO_CARD,
@@ -56,11 +56,23 @@ static bool resource_name_is_hidden_metadata(const char *name)
     return !name || name[0] == '.';
 }
 
-static bool resource_name_is_83(const char *name, const char *extension)
+static bool resource_file_is_appledouble(const char *name)
 {
-    if (!resource_name_has_extension(name, extension)) return false;
-    const char *dot = strrchr(name, '.');
-    return dot && dot != name && (size_t)(dot - name) <= 8 && strlen(dot + 1) == 3;
+    if (!name) return false;
+
+    char path[SD_MEDIA_PATH_MAX];
+    int written = snprintf(path, sizeof(path), "%s/%s", SD_MEDIA_ALERT_DIR, name);
+    if (written <= 0 || (size_t)written >= sizeof(path)) return false;
+
+    FILE *file = fopen(path, "rb");
+    if (!file) return false;
+
+    uint8_t magic[4] = {0};
+    bool is_appledouble = fread(magic, 1, sizeof(magic), file) == sizeof(magic) &&
+                          magic[0] == 0x00 && magic[1] == 0x05 &&
+                          magic[2] == 0x16 && magic[3] == 0x07;
+    fclose(file);
+    return is_appledouble;
 }
 
 static void sort_names(char names[][SD_MEDIA_RESOURCE_NAME_MAX], uint8_t count)
@@ -88,7 +100,7 @@ static bool resource_name_seen(char names[][SD_MEDIA_RESOURCE_NAME_MAX], uint8_t
 
 static bool regular_media_file(const char *name)
 {
-    char path[96];
+    char path[SD_MEDIA_PATH_MAX];
     int written = snprintf(path, sizeof(path), "%s/%s", SD_MEDIA_ALERT_DIR, name);
     if (written <= 0 || (size_t)written >= sizeof(path)) return false;
     struct stat st = {0};
@@ -99,7 +111,7 @@ static bool paired_video_exists(const char *txt_name)
 {
     const char *dot = strrchr(txt_name, '.');
     if (!dot) return false;
-    char bin_path[96];
+    char bin_path[SD_MEDIA_PATH_MAX];
     int written = snprintf(bin_path, sizeof(bin_path), "%s/%.*s.BIN", SD_MEDIA_ALERT_DIR,
                            (int)(dot - txt_name), txt_name);
     struct stat st = {0};
@@ -126,12 +138,15 @@ static void scan_resources_locked(void)
         const char *name = entry->d_name;
         /* macOS writes AppleDouble companions such as ._fight.wav to FAT volumes. */
         if (resource_name_is_hidden_metadata(name)) continue;
-        if (resource_name_is_83(name, ".WAV") && regular_media_file(name) &&
+        /* Identify AppleDouble companions even when the filesystem exposes a
+         * generated short alias instead of the hidden ._ name. */
+        if (resource_file_is_appledouble(name)) continue;
+        if (resource_name_has_extension(name, ".WAV") && regular_media_file(name) &&
             !resource_name_seen(s_resources.audio, s_resources.audio_count, name) &&
             s_resources.audio_count < SD_MEDIA_RESOURCE_MAX) {
             strncpy(s_resources.audio[s_resources.audio_count++], name,
                     SD_MEDIA_RESOURCE_NAME_MAX - 1);
-        } else if (resource_name_is_83(name, ".TXT") && paired_video_exists(name) &&
+        } else if (resource_name_has_extension(name, ".TXT") && paired_video_exists(name) &&
                    !resource_name_seen(s_resources.video, s_resources.video_count, name) &&
                    s_resources.video_count < SD_MEDIA_RESOURCE_MAX) {
             strncpy(s_resources.video[s_resources.video_count++], name,
@@ -142,6 +157,8 @@ static void scan_resources_locked(void)
     sort_names(s_resources.audio, s_resources.audio_count);
     sort_names(s_resources.video, s_resources.video_count);
     s_resources.indexing = false;
+    ESP_LOGI(TAG, "Resource table ready: audio=%u video=%u",
+             (unsigned)s_resources.audio_count, (unsigned)s_resources.video_count);
 }
 
 static void clear_resources_locked(void)
@@ -208,7 +225,6 @@ static void sd_media_mount_task(void *arg)
                 if (sd_media_lock(1000)) {
                     s_ready = true;
                     s_state = SD_MEDIA_STATE_READY;
-                    s_scan_requested = false;
                     scan_resources_locked();
                     sd_media_unlock();
                 }
@@ -223,10 +239,6 @@ static void sd_media_mount_task(void *arg)
                 }
                 ESP_LOGW(TAG, "SDMMC mount unavailable: %s; retrying", esp_err_to_name(err));
             }
-        } else if (s_scan_requested && sd_media_lock(1000)) {
-            s_scan_requested = false;
-            scan_resources_locked();
-            sd_media_unlock();
         }
         vTaskDelay(pdMS_TO_TICKS(SD_MEDIA_RETRY_MS));
     }
@@ -284,12 +296,8 @@ bool sd_media_file_exists(const char *path)
 
 void sd_media_request_resource_scan(void)
 {
-    s_scan_requested = true;
-    if (s_ready && s_media_lock && xSemaphoreTake(s_media_lock, pdMS_TO_TICKS(20)) == pdTRUE) {
-        s_resources.state = s_state;
-        s_resources.indexing = true;
-        xSemaphoreGive(s_media_lock);
-    }
+    /* Kept for callers compiled against the old API. Resources are immutable
+     * for the lifetime of a mounted card and are indexed during mount only. */
 }
 
 void sd_media_get_resource_snapshot(sd_media_resource_snapshot_t *out)

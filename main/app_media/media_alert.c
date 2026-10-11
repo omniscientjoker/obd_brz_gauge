@@ -15,6 +15,7 @@
 static const char *TAG = "media_alert";
 
 #define MEDIA_ALERT_COOLDOWN_US (5LL * 1000LL * 1000LL)
+#define MEDIA_ALERT_PATH_MAX 160
 
 /*
  * Alert files are intentionally kept on the SD card so they can be replaced
@@ -46,7 +47,7 @@ static bool build_resource_paths(media_alert_type_t type, const nvs_media_alert_
         const char *ext = strrchr(name, '.');
         if (!ext || strcasecmp(ext, ".TXT") != 0) return false;
         size_t stem_len = (size_t)(ext - name);
-        if (stem_len == 0 || stem_len > 8) return false;
+        if (stem_len == 0) return false;
         return snprintf(path_a, path_a_len, "/sdcard/ALERT/%s", name) > 0 &&
                snprintf(path_b, path_b_len, "/sdcard/ALERT/%.*s.BIN",
                         (int)stem_len, name) > 0;
@@ -67,8 +68,8 @@ esp_err_t media_alert_notify(media_alert_type_t type)
     if (nvs_media_alert_cfg_get(&cfg) != ESP_OK || !sd_media_is_ready()) {
         return ESP_ERR_NOT_FOUND;
     }
-    char path_a[96] = {0};
-    char path_b[96] = {0};
+    char path_a[MEDIA_ALERT_PATH_MAX] = {0};
+    char path_b[MEDIA_ALERT_PATH_MAX] = {0};
     if (!build_resource_paths(type, &cfg, path_a, sizeof(path_a), path_b, sizeof(path_b)) ||
         !sd_media_file_exists(path_a) ||
         (cfg.mode[type] == NVS_MEDIA_ALERT_VIDEO && !sd_media_file_exists(path_b))) {

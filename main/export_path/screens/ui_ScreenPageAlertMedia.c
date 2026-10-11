@@ -25,7 +25,6 @@ static uint8_t s_selected_mode;
 static char s_picker_names[SD_MEDIA_RESOURCE_MAX][SD_MEDIA_RESOURCE_NAME_MAX];
 static sd_media_resource_snapshot_t s_picker_snapshot;
 static bool s_picker_snapshot_valid;
-static bool s_picker_scan_pending;
 
 static const char *mode_name(uint8_t mode)
 {
@@ -75,7 +74,6 @@ static void close_picker(void)
     }
     memset(s_mode_buttons, 0, sizeof(s_mode_buttons));
     s_picker_snapshot_valid = false;
-    s_picker_scan_pending = false;
 }
 
 static void on_picker_close(lv_event_t *event)
@@ -113,7 +111,7 @@ static void on_audio_resource_selected(lv_event_t *event)
     uint8_t index = (uint8_t)(uintptr_t)lv_event_get_user_data(event);
     if (index >= SD_MEDIA_RESOURCE_MAX || s_picker_names[index][0] == '\0') return;
     apply_resource(s_picker_names[index]);
-    char path[96] = {0};
+    char path[160] = {0};
     if (resource_path(path, sizeof(path), s_picker_names[index], ".WAV")) {
         (void)wav_player_preview(path);
     }
@@ -126,8 +124,8 @@ static void on_video_resource_preview(lv_event_t *event)
     apply_resource(s_picker_names[index]);
     wav_player_stop();
 
-    char manifest_path[96] = {0};
-    char data_path[96] = {0};
+    char manifest_path[160] = {0};
+    char data_path[160] = {0};
     if (resource_path(manifest_path, sizeof(manifest_path), s_picker_names[index], ".TXT") &&
         resource_path(data_path, sizeof(data_path), s_picker_names[index], ".BIN")) {
         (void)ui_ext_preview_alert_video(manifest_path, data_path);
@@ -245,8 +243,6 @@ static void open_picker(uint8_t alert)
     close_picker();
     s_selected_alert = alert;
     s_picker_snapshot_valid = false;
-    s_picker_scan_pending = true;
-    sd_media_request_resource_scan();
     nvs_media_alert_cfg_t cfg = {0};
     if (nvs_media_alert_cfg_get(&cfg) == ESP_OK) s_selected_mode = cfg.mode[alert];
 
@@ -329,16 +325,13 @@ static void on_refresh_timer(lv_timer_t *timer)
 {
     LV_UNUSED(timer);
     refresh_status();
-    if (s_picker_overlay && s_picker_scan_pending) {
+    if (s_picker_overlay) {
         sd_media_resource_snapshot_t snapshot;
         sd_media_get_resource_snapshot(&snapshot);
         if (!snapshot.indexing &&
             (!s_picker_snapshot_valid ||
              !picker_snapshot_equals(&snapshot, &s_picker_snapshot))) {
             refresh_picker_list();
-            s_picker_scan_pending = false;
-        } else if (!snapshot.indexing && s_picker_snapshot_valid) {
-            s_picker_scan_pending = false;
         }
     }
 }
