@@ -51,6 +51,11 @@ static bool resource_name_has_extension(const char *name, const char *extension)
     return strcasecmp(name + name_len - extension_len, extension) == 0;
 }
 
+static bool resource_name_is_hidden_metadata(const char *name)
+{
+    return !name || name[0] == '.';
+}
+
 static bool resource_name_is_83(const char *name, const char *extension)
 {
     if (!resource_name_has_extension(name, extension)) return false;
@@ -119,6 +124,8 @@ static void scan_resources_locked(void)
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
         const char *name = entry->d_name;
+        /* macOS writes AppleDouble companions such as ._fight.wav to FAT volumes. */
+        if (resource_name_is_hidden_metadata(name)) continue;
         if (resource_name_is_83(name, ".WAV") && regular_media_file(name) &&
             !resource_name_seen(s_resources.audio, s_resources.audio_count, name) &&
             s_resources.audio_count < SD_MEDIA_RESOURCE_MAX) {

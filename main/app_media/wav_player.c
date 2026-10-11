@@ -19,6 +19,7 @@ static const char *TAG = "wav_player";
 
 typedef struct {
     char path[WAV_PATH_MAX];
+    uint32_t generation;
 } wav_job_t;
 
 typedef struct {
@@ -35,6 +36,7 @@ typedef struct {
 static QueueHandle_t s_queue;
 static TaskHandle_t s_task;
 static volatile bool s_playing;
+static volatile uint32_t s_generation = 1;
 
 static bool read_exact(FILE *fp, void *buf, size_t len)
 {
@@ -94,8 +96,14 @@ static bool wav_find_data(FILE *fp, uint16_t *channels, uint32_t *sample_rate,
            *sample_rate == 16000 && *bits_per_sample == 16;
 }
 
-static void play_file(const char *path)
+static bool job_is_current(const wav_job_t *job)
 {
+    return job && s_playing && job->generation == s_generation;
+}
+
+static void play_file(const wav_job_t *job)
+{
+    const char *path = job ? job->path : NULL;
     if (!path || !sd_media_is_ready() || !sd_media_lock(1000)) {
         return;
     }
@@ -120,7 +128,7 @@ static void play_file(const char *path)
     uint8_t input[WAV_READ_BYTES];
     int16_t stereo[WAV_READ_BYTES];
     uint32_t remaining = data_size;
-    while (remaining > 0 && s_playing) {
+    while (remaining > 0 && job_is_current(job)) {
         size_t want = remaining < sizeof(input) ? remaining : sizeof(input);
         want -= want % (channels * sizeof(int16_t));
         if (want == 0) {
@@ -160,8 +168,9 @@ static void wav_player_task(void *arg)
     wav_job_t job;
     while (true) {
         if (xQueueReceive(s_queue, &job, portMAX_DELAY) == pdTRUE) {
+            if (job.generation != s_generation) continue;
             s_playing = true;
-            play_file(job.path);
+            play_file(&job);
             s_playing = false;
         }
     }
@@ -196,6 +205,30 @@ esp_err_t wav_player_play(const char *path)
     }
     wav_job_t job = {0};
     strncpy(job.path, path, sizeof(job.path) - 1);
+    job.generation = s_generation;
+    return xQueueSend(s_queue, &job, 0) == pdTRUE ? ESP_OK : ESP_ERR_TIMEOUT;
+}
+
+void wav_player_stop(void)
+{
+    if (!s_queue) return;
+    s_playing = false;
+    ++s_generation;
+    if (s_generation == 0) ++s_generation;
+    xQueueReset(s_queue);
+}
+
+esp_err_t wav_player_preview(const char *path)
+{
+    if (!s_queue || !path || strlen(path) >= WAV_PATH_MAX ||
+        strncmp(path, "/sdcard/", 8) != 0) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    wav_player_stop();
+    wav_job_t job = {0};
+    strncpy(job.path, path, sizeof(job.path) - 1);
+    job.generation = s_generation;
     return xQueueSend(s_queue, &job, 0) == pdTRUE ? ESP_OK : ESP_ERR_TIMEOUT;
 }
 

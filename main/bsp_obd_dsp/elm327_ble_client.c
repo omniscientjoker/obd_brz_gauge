@@ -467,7 +467,7 @@ static bool send_composed_slot(uint8_t slot_id)
         return true;
     }
     if (rule->channel == CH_MAP_KPA && (!profile || !profile->has_boost)) return true;
-    if (rule->channel == CH_FUEL_PCT) {
+    if (rule->channel == CH_FUEL_PCT && rule->protocol == OBD_PROTOCOL_STANDARD) {
         if (s_fuel_pid_support == FUEL_PID_SUPPORT_UNKNOWN) {
             s_fuel_pid_support = FUEL_PID_SUPPORT_PROBING;
             if (!elm327_ble_send_ascii_blocking("01 20\r")) {

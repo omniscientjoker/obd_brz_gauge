@@ -264,6 +264,30 @@ static void boot_video_timer_cb(lv_timer_t *t)
     }
 }
 
+void ui_ext_stop_alert_video_preview(void)
+{
+    if (!s_alert_video_active) return;
+
+    lv_obj_t *return_screen = s_alert_video_return_screen;
+    boot_block_player_destroy();
+    s_alert_video_active = false;
+    if (s_alert_video_timer) {
+        lv_timer_del(s_alert_video_timer);
+        s_alert_video_timer = NULL;
+    }
+    s_alert_video_screen = NULL;
+    s_alert_video_return_screen = NULL;
+    if (return_screen) {
+        lv_scr_load_anim(return_screen, LV_SCR_LOAD_ANIM_FADE_ON, 150, 0, true);
+    }
+}
+
+static void on_alert_video_preview_tapped(lv_event_t *event)
+{
+    LV_UNUSED(event);
+    ui_ext_stop_alert_video_preview();
+}
+
 static void alert_video_timer_cb(lv_timer_t *timer)
 {
     LV_UNUSED(timer);
@@ -272,20 +296,10 @@ static void alert_video_timer_cb(lv_timer_t *timer)
     boot_block_player_update(elapsed_ms);
     if (!boot_block_player_is_finished()) return;
 
-    boot_block_player_destroy();
-    s_alert_video_active = false;
-    if (s_alert_video_timer) {
-        lv_timer_del(s_alert_video_timer);
-        s_alert_video_timer = NULL;
-    }
-    if (s_alert_video_return_screen) {
-        lv_scr_load_anim(s_alert_video_return_screen, LV_SCR_LOAD_ANIM_FADE_ON, 150, 0, true);
-    }
-    s_alert_video_screen = NULL;
-    s_alert_video_return_screen = NULL;
+    ui_ext_stop_alert_video_preview();
 }
 
-static esp_err_t play_alert_video(const char *manifest_path, const char *data_path)
+esp_err_t ui_ext_preview_alert_video(const char *manifest_path, const char *data_path)
 {
     if (!manifest_path || !data_path || s_alert_video_active || s_boot_video_active ||
         s_boot_video_ready || s_showroom_active) {
@@ -295,6 +309,7 @@ static esp_err_t play_alert_video(const char *manifest_path, const char *data_pa
     lv_obj_t *screen = lv_obj_create(NULL);
     if (!screen) return ESP_ERR_NO_MEM;
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(screen, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_bg_color(screen, lv_color_black(), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_width(screen, 0, LV_PART_MAIN);
@@ -310,6 +325,11 @@ static esp_err_t play_alert_video(const char *manifest_path, const char *data_pa
     s_alert_video_return_screen = return_screen;
     s_alert_video_active = true;
     s_alert_video_start_us = esp_timer_get_time();
+    lv_obj_add_event_cb(screen, on_alert_video_preview_tapped, LV_EVENT_CLICKED, NULL);
+    if (canvas) {
+        lv_obj_add_flag(canvas, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_event_cb(canvas, on_alert_video_preview_tapped, LV_EVENT_CLICKED, NULL);
+    }
     lv_scr_load(screen);
     s_alert_video_timer = lv_timer_create(alert_video_timer_cb, 33, NULL);
     if (!s_alert_video_timer) {
@@ -321,6 +341,11 @@ static esp_err_t play_alert_video(const char *manifest_path, const char *data_pa
         return ESP_ERR_NO_MEM;
     }
     return ESP_OK;
+}
+
+static esp_err_t play_alert_video(const char *manifest_path, const char *data_path)
+{
+    return ui_ext_preview_alert_video(manifest_path, data_path);
 }
 
 // Jump to the BLE scan page and mark the boot flow done (shared by slaves not bound to a master, and masters/standalone units with no OBD device configured)

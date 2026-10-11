@@ -10,6 +10,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "esp_err.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -55,6 +57,10 @@ void ui_ext_showroom_tick(bool is_slave); // the whole showroom state machine (m
 bool ui_ext_boot_video_tick(void);        // video boot mode; returns true to make my_timerMain return early
 void ui_ext_intro_tick(bool is_slave);    // RACE/AS/ONE boot animation state machine
 void ui_ext_no_signal_update(bool signal_ok); // "NO SIGNAL" overlay on gauge pages
+
+/* Full-screen SD alert-video preview. Tapping the preview returns to its source screen. */
+esp_err_t ui_ext_preview_alert_video(const char *manifest_path, const char *data_path);
+void ui_ext_stop_alert_video_preview(void);
 
 /* ---- RPM warning flash (migrated from ui.c my_timerMain) ---- */
 void ui_ext_rpm_flash_tick(uint16_t usRpm, bool in_sweep); // strobe + linked-ramp rendering (called where the old inline block lived)

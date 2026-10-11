@@ -1,10 +1,14 @@
 #include "../ui.h"
 #include "../ui_navigation.h"
 
+#include <stdio.h>
+#include <strings.h>
 #include <string.h>
 
 #include "app_media/sd_media_manager.h"
+#include "app_media/wav_player.h"
 #include "bsp_obd_dsp/nvs_storage.h"
+#include "export_path/ui_ext.h"
 
 static const char *const s_alert_names[NVS_MEDIA_ALERT_COUNT] = {
     "胎压告警", "电压告警", "速度告警", "水温告警", "低油量告警", "转速告警",
@@ -63,6 +67,7 @@ static void refresh_status(void)
 
 static void close_picker(void)
 {
+    wav_player_stop();
     if (s_picker_overlay) {
         lv_obj_del(s_picker_overlay);
         s_picker_overlay = NULL;
@@ -94,17 +99,45 @@ static void apply_resource(const char *name)
     if (nvs_media_alert_cfg_set(&cfg) == ESP_OK) refresh_values();
 }
 
-static void on_resource_selected(lv_event_t *event)
+static bool resource_path(char *path, size_t path_len, const char *name, const char *extension)
+{
+    if (!path || !name || !extension) return false;
+    const char *dot = strrchr(name, '.');
+    if (!dot || strlen(dot) != 4 || strcasecmp(dot, extension) != 0) return false;
+    return snprintf(path, path_len, "/sdcard/ALERT/%.*s%s", (int)(dot - name), name,
+                    extension) > 0;
+}
+
+static void on_audio_resource_selected(lv_event_t *event)
 {
     uint8_t index = (uint8_t)(uintptr_t)lv_event_get_user_data(event);
     if (index >= SD_MEDIA_RESOURCE_MAX || s_picker_names[index][0] == '\0') return;
     apply_resource(s_picker_names[index]);
-    close_picker();
+    char path[96] = {0};
+    if (resource_path(path, sizeof(path), s_picker_names[index], ".WAV")) {
+        (void)wav_player_preview(path);
+    }
+}
+
+static void on_video_resource_preview(lv_event_t *event)
+{
+    uint8_t index = (uint8_t)(uintptr_t)lv_event_get_user_data(event);
+    if (index >= SD_MEDIA_RESOURCE_MAX || s_picker_names[index][0] == '\0') return;
+    apply_resource(s_picker_names[index]);
+    wav_player_stop();
+
+    char manifest_path[96] = {0};
+    char data_path[96] = {0};
+    if (resource_path(manifest_path, sizeof(manifest_path), s_picker_names[index], ".TXT") &&
+        resource_path(data_path, sizeof(data_path), s_picker_names[index], ".BIN")) {
+        (void)ui_ext_preview_alert_video(manifest_path, data_path);
+    }
 }
 
 static void on_resource_clear(lv_event_t *event)
 {
     LV_UNUSED(event);
+    wav_player_stop();
     apply_resource(NULL);
     close_picker();
 }
@@ -184,8 +217,13 @@ static void refresh_picker_list(void)
         strncpy(s_picker_names[i], items[i], SD_MEDIA_RESOURCE_NAME_MAX - 1);
         lv_obj_t *button = lv_list_add_btn(s_picker_list, NULL, s_picker_names[i]);
         style_list_button(button);
-        lv_obj_add_event_cb(button, on_resource_selected, LV_EVENT_CLICKED,
-                            (void *)(uintptr_t)i);
+        if (s_selected_mode == NVS_MEDIA_ALERT_AUDIO) {
+            lv_obj_add_event_cb(button, on_audio_resource_selected, LV_EVENT_CLICKED,
+                                (void *)(uintptr_t)i);
+        } else {
+            lv_obj_add_event_cb(button, on_video_resource_preview, LV_EVENT_LONG_PRESSED,
+                                (void *)(uintptr_t)i);
+        }
     }
     lv_obj_t *clear = lv_list_add_btn(s_picker_list, NULL, "清除设置");
     style_list_button(clear);
@@ -194,6 +232,7 @@ static void refresh_picker_list(void)
 
 static void on_mode_selected(lv_event_t *event)
 {
+    wav_player_stop();
     s_selected_mode = (uint8_t)(uintptr_t)lv_event_get_user_data(event);
     s_picker_snapshot_valid = false;
     style_mode_buttons();

@@ -77,12 +77,12 @@ void ui_ScreenPageInfo_screen_init(void)
     lv_label_set_text(ui_LabelInfoFuel, "油量 --% 约 --.-L");
     lv_obj_set_style_text_font(ui_LabelInfoFuel, &ui_font_Chinese16, LV_PART_MAIN);
     lv_obj_set_style_text_color(ui_LabelInfoFuel, lv_color_hex(0x91A1A1), LV_PART_MAIN);
-    lv_obj_align(ui_LabelInfoFuel, LV_ALIGN_CENTER, -80, -112);
+    lv_obj_align(ui_LabelInfoFuel, LV_ALIGN_CENTER, 0, -120);
     ui_LabelInfoFuelNeed = lv_label_create(ui_ScreenPageInfo);
     lv_label_set_text(ui_LabelInfoFuelNeed, "加满 --% 约 --.-L");
     lv_obj_set_style_text_font(ui_LabelInfoFuelNeed, &ui_font_Chinese16, LV_PART_MAIN);
     lv_obj_set_style_text_color(ui_LabelInfoFuelNeed, lv_color_hex(0x91A1A1), LV_PART_MAIN);
-    lv_obj_align(ui_LabelInfoFuelNeed, LV_ALIGN_CENTER, 80, -112);
+    lv_obj_align(ui_LabelInfoFuelNeed, LV_ALIGN_CENTER, 0, -96);
 
     // Four primary tiles mirror the simulator grid, with the fifth configured
     // slot centered below them inside the circular display safe area.
