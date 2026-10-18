@@ -4,25 +4,29 @@
 
 #define UI_COLOR_ARC_DEFAULT_SLICES 32
 
-static uint16_t clamp_position(uint16_t position)
-{
-    return position > UI_COLOR_ARC_POSITION_MAX ? UI_COLOR_ARC_POSITION_MAX : position;
-}
-
 static lv_color_t color_at(const ui_color_arc_t *arc, uint16_t position)
 {
-    const ui_color_arc_stop_t *stops = arc->stops;
-    uint8_t last = (uint8_t)(arc->stop_count - 1);
-    if (position <= stops[0].position) return stops[0].color;
-    for (uint8_t i = 1; i <= last; ++i) {
-        if (position <= stops[i].position) {
-            uint16_t span = stops[i].position - stops[i - 1].position;
-            uint16_t remaining = stops[i].position - position;
-            uint8_t mix = span ? (uint8_t)((uint32_t)remaining * 255U / span) : 0;
-            return lv_color_mix(stops[i - 1].color, stops[i].color, mix);
-        }
+    if (position >= UI_COLOR_ARC_POSITION_MAX) {
+        return arc->gradient_colors[UI_COLOR_ARC_GRADIENT_COLORS - 1];
     }
-    return stops[last].color;
+
+    /* Four colors define three equal sections: A-B, B-C and C-D. */
+    const uint32_t scaled = (uint32_t)position *
+                            (UI_COLOR_ARC_GRADIENT_COLORS - 1);
+    uint8_t section = (uint8_t)(scaled / UI_COLOR_ARC_POSITION_MAX);
+    if (section >= UI_COLOR_ARC_GRADIENT_COLORS - 1)
+        section = UI_COLOR_ARC_GRADIENT_COLORS - 2;
+    const uint16_t section_span = UI_COLOR_ARC_POSITION_MAX /
+                                  (UI_COLOR_ARC_GRADIENT_COLORS - 1);
+    const uint16_t section_start = (uint16_t)section * section_span;
+    const uint16_t section_end = (section == UI_COLOR_ARC_GRADIENT_COLORS - 2)
+                               ? UI_COLOR_ARC_POSITION_MAX
+                               : (uint16_t)(section + 1) * section_span;
+    const uint16_t offset = position > section_start ? position - section_start : 0;
+    const uint16_t span = section_end - section_start;
+    const uint8_t mix = span ? (uint8_t)((uint32_t)(span - offset) * 255U / span) : 0;
+    return lv_color_mix(arc->gradient_colors[section],
+                        arc->gradient_colors[section + 1], mix);
 }
 
 static void update_slices(ui_color_arc_t *arc)
@@ -47,8 +51,7 @@ bool ui_color_arc_create(ui_color_arc_t *arc, lv_obj_t *parent,
                          const ui_color_arc_config_t *config)
 {
     if (!arc || !parent || !config || config->max_value <= config->min_value ||
-        config->size <= 0 || config->width <= 0 || !config->stops ||
-        config->stop_count < 2 || config->stop_count > UI_COLOR_ARC_MAX_STOPS)
+        config->size <= 0 || config->width <= 0 || !config->gradient_colors)
         return false;
 
     uint8_t slice_count = config->slice_count ? config->slice_count : UI_COLOR_ARC_DEFAULT_SLICES;
@@ -58,15 +61,9 @@ bool ui_color_arc_create(ui_color_arc_t *arc, lv_obj_t *parent,
     arc->min_value = config->min_value;
     arc->max_value = config->max_value;
     arc->value = config->min_value;
-    arc->stop_count = config->stop_count;
     arc->slice_count = slice_count;
-    for (uint8_t i = 0; i < config->stop_count; ++i) {
-        arc->stops[i] = config->stops[i];
-        arc->stops[i].position = clamp_position(arc->stops[i].position);
-        if (i > 0 && arc->stops[i].position < arc->stops[i - 1].position) return false;
-    }
-    for (uint8_t i = config->stop_count; i < UI_COLOR_ARC_MAX_STOPS; ++i)
-        arc->stops[i] = arc->stops[config->stop_count - 1];
+    memcpy(arc->gradient_colors, config->gradient_colors,
+           sizeof(arc->gradient_colors));
 
     arc->track = lv_arc_create(parent);
     lv_obj_set_size(arc->track, config->size, config->size);

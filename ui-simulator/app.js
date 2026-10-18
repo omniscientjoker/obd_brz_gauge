@@ -12,7 +12,7 @@ const state = {
   tires: { fl: 2.4, fr: 2.4, rl: 2.3, rr: 2.3 },
   pressureMin: 2.0,
   pressureMax: 3.2,
-  theme: 'cyan',
+  theme: 'midnight',
   brightness: 82,
   racechrono: false,
   vehicle: 'ford-mondeo',
@@ -50,7 +50,7 @@ function setPressureLimit(input) {
 function gauge(name, value, unit, percent, extras = '', speedRing = false) {
   const amount = Math.min(100, Math.max(0, percent));
   const dashOffset = (565.49 * (1 - amount / 100)).toFixed(2);
-  const ring = speedRing ? `<svg class="gauge-ring" viewBox="0 0 240 240" aria-hidden="true"><defs><linearGradient id="speedGradient" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#00cc66"/><stop offset="25%" stop-color="#00cc66"/><stop offset="50%" stop-color="#ffd166"/><stop offset="75%" stop-color="#ff8c42"/><stop offset="100%" stop-color="#ff4d4d"/></linearGradient></defs><circle class="gauge-track" cx="120" cy="120" r="90"/><circle class="gauge-progress" cx="120" cy="120" r="90" stroke-dashoffset="${dashOffset}"/></svg>` : '';
+  const ring = speedRing ? `<svg class="gauge-ring" viewBox="0 0 240 240" aria-hidden="true"><defs><linearGradient id="speedGradient" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#00cc66"/><stop offset="33.333%" stop-color="#ffd166"/><stop offset="66.667%" stop-color="#ff8c42"/><stop offset="100%" stop-color="#ff4d4d"/></linearGradient></defs><circle class="gauge-track" cx="120" cy="120" r="90"/><circle class="gauge-progress" cx="120" cy="120" r="90" stroke-dashoffset="${dashOffset}"/></svg>` : '';
   return `<div class="gauge ${speedRing ? 'speed-gauge' : ''}" style="--value:${amount}">
     ${ring}
     <div class="gauge-content"><span class="gauge-name">${name}</span><strong class="gauge-value">${value}</strong><span class="gauge-unit">${unit}</span></div>${extras}
@@ -59,7 +59,7 @@ function gauge(name, value, unit, percent, extras = '', speedRing = false) {
 
 function renderPage(direction = '') {
   const renderers = {
-    rpm: () => gauge('发动机转速', format(state.rpm), 'rpm', state.rpm / 80, `<div class="mini-row"><span>水温 <b>${state.temp} C</b></span><span>电压 <b>${format(state.voltage, 1)} V</b></span></div>`),
+    rpm: () => gauge('发动机转速', format(state.rpm), 'rpm', state.rpm / 80, `<div class="mini-row"><span>水温 <b>${state.temp} C</b></span><span>电压 <b>${format(state.voltage, 1)} V</b></span></div>`, true),
     speed: () => gauge('车辆速度', format(state.speed), 'km/h', state.speed / state.speedMax * 100, `<div class="mini-row"><span>档位 <b>${state.speed > 15 ? 'D' : 'N'}</b></span><span>转速 <b>${format(state.rpm)}</b></span></div>`, true),
     speedConfig: renderSpeedConfig,
     temp: () => gauge('冷却液温度', format(state.temp), 'C', (state.temp - 40) / .85, `<div class="mini-row"><span>机油 <b>98 C</b></span><span>进气 <b>34 C</b></span></div>`),
@@ -79,7 +79,7 @@ function renderPage(direction = '') {
 function renderSpeedConfig() {
   return `<form class="settings speed-config" id="speedConfigForm">
     <h2>速度设置</h2>
-    <label>最大速度 <output id="speedMaxOutput">${state.speedMax} km/h</output><input id="speedMax" type="range" min="160" max="300" step="10" value="${state.speedMax}"></label>
+    <label>最大速度 <output id="speedMaxOutput">${state.speedMax} km/h</output><input id="speedMax" type="range" min="120" max="260" step="10" value="${state.speedMax}"></label>
     <small>速度页面进度 = 当前速度 / 最大速度</small>
   </form>`;
 }
@@ -127,7 +127,7 @@ function renderSettings() {
     <h2>设置</h2>
     <label>开机页面<select id="bootPage">${pages.filter(([id]) => id !== 'settings').map(([id, name]) => `<option value="${id}" ${state.bootPage === id ? 'selected' : ''}>${name}</option>`).join('')}</select></label>
     <label>车辆<select id="vehicle"><option value="ford-mondeo" ${state.vehicle === 'ford-mondeo' ? 'selected' : ''}>福特 蒙迪欧</option><option value="subaru-brz" ${state.vehicle === 'subaru-brz' ? 'selected' : ''}>斯巴鲁 BRZ</option><option value="bmw-x1-f48" ${state.vehicle === 'bmw-x1-f48' ? 'selected' : ''}>宝马 X1 F48</option></select></label>
-    <label>主题<select id="theme"><option value="cyan" ${state.theme === 'cyan' ? 'selected' : ''}>青色</option><option value="amber" ${state.theme === 'amber' ? 'selected' : ''}>琥珀色</option><option value="rose" ${state.theme === 'rose' ? 'selected' : ''}>玫瑰色</option></select></label>
+    <label>主题<select id="theme"><option value="midnight" ${state.theme === 'midnight' ? 'selected' : ''}>午夜赛道</option><option value="cyan" ${state.theme === 'cyan' ? 'selected' : ''}>极光青</option><option value="amber" ${state.theme === 'amber' ? 'selected' : ''}>赛道琥珀</option><option value="rose" ${state.theme === 'rose' ? 'selected' : ''}>霓虹粉</option></select></label>
     <div class="setting-row"><span>胎压范围</span><div class="pressure-range"><label>最低<input id="pressureMin" aria-label="最低胎压" type="number" min="0.1" max="${format(state.pressureMax - 0.1, 1)}" step="0.1" value="${format(state.pressureMin, 1)}"></label><label>最高<input id="pressureMax" aria-label="最高胎压" type="number" min="${format(state.pressureMin + 0.1, 1)}" max="4.0" step="0.1" value="${format(state.pressureMax, 1)}"></label></div></div>
     <label>亮度<input id="brightness" type="range" min="10" max="100" value="${state.brightness}"></label>
     <div class="setting-row"><span>RaceChrono</span><button type="button" class="setting-toggle ${state.racechrono ? 'active' : ''}" id="racechrono">${state.racechrono ? '开启' : '关闭'}</button></div>

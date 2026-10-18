@@ -20,6 +20,9 @@ static lv_obj_t *s_value_labels[NVS_MEDIA_ALERT_COUNT];
 static lv_obj_t *s_status_label;
 static lv_obj_t *s_picker_overlay;
 static lv_obj_t *s_picker_list;
+static lv_timer_t *s_video_preview_wait_timer;
+static char s_pending_video_manifest[160];
+static char s_pending_video_data[160];
 static lv_obj_t *s_mode_buttons[NVS_MEDIA_ALERT_VIDEO + 1];
 static lv_timer_t *s_refresh_timer;
 static uint8_t s_selected_alert;
@@ -27,6 +30,41 @@ static uint8_t s_selected_mode;
 static char s_picker_names[SD_MEDIA_RESOURCE_MAX][SD_MEDIA_RESOURCE_NAME_MAX];
 static sd_media_resource_snapshot_t s_picker_snapshot;
 static bool s_picker_snapshot_valid;
+
+static void cancel_pending_video_preview(void)
+{
+    if (s_video_preview_wait_timer) {
+        lv_timer_del(s_video_preview_wait_timer);
+        s_video_preview_wait_timer = NULL;
+    }
+    s_pending_video_manifest[0] = '\0';
+    s_pending_video_data[0] = '\0';
+}
+
+static void start_video_preview_when_audio_stops(lv_timer_t *timer)
+{
+    if (!s_picker_overlay) {
+        cancel_pending_video_preview();
+        return;
+    }
+    if (wav_player_is_busy()) return;
+
+    char manifest[sizeof(s_pending_video_manifest)];
+    char data[sizeof(s_pending_video_data)];
+    strncpy(manifest, s_pending_video_manifest, sizeof(manifest) - 1);
+    manifest[sizeof(manifest) - 1] = '\0';
+    strncpy(data, s_pending_video_data, sizeof(data) - 1);
+    data[sizeof(data) - 1] = '\0';
+    s_video_preview_wait_timer = NULL;
+    lv_timer_del(timer);
+    s_pending_video_manifest[0] = '\0';
+    s_pending_video_data[0] = '\0';
+
+    esp_err_t err = ui_ext_preview_alert_video(manifest, data);
+    if (err != ESP_OK) {
+        ESP_LOGW("alert_media", "Video preview failed: %s", esp_err_to_name(err));
+    }
+}
 
 static const char *mode_name(uint8_t mode)
 {
@@ -68,6 +106,7 @@ static void refresh_status(void)
 
 static void close_picker(void)
 {
+    cancel_pending_video_preview();
     wav_player_stop();
     if (s_picker_overlay) {
         lv_obj_del(s_picker_overlay);
@@ -110,6 +149,7 @@ static bool resource_path(char *path, size_t path_len, const char *name, const c
 
 static void on_audio_resource_selected(lv_event_t *event)
 {
+    cancel_pending_video_preview();
     uint8_t index = (uint8_t)(uintptr_t)lv_event_get_user_data(event);
     if (index >= SD_MEDIA_RESOURCE_MAX || s_picker_names[index][0] == '\0') {
         ESP_LOGW("alert_media", "Audio selection ignored: invalid index %u", index);
@@ -135,13 +175,20 @@ static void on_video_resource_preview(lv_event_t *event)
     uint8_t index = (uint8_t)(uintptr_t)lv_event_get_user_data(event);
     if (index >= SD_MEDIA_RESOURCE_MAX || s_picker_names[index][0] == '\0') return;
     apply_resource(s_picker_names[index]);
+    cancel_pending_video_preview();
     wav_player_stop();
 
-    char manifest_path[160] = {0};
-    char data_path[160] = {0};
-    if (resource_path(manifest_path, sizeof(manifest_path), s_picker_names[index], ".TXT") &&
-        resource_path(data_path, sizeof(data_path), s_picker_names[index], ".BIN")) {
-        (void)ui_ext_preview_alert_video(manifest_path, data_path);
+    if (resource_path(s_pending_video_manifest, sizeof(s_pending_video_manifest),
+                      s_picker_names[index], ".TXT") &&
+        resource_path(s_pending_video_data, sizeof(s_pending_video_data),
+                      s_picker_names[index], ".BIN")) {
+        s_video_preview_wait_timer = lv_timer_create(start_video_preview_when_audio_stops,
+                                                     20, NULL);
+        if (!s_video_preview_wait_timer) {
+            s_pending_video_manifest[0] = '\0';
+            s_pending_video_data[0] = '\0';
+            ESP_LOGW("alert_media", "Could not schedule video preview");
+        }
     }
 }
 
@@ -243,6 +290,7 @@ static void refresh_picker_list(void)
 
 static void on_mode_selected(lv_event_t *event)
 {
+    cancel_pending_video_preview();
     wav_player_stop();
     s_selected_mode = (uint8_t)(uintptr_t)lv_event_get_user_data(event);
     s_picker_snapshot_valid = false;

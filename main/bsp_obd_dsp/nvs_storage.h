@@ -6,8 +6,8 @@
 // Built-in dashboard pages selectable as the boot destination. Keep this in
 // the storage contract so UI validation and boot routing cannot drift apart.
 #define NVS_DEFAULT_PAGE_COUNT 9
-#define NVS_SPEED_MAX_MIN_KMH 160
-#define NVS_SPEED_MAX_MAX_KMH 300
+#define NVS_SPEED_MAX_MIN_KMH 120
+#define NVS_SPEED_MAX_MAX_KMH 260
 #define NVS_SPEED_MAX_DEFAULT_KMH 240
 #define NVS_MEDIA_ALERT_COUNT 6
 #define NVS_MEDIA_RESOURCE_NAME_MAX 65
@@ -61,7 +61,7 @@ typedef struct {
     uint16_t tpms_pressure_min_bar_x100; // TPMS lower pressure limit, bar x100
     uint16_t tpms_pressure_max_bar_x100; // TPMS upper pressure limit, bar x100
     uint16_t tpms_voltage_min_mv;        // lower limit for the voltage shown on TPMS page, mV
-    uint16_t speed_max_kmh;              // speed page full-scale speed, 160-300 km/h
+    uint16_t speed_max_kmh;              // speed page full-scale speed, 120-260 km/h
     uint8_t audio_volume;                // ES8311 output volume, 0-100%
 } nvs_user_cfg_t;
 

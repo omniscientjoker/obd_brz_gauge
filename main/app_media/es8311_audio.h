@@ -14,7 +14,7 @@ extern "C" {
 esp_err_t es8311_audio_init(void);
 bool es8311_audio_is_ready(void);
 
-/* Audio is fixed to 16-bit, 16 kHz, stereo PCM at the codec boundary. */
+/* Audio is fixed to 16-bit, 44.1 kHz, stereo PCM at the codec boundary. */
 esp_err_t es8311_audio_write(const void *data, size_t bytes);
 esp_err_t es8311_audio_set_volume(uint8_t volume_percent);
 

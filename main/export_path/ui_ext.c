@@ -24,6 +24,7 @@
 #include "app_obd_dsp/boot_media_mount.h"
 #include "app_media/sd_media_manager.h"
 #include "app_media/media_alert.h"
+#include "app_media/wav_player.h"
 #include "theme_engine/theme_interface.h"
 #include "esp_timer.h"
 #include "esp_random.h"
@@ -115,10 +116,9 @@ static int64_t s_boot_video_start_us = 0;
 static lv_obj_t *s_boot_video_screen = NULL;
 static lv_timer_t *s_boot_video_timer = NULL;
 static bool    s_boot_done = false;
-static bool s_alert_video_active = false;
+static volatile bool s_alert_video_active = false;
 static int64_t s_alert_video_start_us = 0;
 static lv_obj_t *s_alert_video_screen = NULL;
-static lv_obj_t *s_alert_video_return_screen = NULL;
 static lv_timer_t *s_alert_video_timer = NULL;
 
 // Video sync signals (reuses intro_step; values >5 never trigger RACE/AS/ONE rendering)
@@ -268,17 +268,15 @@ void ui_ext_stop_alert_video_preview(void)
 {
     if (!s_alert_video_active) return;
 
-    lv_obj_t *return_screen = s_alert_video_return_screen;
-    boot_block_player_destroy();
     s_alert_video_active = false;
     if (s_alert_video_timer) {
         lv_timer_del(s_alert_video_timer);
         s_alert_video_timer = NULL;
     }
-    s_alert_video_screen = NULL;
-    s_alert_video_return_screen = NULL;
-    if (return_screen) {
-        lv_scr_load_anim(return_screen, LV_SCR_LOAD_ANIM_FADE_ON, 150, 0, true);
+    boot_block_player_destroy();
+    if (s_alert_video_screen) {
+        lv_obj_del(s_alert_video_screen);
+        s_alert_video_screen = NULL;
     }
 }
 
@@ -302,18 +300,21 @@ static void alert_video_timer_cb(lv_timer_t *timer)
 esp_err_t ui_ext_preview_alert_video(const char *manifest_path, const char *data_path)
 {
     if (!manifest_path || !data_path || s_alert_video_active || s_boot_video_active ||
-        s_boot_video_ready || s_showroom_active) {
+        s_boot_video_ready || s_showroom_active || wav_player_is_busy()) {
         return ESP_ERR_INVALID_STATE;
     }
-    lv_obj_t *return_screen = lv_scr_act();
-    lv_obj_t *screen = lv_obj_create(NULL);
+    /* A top-layer sibling covers the active resource picker without deleting
+     * or reloading its screen/overlay. Removing this object reveals it again. */
+    lv_obj_t *screen = lv_obj_create(lv_layer_top());
     if (!screen) return ESP_ERR_NO_MEM;
+    lv_obj_set_size(screen, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_pos(screen, 0, 0);
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(screen, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_bg_color(screen, lv_color_black(), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_width(screen, 0, LV_PART_MAIN);
-    lv_obj_set_style_radius(screen, 360, LV_PART_MAIN);
+    lv_obj_set_style_radius(screen, 0, LV_PART_MAIN);
 
     boot_block_player_set_paths(manifest_path, data_path);
     lv_obj_t *canvas = NULL;
@@ -321,26 +322,33 @@ esp_err_t ui_ext_preview_alert_video(const char *manifest_path, const char *data
         lv_obj_del(screen);
         return ESP_FAIL;
     }
+    lv_obj_move_foreground(screen);
     s_alert_video_screen = screen;
-    s_alert_video_return_screen = return_screen;
     s_alert_video_active = true;
     s_alert_video_start_us = esp_timer_get_time();
+    lv_obj_add_event_cb(screen, on_alert_video_preview_tapped, LV_EVENT_PRESSED, NULL);
     lv_obj_add_event_cb(screen, on_alert_video_preview_tapped, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(screen, on_alert_video_preview_tapped, LV_EVENT_GESTURE, NULL);
     if (canvas) {
         lv_obj_add_flag(canvas, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_event_cb(canvas, on_alert_video_preview_tapped, LV_EVENT_PRESSED, NULL);
         lv_obj_add_event_cb(canvas, on_alert_video_preview_tapped, LV_EVENT_CLICKED, NULL);
+        lv_obj_add_event_cb(canvas, on_alert_video_preview_tapped, LV_EVENT_GESTURE, NULL);
     }
-    lv_scr_load(screen);
     s_alert_video_timer = lv_timer_create(alert_video_timer_cb, 33, NULL);
     if (!s_alert_video_timer) {
+        s_alert_video_active = false;
         boot_block_player_destroy();
         lv_obj_del(screen);
         s_alert_video_screen = NULL;
-        s_alert_video_return_screen = NULL;
-        s_alert_video_active = false;
         return ESP_ERR_NO_MEM;
     }
     return ESP_OK;
+}
+
+bool ui_ext_alert_video_is_active(void)
+{
+    return s_alert_video_active;
 }
 
 static esp_err_t play_alert_video(const char *manifest_path, const char *data_path)
@@ -427,9 +435,10 @@ bool ui_showroom_is_active(void) { return s_showroom_active; }
 int  ui_intro_get_step(void) { return s_intro_step; }
 
 void ui_showroom_set_active(bool en) {
-    s_showroom_active = en;
     s_showroom_tap_cnt = 0;
     if (en) {
+        media_alert_set_monitor_suspended(true);
+        s_showroom_active = true;
         ESP_LOGD("showroom", "ENTER role=%d", nvs_cfg_get()->device_role);
         s_sweep_step = 0;
         // pick 4 random data pages; the position offset guarantees the three gauges differ
@@ -443,6 +452,14 @@ void ui_showroom_set_active(bool en) {
         s_showroom_tick = 0;
         showroom_load_slot(0);
     } else {
+        /* Showroom injects synthetic readings into the shared display cache.
+         * Invalidate alert-monitored channels before resuming the monitor so
+         * those demo samples cannot be mistaken for fresh vehicle telemetry. */
+        obd_data_invalidate_channel(OBD_DATA_RPM);
+        obd_data_invalidate_channel(OBD_DATA_SPEED);
+        obd_data_invalidate_channel(OBD_DATA_COOLANT);
+        s_showroom_active = false;
+        media_alert_set_monitor_suspended(false);
         ESP_LOGD("showroom", "EXIT");
     }
 }
@@ -849,6 +866,7 @@ void ui_ext_no_signal_update(bool signal_ok)
 void ui_ext_init(void)
 {
     media_alert_set_video_handler(play_alert_video);
+    media_alert_set_video_busy_handler(ui_ext_alert_video_is_active);
 }
 
 void ui_ext_tick(void)
@@ -880,6 +898,53 @@ static bool s_rpm_flash_red = false;  // flash state (red/black toggle, drives t
 static bool s_rpm_flashing = false;   // whether strobing right now (stable flag, drives the timer's fast flash; does not toggle with red/black)
 static bool s_rpm_link_ramp = false;  // multi-gauge linked flash: this unit is inside its ramp segment
 static bool s_rpm_link_bg = false;    // multi-gauge linked flash: background is taken by the linked red (must restore theme bg when leaving)
+static lv_obj_t *s_rpm_flash_overlay = NULL;
+
+static void rpm_overlay_reset(void)
+{
+    if (s_rpm_flash_overlay) {
+        lv_obj_del(s_rpm_flash_overlay);
+        s_rpm_flash_overlay = NULL;
+    }
+}
+
+static lv_obj_t *rpm_overlay_get(void)
+{
+    lv_obj_t *scr = lv_scr_act();
+    if (!scr) return NULL;
+    if (s_rpm_flash_overlay && !lv_obj_is_valid(s_rpm_flash_overlay)) {
+        s_rpm_flash_overlay = NULL;
+    }
+    if (s_rpm_flash_overlay && lv_obj_get_parent(s_rpm_flash_overlay) != scr) {
+        rpm_overlay_reset();
+    }
+    if (!s_rpm_flash_overlay) {
+        s_rpm_flash_overlay = lv_obj_create(scr);
+        lv_obj_remove_style_all(s_rpm_flash_overlay);
+        lv_obj_set_size(s_rpm_flash_overlay, LV_PCT(100), LV_PCT(100));
+        lv_obj_set_pos(s_rpm_flash_overlay, 0, 0);
+        lv_obj_clear_flag(s_rpm_flash_overlay, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_move_background(s_rpm_flash_overlay);
+        lv_obj_add_flag(s_rpm_flash_overlay, LV_OBJ_FLAG_HIDDEN);
+    }
+    return s_rpm_flash_overlay;
+}
+
+static void rpm_overlay_show(lv_color_t color, lv_opa_t opa,
+                            const lv_img_dsc_t *image)
+{
+    lv_obj_t *overlay = rpm_overlay_get();
+    if (!overlay) return;
+    lv_obj_set_style_bg_img_src(overlay, image, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(overlay, color, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(overlay, opa, LV_PART_MAIN);
+    lv_obj_clear_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void rpm_overlay_hide(void)
+{
+    if (s_rpm_flash_overlay) lv_obj_add_flag(s_rpm_flash_overlay, LV_OBJ_FLAG_HIDDEN);
+}
 
 bool ui_ext_rpm_is_flashing(void) { return s_rpm_flashing; }
 bool ui_ext_rpm_link_ramp_active(void) { return s_rpm_link_ramp; }
@@ -919,24 +984,17 @@ void ui_ext_rpm_flash_tick(uint16_t usRpm, bool in_sweep)
 
     if (over) {
         if (s_flash_step < 0) s_flash_step = 0;
-        lv_obj_t *scr = lv_scr_act();
-        if (s_flash_step & 1) {
-            lv_obj_set_style_bg_img_src(scr, NULL, LV_PART_MAIN);
-            lv_obj_set_style_bg_color(scr, lv_color_hex(0x000000), LV_PART_MAIN);
-            lv_obj_set_style_bg_opa(scr, 255, LV_PART_MAIN);
+            if (s_flash_step & 1) {
+            rpm_overlay_show(lv_color_hex(0x000000), 255, NULL);
         } else {
-            lv_obj_set_style_bg_img_src(scr, s_flash_imgs[(s_flash_step / 2) % 3], LV_PART_MAIN);
-            lv_obj_set_style_bg_opa(scr, 255, LV_PART_MAIN);
+            rpm_overlay_show(lv_color_hex(0x000000), 255,
+                             s_flash_imgs[(s_flash_step / 2) % 3]);
         }
         s_flash_step = (s_flash_step + 1) % 6;
         s_rpm_flash_red = true;
     } else {
         if (s_flash_step >= 0) {
-            lv_obj_t *scr = lv_scr_act();
-            // Restore the theme background (and its dial-face artwork, if any).
-            // Hardcoding black here would blank a themed dial face for good.
-            ui_helpers_style_screen_bg(scr);
-            lv_obj_set_style_bg_opa(scr, 255, LV_PART_MAIN);
+            rpm_overlay_hide();
             s_flash_step = -1;
         }
         s_rpm_flash_red = false;
@@ -944,17 +1002,10 @@ void ui_ext_rpm_flash_tick(uint16_t usRpm, bool in_sweep)
 #else
     if (over) {
         s_rpm_flash_red = !s_rpm_flash_red;
-        lv_obj_t *scr = lv_scr_act();
-        // Drop the dial-face artwork while strobing — a background image
-        // covers bg_color, so the flash would otherwise be invisible.
-        lv_obj_set_style_bg_img_src(scr, NULL, LV_PART_MAIN);
-        lv_obj_set_style_bg_color(scr, s_rpm_flash_red ? lv_color_hex(UI_SEM_FLASH) : lv_color_hex(0x000000), LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(scr, 255, LV_PART_MAIN);
+        rpm_overlay_show(s_rpm_flash_red ? lv_color_hex(UI_SEM_FLASH) : lv_color_hex(0x000000), 255, NULL);
     } else {
         if (s_rpm_flash_red) {
-            lv_obj_t *scr = lv_scr_act();
-            ui_helpers_style_screen_bg(scr);   // restore theme bg + dial face
-            lv_obj_set_style_bg_opa(scr, 255, LV_PART_MAIN);
+            rpm_overlay_hide();
             s_rpm_flash_red = false;
         }
     }
@@ -969,21 +1020,17 @@ void ui_ext_rpm_flash_tick(uint16_t usRpm, bool in_sweep)
             if (pos >= 1 && pos <= 3) {
                 uint32_t seg_start = base + 1000u * (pos - 1) / 3;
                 uint32_t seg_end   = base + 1000u * pos / 3;
-                lv_obj_t *scr = lv_scr_act();
                 if (usRpm >= seg_end) {
                     // this unit's segment completed: solid red
-                    lv_obj_set_style_bg_img_src(scr, NULL, LV_PART_MAIN);
-                    lv_obj_set_style_bg_color(scr, lv_color_hex(0xFF0000), LV_PART_MAIN);
-                    lv_obj_set_style_bg_opa(scr, 255, LV_PART_MAIN);
+                    rpm_overlay_show(lv_color_hex(0xFF0000), 255, NULL);
                     s_rpm_link_ramp = false;
                     linked_drawn = true;
                 } else if (usRpm > seg_start && seg_end > seg_start) {
                     // inside this unit's segment: full-screen black→red ramp, alpha rising linearly with RPM
                     uint8_t alpha = (uint8_t)(((uint32_t)usRpm - seg_start) * 255 / (seg_end - seg_start));
-                    lv_obj_set_style_bg_img_src(scr, NULL, LV_PART_MAIN);
-                    lv_obj_set_style_bg_color(scr,
-                        lv_color_mix(lv_color_hex(0xFF0000), lv_color_hex(0x000000), alpha), LV_PART_MAIN);
-                    lv_obj_set_style_bg_opa(scr, 255, LV_PART_MAIN);
+                    rpm_overlay_show(lv_color_mix(lv_color_hex(0xFF0000),
+                                                  lv_color_hex(0x000000), alpha),
+                                     255, NULL);
                     s_rpm_link_ramp = true;
                     linked_drawn = true;
                 }
@@ -995,9 +1042,7 @@ void ui_ext_rpm_flash_tick(uint16_t usRpm, bool in_sweep)
             // during over (strobe) the flash logic owns the background, don't touch it here; otherwise, leaving the linked red must restore black
             s_rpm_link_ramp = false;
             if (s_rpm_link_bg) {
-                lv_obj_t *scr = lv_scr_act();
-                ui_helpers_style_screen_bg(scr);   // restore theme bg + dial face
-                lv_obj_set_style_bg_opa(scr, 255, LV_PART_MAIN);
+                rpm_overlay_hide();
                 s_rpm_link_bg = false;
             }
         }

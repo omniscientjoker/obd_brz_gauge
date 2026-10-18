@@ -72,6 +72,7 @@ extern uint8_t ui_theme_gauge_page_index;  // Current theme page index
 void ui_ScreenPageRpm_screen_init(void);
 extern lv_obj_t * ui_ScreenPageRpm;
 extern lv_obj_t * ui_RpmPageArcRpmBack;
+void ui_rpm_arc_set_value(uint16_t rpm);
 extern lv_obj_t * ui_RpmPageArcLabelRpmText;
 extern lv_obj_t * ui_RpmPageArcLabelRpmUnit;
 extern lv_obj_t * ui_ImageRpmBlackEar;

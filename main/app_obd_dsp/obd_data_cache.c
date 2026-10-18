@@ -21,6 +21,7 @@ static int8_t   s_gear = 127;
 static int16_t  s_afr_x100 = -1;
 static int16_t  s_fuel_pct = -1;
 static brake_rs485_status_t s_brake_rs485_status = BRAKE_RS485_IDLE;
+static obd_data_channel_state_t s_channel_state[OBD_DATA_CHANNEL_COUNT];
 static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
 
 #define SPEED_SMOOTH_TIME_MS 300   // speed ramp-up/down time constant (ms); the UI side already has anim_step, keep this small
@@ -37,6 +38,18 @@ static float s_speed_smooth_f = 0.f;
 static bool     s_rpm_override_en = false;
 static uint16_t s_rpm_override_val = 0;
 
+static inline void mark_channel_locked(obd_data_channel_t channel, bool valid)
+{
+    if (channel >= OBD_DATA_CHANNEL_COUNT) return;
+    s_channel_state[channel].valid = valid;
+    s_channel_state[channel].updated_us = valid ? esp_timer_get_time() : 0;
+}
+
+static inline void invalidate_channel_locked(obd_data_channel_t channel)
+{
+    mark_channel_locked(channel, false);
+}
+
 void obd_data_rpm_override_set(bool en, uint16_t val)
 {
     portENTER_CRITICAL(&s_mux);
@@ -49,6 +62,7 @@ void obd_data_set_rpm(uint16_t rpm)
 {
     portENTER_CRITICAL(&s_mux);
     s_rpm_smooth = rpm;  // CAN 100Hz data is already clean, no smoothing needed
+    mark_channel_locked(OBD_DATA_RPM, true);
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -59,13 +73,85 @@ void obd_data_reset_temp_cache(void)
     s_oil_temp = -100;
     s_intake_temp = -40;
     s_fuel_pct = -1;
+    invalidate_channel_locked(OBD_DATA_COOLANT);
+    invalidate_channel_locked(OBD_DATA_OIL);
+    invalidate_channel_locked(OBD_DATA_INTAKE);
+    invalidate_channel_locked(OBD_DATA_FUEL);
     portEXIT_CRITICAL(&s_mux);
+}
+
+void obd_data_reset(void)
+{
+    portENTER_CRITICAL(&s_mux);
+    s_rpm_smooth = 0;
+    s_speed_smooth = 0;
+    s_speed_smooth_f = 0.0f;
+    s_speed_last_tick = xTaskGetTickCount();
+    s_coolant_temp = -40;
+    s_oil_temp = -100;
+    s_intake_temp = -40;
+    s_load_pct = -1;
+    s_tps = -1;
+    s_bat_mv = -1;
+    s_oil_pressure_x10 = -1;
+    s_brake_temp_x10 = -1000;
+    s_boost_x10 = -32768;
+    s_gear = 127;
+    s_afr_x100 = -1;
+    s_fuel_pct = -1;
+    s_brake_rs485_status = BRAKE_RS485_IDLE;
+    s_rpm_override_en = false;
+    s_rpm_override_val = 0;
+    for (unsigned i = 0; i < OBD_DATA_CHANNEL_COUNT; ++i) {
+        invalidate_channel_locked((obd_data_channel_t)i);
+    }
+    portEXIT_CRITICAL(&s_mux);
+}
+
+bool obd_data_get_channel_state(obd_data_channel_t channel,
+                                obd_data_channel_state_t *out)
+{
+    if (!out || channel >= OBD_DATA_CHANNEL_COUNT) return false;
+    portENTER_CRITICAL(&s_mux);
+    *out = s_channel_state[channel];
+    portEXIT_CRITICAL(&s_mux);
+    return true;
+}
+
+void obd_data_invalidate_channel(obd_data_channel_t channel)
+{
+    if (channel >= OBD_DATA_CHANNEL_COUNT) return;
+    portENTER_CRITICAL(&s_mux);
+    invalidate_channel_locked(channel);
+    portEXIT_CRITICAL(&s_mux);
+}
+
+bool obd_data_channel_is_fresh(obd_data_channel_t channel, int64_t max_age_us)
+{
+    if (channel >= OBD_DATA_CHANNEL_COUNT || max_age_us < 0) return false;
+    const int64_t now_us = esp_timer_get_time();
+    bool fresh;
+    portENTER_CRITICAL(&s_mux);
+    fresh = s_channel_state[channel].valid &&
+            s_channel_state[channel].updated_us > 0 &&
+            now_us - s_channel_state[channel].updated_us <= max_age_us;
+    portEXIT_CRITICAL(&s_mux);
+    return fresh;
 }
 
 void obd_data_set_oil_temp_invalid(void)
 {
     portENTER_CRITICAL(&s_mux);
     s_oil_temp = -100;
+    invalidate_channel_locked(OBD_DATA_OIL);
+    portEXIT_CRITICAL(&s_mux);
+}
+
+void obd_data_set_coolant_temp_invalid(void)
+{
+    portENTER_CRITICAL(&s_mux);
+    s_coolant_temp = -40;
+    invalidate_channel_locked(OBD_DATA_COOLANT);
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -84,6 +170,7 @@ void obd_data_set_speed(uint8_t kmh)
     uint8_t smoothed = (uint8_t)(s_speed_smooth_f + 0.5f);
     portENTER_CRITICAL(&s_mux);
     s_speed_smooth = smoothed;
+    mark_channel_locked(OBD_DATA_SPEED, true);
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -91,6 +178,7 @@ void obd_data_set_coolant_temp(int16_t temp)
 {
     portENTER_CRITICAL(&s_mux);
     s_coolant_temp = temp;
+    mark_channel_locked(OBD_DATA_COOLANT, true);
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -99,6 +187,7 @@ void obd_data_set_oil_temp(int16_t temp)
     if (temp < -20 || temp > 150) return;
     portENTER_CRITICAL(&s_mux);
     s_oil_temp = temp;
+    mark_channel_locked(OBD_DATA_OIL, true);
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -106,6 +195,7 @@ void obd_data_set_intake_temp(int16_t temp)
 {
     portENTER_CRITICAL(&s_mux);
     s_intake_temp = temp;
+    mark_channel_locked(OBD_DATA_INTAKE, true);
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -158,6 +248,7 @@ void obd_data_set_load_pct(int16_t pct)
 {
     portENTER_CRITICAL(&s_mux);
     s_load_pct = pct;
+    mark_channel_locked(OBD_DATA_LOAD, pct >= 0);
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -174,6 +265,7 @@ void obd_data_set_tps(int16_t pct)
 {
     portENTER_CRITICAL(&s_mux);
     s_tps = pct;
+    mark_channel_locked(OBD_DATA_TPS, pct >= 0);
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -190,6 +282,7 @@ void obd_data_set_bat_mv(int32_t mv)
 {
     portENTER_CRITICAL(&s_mux);
     s_bat_mv = mv;
+    mark_channel_locked(OBD_DATA_BATTERY, mv >= 0);
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -207,6 +300,7 @@ void obd_data_set_oil_pressure_x10(int16_t pressure_x10)
     if (pressure_x10 < 0 || pressure_x10 > 200) return;
     portENTER_CRITICAL(&s_mux);
     s_oil_pressure_x10 = pressure_x10;
+    mark_channel_locked(OBD_DATA_OIL_PRESSURE, true);
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -224,6 +318,7 @@ void obd_data_set_boost_x10(int16_t boost_x10)
     if (boost_x10 < -15 || boost_x10 > 300) return;
     portENTER_CRITICAL(&s_mux);
     s_boost_x10 = boost_x10;
+    mark_channel_locked(OBD_DATA_BOOST, true);
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -241,6 +336,7 @@ void obd_data_set_brake_temp_x10(int16_t temp_x10)
     if (temp_x10 < -500 || temp_x10 > 12000) return;
     portENTER_CRITICAL(&s_mux);
     s_brake_temp_x10 = temp_x10;
+    mark_channel_locked(OBD_DATA_BRAKE_TEMP, true);
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -264,6 +360,7 @@ void obd_data_set_gear(int8_t gear)
 {
     portENTER_CRITICAL(&s_mux);
     s_gear = gear;
+    mark_channel_locked(OBD_DATA_GEAR, gear != 127);
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -281,6 +378,7 @@ void obd_data_set_afr_x100(int16_t afr_x100)
     if (afr_x100 < 800 || afr_x100 > 2200) return;
     portENTER_CRITICAL(&s_mux);
     s_afr_x100 = afr_x100;
+    mark_channel_locked(OBD_DATA_AFR, true);
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -298,6 +396,7 @@ void obd_data_set_fuel_pct(int16_t fuel_pct)
     if (fuel_pct < 0 || fuel_pct > 100) return;
     portENTER_CRITICAL(&s_mux);
     s_fuel_pct = fuel_pct;
+    mark_channel_locked(OBD_DATA_FUEL, true);
     portEXIT_CRITICAL(&s_mux);
 }
 
@@ -330,6 +429,9 @@ void obd_data_get_snapshot(obd_data_snapshot_t *out)
     out->afr_x100 = s_afr_x100;
     out->fuel_pct = s_fuel_pct;
     out->brake_rs485_status = s_brake_rs485_status;
+    for (unsigned i = 0; i < OBD_DATA_CHANNEL_COUNT; ++i) {
+        out->state[i] = s_channel_state[i];
+    }
     portEXIT_CRITICAL(&s_mux);
 }
 

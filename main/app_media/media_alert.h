@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "esp_err.h"
@@ -20,10 +21,17 @@ typedef enum {
 
 typedef esp_err_t (*media_alert_video_handler_t)(const char *manifest_path,
                                                  const char *data_path);
+typedef bool (*media_alert_video_busy_handler_t)(void);
 
-/* Queue an alert with duplicate suppression and a 5-second cooldown. */
+/* Start the independent OBD monitor and serialized alert-media dispatcher. */
+esp_err_t media_alert_init(void);
+
+/* Queue one alert event. Distinct abnormal edges retain FIFO entries even if
+ * an earlier event of the same type is still pending or playing. */
 esp_err_t media_alert_notify(media_alert_type_t type);
 void media_alert_set_video_handler(media_alert_video_handler_t handler);
+void media_alert_set_video_busy_handler(media_alert_video_busy_handler_t handler);
+void media_alert_set_monitor_suspended(bool suspended);
 
 #ifdef __cplusplus
 }

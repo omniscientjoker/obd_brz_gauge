@@ -61,6 +61,7 @@ void ui_ext_no_signal_update(bool signal_ok); // "NO SIGNAL" overlay on gauge pa
 /* Full-screen SD alert-video preview. Tapping the preview returns to its source screen. */
 esp_err_t ui_ext_preview_alert_video(const char *manifest_path, const char *data_path);
 void ui_ext_stop_alert_video_preview(void);
+bool ui_ext_alert_video_is_active(void);
 
 /* ---- RPM warning flash (migrated from ui.c my_timerMain) ---- */
 void ui_ext_rpm_flash_tick(uint16_t usRpm, bool in_sweep); // strobe + linked-ramp rendering (called where the old inline block lived)

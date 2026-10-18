@@ -14,7 +14,7 @@
 static const char *TAG = "es8311_audio";
 
 #define AUDIO_I2S_PORT I2S_NUM_0
-#define AUDIO_SAMPLE_RATE 16000
+#define AUDIO_SAMPLE_RATE 44100
 #define AUDIO_I2S_MCLK GPIO_NUM_2
 #define AUDIO_I2S_BCLK GPIO_NUM_48
 #define AUDIO_I2S_LRCK GPIO_NUM_38
@@ -36,6 +36,10 @@ esp_err_t es8311_audio_init(void)
         return ESP_OK;
     }
     i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(AUDIO_I2S_PORT, I2S_ROLE_MASTER);
+    /* Keep internal DMA usage bounded so SDMMC can allocate its transfer
+     * buffers while a WAV file is being streamed. */
+    chan_cfg.dma_desc_num = 3;
+    chan_cfg.dma_frame_num = 128;
     chan_cfg.auto_clear = true;
     esp_err_t err = i2s_new_channel(&chan_cfg, &s_tx, NULL);
     if (err != ESP_OK) {
@@ -156,7 +160,7 @@ esp_err_t es8311_audio_init(void)
         return ESP_FAIL;
     }
     s_ready = true;
-    ESP_LOGI(TAG, "ES8311 audio ready: I2S0 16 kHz stereo, MCLK=%d BCLK=%d LRCK=%d DOUT=%d PA=%d",
+    ESP_LOGI(TAG, "ES8311 audio ready: I2S0 44.1 kHz stereo, MCLK=%d BCLK=%d LRCK=%d DOUT=%d PA=%d",
              AUDIO_I2S_MCLK, AUDIO_I2S_BCLK, AUDIO_I2S_LRCK, AUDIO_I2S_DOUT, AUDIO_PA_GPIO);
     return ESP_OK;
 #endif

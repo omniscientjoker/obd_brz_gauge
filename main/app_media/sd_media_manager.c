@@ -7,9 +7,11 @@
 #include <sys/stat.h>
 
 #include "freertos/FreeRTOS.h"
+#include "freertos/idf_additions.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "driver/sdmmc_host.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_vfs_fat.h"
 #include "sdmmc_cmd.h"
@@ -254,8 +256,9 @@ esp_err_t sd_media_init(void)
         return ESP_ERR_NO_MEM;
     }
 #if CONFIG_OBD_HW_VERSION_V1_WAVESHARE
-    if (xTaskCreate(sd_media_mount_task, "sd_media", SD_MEDIA_TASK_STACK, NULL,
-                    tskIDLE_PRIORITY + 1, NULL) != pdPASS) {
+    if (xTaskCreateWithCaps(sd_media_mount_task, "sd_media", SD_MEDIA_TASK_STACK, NULL,
+                            tskIDLE_PRIORITY + 1, NULL,
+                            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT) != pdPASS) {
         vSemaphoreDelete(s_media_lock);
         s_media_lock = NULL;
         s_started = false;

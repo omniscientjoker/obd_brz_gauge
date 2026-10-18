@@ -12,7 +12,6 @@
 #include "app_obd_dsp/app_event.h"
 #include "app_obd_dsp/obd_data_cache.h"
 #include "app_obd_dsp/obd_tpms_cache.h"
-#include "app_media/media_alert.h"
 #include <driver/gpio.h>
 #include "bsp_obd_dsp/bsp_board.h"
 #include "bsp_obd_dsp/nvs_storage.h"
@@ -34,10 +33,31 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdarg.h>
 
 
 static const char *TAG = "ui";
 static void ui_nav_ble_leave(void);
+
+static bool ui_label_set_text_dirty(lv_obj_t *label, const char *text)
+{
+    if (!label || !text) return false;
+    const char *old = lv_label_get_text(label);
+    if (old && strcmp(old, text) == 0) return false;
+    lv_label_set_text(label, text);
+    return true;
+}
+
+static bool ui_label_set_text_fmt_dirty(lv_obj_t *label, const char *fmt, ...)
+{
+    if (!label || !fmt) return false;
+    char text[64];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(text, sizeof(text), fmt, ap);
+    va_end(ap);
+    return ui_label_set_text_dirty(label, text);
+}
 
 ///////////////////// VARIABLES ////////////////////
 void ui_ScreenPageLogo_screen_init(void);
@@ -281,8 +301,14 @@ static uint8_t needle_active_source(void)
 static void ui_temp_update_arc(disp_item_t item, int32_t raw_value, bool valid)
 {
     if (!ui_TempArc) return;
+    static int16_t last_value = -1;
+    static bool last_valid = false;
     if (!valid) {
-        lv_arc_set_value(ui_TempArc, 0);
+        if (last_valid || last_value != 0) {
+            lv_arc_set_value(ui_TempArc, 0);
+            last_valid = false;
+            last_value = 0;
+        }
         return;
     }
 
@@ -295,7 +321,11 @@ static void ui_temp_update_arc(disp_item_t item, int32_t raw_value, bool valid)
     int64_t progress = ((int64_t)raw_value - raw_min) * 100 / (raw_max - raw_min);
     if (progress < 0) progress = 0;
     if (progress > 100) progress = 100;
-    lv_arc_set_value(ui_TempArc, (int16_t)progress);
+    if (!last_valid || last_value != progress) {
+        lv_arc_set_value(ui_TempArc, (int16_t)progress);
+        last_valid = true;
+        last_value = (int16_t)progress;
+    }
 }
 
 void ui_needle_apply_source(void)
@@ -331,7 +361,11 @@ void ui_needle_page_update(float sweep_ratio, int16_t clt, int16_t iat, int16_t 
             lv_meter_set_indicator_value(ui_NeedleMeter, ui_NeedleIndic, nval);
             s_last_needle_meter = nval;
         }
-        if (ui_NeedleArc) lv_arc_set_value(ui_NeedleArc, (int16_t)((int64_t)(nval - ns->nmin) * 100 / (ns->nmax - ns->nmin)));
+        if (ui_NeedleArc) {
+            int16_t sweep_percent = (int16_t)((int64_t)(nval - ns->nmin) * 100 /
+                                              (ns->nmax - ns->nmin));
+            lv_arc_set_value(ui_NeedleArc, sweep_percent);
+        }
         disp_item_set_text(ui_NeedleValueLabel, src, nval * ns->div, true);
         return;
     }
@@ -361,10 +395,14 @@ void ui_needle_page_update(float sweep_ratio, int16_t clt, int16_t iat, int16_t 
         s_last_needle_meter = nval;
     }
     if (ui_NeedleArc) {
+        static int32_t s_last_needle_percent = INT32_MIN;
         int32_t percent = (int32_t)((int64_t)(nval - ns->nmin) * 100 / (ns->nmax - ns->nmin));
         if (percent < 0) percent = 0;
         if (percent > 100) percent = 100;
-        lv_arc_set_value(ui_NeedleArc, (int16_t)percent);
+        if (s_last_needle_percent != percent) {
+            s_last_needle_percent = percent;
+            lv_arc_set_value(ui_NeedleArc, (int16_t)percent);
+        }
     }
 }
 
@@ -648,29 +686,6 @@ void my_timerMain(lv_timer_t * timer)
         }
     }
 
-    /* Media alerts are queued without blocking the LVGL task. The WAV service
-       applies its own duplicate suppression, so these checks can run at the
-       same cadence as the existing gauge refresh. */
-    if (!IN_SWEEP) {
-        if (bat_mv > 0 && bat_mv < (int32_t)user_cfg->tpms_voltage_min_mv) {
-            (void)media_alert_notify(MEDIA_ALERT_VOLTAGE);
-        }
-        if (clt > 110) {
-            (void)media_alert_notify(MEDIA_ALERT_TEMP_HIGH);
-        }
-        obd_tpms_snapshot_t tpms_alert;
-        obd_tpms_cache_expire(esp_timer_get_time(), 4000000);
-        obd_tpms_cache_get_snapshot(&tpms_alert);
-        for (uint8_t i = 0; i < OBD_TPMS_WHEEL_COUNT; ++i) {
-            if (tpms_alert.valid[i] &&
-                (tpms_alert.pressure_bar_x100[i] < (int16_t)user_cfg->tpms_pressure_min_bar_x100 ||
-                 tpms_alert.pressure_bar_x100[i] > (int16_t)user_cfg->tpms_pressure_max_bar_x100)) {
-                (void)media_alert_notify(MEDIA_ALERT_TPMS);
-                break;
-            }
-        }
-    }
-
     /* ---- Data source: sweep or real OBD (sweep state machine moved to ui_ext.c) ---- */
     float sweep_ratio = ui_ext_sweep_tick(is_slave, user_cfg->brightness_day);
     if (sweep_ratio >= 0.0f) {
@@ -716,9 +731,15 @@ void my_timerMain(lv_timer_t * timer)
     /* Theme-provided gauge page: feed the theme engine's arc/bar/label bindings */
     if (scr == ui_ScreenPageThemeGauge) {
         obd_snapshot_t theme_snap;
+        static obd_snapshot_t last_theme_snap;
+        static bool theme_snap_valid = false;
         ui_build_theme_snapshot(&theme_snap, clt, oil, oilp_x10, bat_mv, boost_x10, afr_x100,
                                  usRpm, ucSpeed, tps, eGear, s_gear_unknown);
-        theme_update_data(&theme_snap);
+        if (!theme_snap_valid || memcmp(&last_theme_snap, &theme_snap, sizeof(theme_snap)) != 0) {
+            last_theme_snap = theme_snap;
+            theme_snap_valid = true;
+            theme_update_data(&theme_snap);
+        }
     }
     /*RPM page: direct output, no animation delay (CAN 100Hz data is already clean)*/
     if (scr == ui_ScreenPageRpm) {
@@ -726,18 +747,18 @@ void my_timerMain(lv_timer_t * timer)
         if ((int32_t)usRpm != s_last_rpm) {
             s_last_rpm = (int32_t)usRpm;
             lv_label_set_text_fmt(ui_RpmPageArcLabelRpmText, "%d", (int)usRpm);
-            lv_arc_set_value(ui_RpmPageArcRpmBack, (uint32_t)usRpm*100/SWEEP_RPM_PEAK);
+            ui_rpm_arc_set_value(usRpm);
         }
         if (ui_LabelRpmMiniTemp) {
-            if (clt > -40) lv_label_set_text_fmt(ui_LabelRpmMiniTemp, "CLT %d'C", (int)clt);
-            else lv_label_set_text(ui_LabelRpmMiniTemp, "CLT --'C");
+            if (clt > -40) ui_label_set_text_fmt_dirty(ui_LabelRpmMiniTemp, "CLT %d'C", (int)clt);
+            else ui_label_set_text_dirty(ui_LabelRpmMiniTemp, "CLT --'C");
         }
         if (ui_LabelRpmMiniVoltage) {
             if (bat_mv > 0) {
-                lv_label_set_text_fmt(ui_LabelRpmMiniVoltage, "BAT %d.%dV",
-                                      (int)(bat_mv / 1000), (int)((bat_mv % 1000) / 100));
+                ui_label_set_text_fmt_dirty(ui_LabelRpmMiniVoltage, "BAT %d.%dV",
+                                            (int)(bat_mv / 1000), (int)((bat_mv % 1000) / 100));
             } else {
-                lv_label_set_text(ui_LabelRpmMiniVoltage, "BAT --.-V");
+                ui_label_set_text_dirty(ui_LabelRpmMiniVoltage, "BAT --.-V");
             }
         }
     }
@@ -762,7 +783,7 @@ void my_timerMain(lv_timer_t * timer)
             ui_speed_arc_set_value((uint16_t)s_disp_spd);
         }
         if (ui_LabelSpeedMiniRpm) {
-            lv_label_set_text_fmt(ui_LabelSpeedMiniRpm, "RPM %d", (int)usRpm);
+            ui_label_set_text_fmt_dirty(ui_LabelSpeedMiniRpm, "RPM %d", (int)usRpm);
         }
         if (ui_LabelSpeedMiniGear) {
             static int s_last_speed_gear = -2;
@@ -782,19 +803,19 @@ void my_timerMain(lv_timer_t * timer)
 
     if (scr == ui_ScreenPageMultiGauge && ui_LabelMultiValue[0]) {
         char text[24];
-        lv_label_set_text_fmt(ui_LabelMultiValue[0], "%u", (unsigned)usRpm);
-        lv_label_set_text_fmt(ui_LabelMultiValue[1], "%u", (unsigned)ucSpeed);
+        ui_label_set_text_fmt_dirty(ui_LabelMultiValue[0], "%u", (unsigned)usRpm);
+        ui_label_set_text_fmt_dirty(ui_LabelMultiValue[1], "%u", (unsigned)ucSpeed);
         if (bat_mv > 0) {
             snprintf(text, sizeof(text), "%d.%d", (int)(bat_mv / 1000),
                      (int)((bat_mv % 1000) / 100));
-            lv_label_set_text(ui_LabelMultiValue[2], text);
+            ui_label_set_text_dirty(ui_LabelMultiValue[2], text);
         } else {
-            lv_label_set_text(ui_LabelMultiValue[2], "--.-");
+            ui_label_set_text_dirty(ui_LabelMultiValue[2], "--.-");
         }
         if (ui_LabelMultiRole) {
             const char *role = (user_cfg->device_role == ESPNOW_ROLE_SLAVE) ? "从机" :
                                (user_cfg->device_role == ESPNOW_ROLE_STANDALONE) ? "独立" : "主机";
-            lv_label_set_text_fmt(ui_LabelMultiRole, "%s多联表", role);
+            ui_label_set_text_fmt_dirty(ui_LabelMultiRole, "%s多联表", role);
         }
     }
 
@@ -858,11 +879,11 @@ void my_timerMain(lv_timer_t * timer)
         const nvs_user_cfg_t *tpms_cfg = nvs_cfg_get();
         char text[16];
         if (ui_LabelTpmsHeader) {
-            lv_label_set_text_fmt(ui_LabelTpmsHeader, "%d.%d-%d.%d bar",
-                                  tpms_cfg->tpms_pressure_min_bar_x100 / 100,
-                                  (tpms_cfg->tpms_pressure_min_bar_x100 % 100) / 10,
-                                  tpms_cfg->tpms_pressure_max_bar_x100 / 100,
-                                  (tpms_cfg->tpms_pressure_max_bar_x100 % 100) / 10);
+            ui_label_set_text_fmt_dirty(ui_LabelTpmsHeader, "%d.%d-%d.%d bar",
+                                        tpms_cfg->tpms_pressure_min_bar_x100 / 100,
+                                        (tpms_cfg->tpms_pressure_min_bar_x100 % 100) / 10,
+                                        tpms_cfg->tpms_pressure_max_bar_x100 / 100,
+                                        (tpms_cfg->tpms_pressure_max_bar_x100 % 100) / 10);
         }
         obd_tpms_cache_expire(esp_timer_get_time(), 4000000);
         obd_tpms_cache_get_snapshot(&tpms);
@@ -881,14 +902,24 @@ void my_timerMain(lv_timer_t * timer)
                 (tpms.pressure_bar_x100[i] < (int16_t)tpms_cfg->tpms_pressure_min_bar_x100 ||
                  tpms.pressure_bar_x100[i] > (int16_t)tpms_cfg->tpms_pressure_max_bar_x100);
             lv_color_t value_color = out_of_range ? lv_color_hex(0xFF4545) : lv_color_hex(0xFFFFFF);
-            lv_obj_set_style_text_color(ui_LabelTpmsValue[i], value_color, LV_PART_MAIN);
+            static bool last_out_of_range[OBD_TPMS_WHEEL_COUNT];
+            static bool last_tpms_valid[OBD_TPMS_WHEEL_COUNT];
+            bool tpms_style_dirty = last_out_of_range[i] != out_of_range ||
+                                     last_tpms_valid[i] != tpms.valid[i];
+            if (tpms_style_dirty) {
+                last_out_of_range[i] = out_of_range;
+                last_tpms_valid[i] = tpms.valid[i];
+                lv_obj_set_style_text_color(ui_LabelTpmsValue[i], value_color, LV_PART_MAIN);
+            }
             if (ui_TpmsCard[i]) {
-                lv_obj_set_style_bg_color(ui_TpmsCard[i],
-                    out_of_range ? lv_color_hex(0xFFF1EF) : lv_color_hex(0x0B1F2F), LV_PART_MAIN);
-                lv_obj_set_style_border_color(ui_TpmsCard[i],
-                    out_of_range ? lv_color_hex(0xFF4545) : lv_color_hex(0x35CFE0), LV_PART_MAIN);
-                lv_obj_set_style_shadow_color(ui_TpmsCard[i],
-                    out_of_range ? lv_color_hex(0xFF3030) : lv_color_hex(0x25CDE3), LV_PART_MAIN);
+                if (tpms_style_dirty) {
+                    lv_obj_set_style_bg_color(ui_TpmsCard[i],
+                        out_of_range ? lv_color_hex(0xFFF1EF) : lv_color_hex(0x0B1F2F), LV_PART_MAIN);
+                    lv_obj_set_style_border_color(ui_TpmsCard[i],
+                        out_of_range ? lv_color_hex(0xFF4545) : lv_color_hex(0x35CFE0), LV_PART_MAIN);
+                    lv_obj_set_style_shadow_color(ui_TpmsCard[i],
+                        out_of_range ? lv_color_hex(0xFF3030) : lv_color_hex(0x25CDE3), LV_PART_MAIN);
+                }
             }
         }
         if (ui_LabelTpmsVoltage) {
@@ -901,8 +932,12 @@ void my_timerMain(lv_timer_t * timer)
             if (strcmp(lv_label_get_text(ui_LabelTpmsVoltage), text) != 0)
                 lv_label_set_text(ui_LabelTpmsVoltage, text);
             bool voltage_low = obd.bat_mv > 0 && obd.bat_mv < (int32_t)tpms_cfg->tpms_voltage_min_mv;
-            lv_obj_set_style_text_color(ui_LabelTpmsVoltage,
-                voltage_low ? lv_color_hex(0xFF4545) : lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+            static bool last_voltage_low = false;
+            if (last_voltage_low != voltage_low) {
+                last_voltage_low = voltage_low;
+                lv_obj_set_style_text_color(ui_LabelTpmsVoltage,
+                    voltage_low ? lv_color_hex(0xFF4545) : lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+            }
         }
     }
 
@@ -961,13 +996,13 @@ void my_timerMain(lv_timer_t * timer)
             if (fuel_pct >= 0 && fuel_pct <= 100 && tank_capacity_dl > 0) {
                 const uint16_t fuel_dl = (uint16_t)((fuel_pct * tank_capacity_dl + 50) / 100);
                 const uint16_t refill_dl = tank_capacity_dl - fuel_dl;
-                lv_label_set_text_fmt(ui_LabelInfoFuel, "油量 %d%% 约 %u.%uL",
-                                      fuel_pct, fuel_dl / 10, fuel_dl % 10);
-                lv_label_set_text_fmt(ui_LabelInfoFuelNeed, "加满 %d%% 约 %u.%uL",
-                                      100 - fuel_pct, refill_dl / 10, refill_dl % 10);
+                ui_label_set_text_fmt_dirty(ui_LabelInfoFuel, "油量 %d%% 约 %u.%uL",
+                                            fuel_pct, fuel_dl / 10, fuel_dl % 10);
+                ui_label_set_text_fmt_dirty(ui_LabelInfoFuelNeed, "加满 %d%% 约 %u.%uL",
+                                            100 - fuel_pct, refill_dl / 10, refill_dl % 10);
             } else {
-                lv_label_set_text(ui_LabelInfoFuel, "油量 --% 约 --.-L");
-                lv_label_set_text(ui_LabelInfoFuelNeed, "加满 --% 约 --.-L");
+                ui_label_set_text_dirty(ui_LabelInfoFuel, "油量 --% 约 --.-L");
+                ui_label_set_text_dirty(ui_LabelInfoFuelNeed, "加满 --% 约 --.-L");
             }
         }
 
@@ -1160,17 +1195,24 @@ void ui_ota_mode_refresh(void)
     if (ui_ScreenPageOTAMode == NULL) return;
     if (ui_LabelOTAModeStatus == NULL) return;
 
-    if (ota_wifi_server_is_busy()) {
-        lv_label_set_text(ui_LabelOTAModeStatus, "Receiving update...");
+    static int last_state = -1;
+    static bool last_busy = false;
+    bool busy = ota_wifi_server_is_busy();
+    int state = (int)ota_wifi_server_get_state();
+    if (busy == last_busy && state == last_state) return;
+    last_busy = busy;
+    last_state = state;
+    if (busy) {
+        ui_label_set_text_dirty(ui_LabelOTAModeStatus, "Receiving update...");
         lv_obj_set_style_text_color(ui_LabelOTAModeStatus, lv_color_hex(0x00CC66), LV_PART_MAIN | LV_STATE_DEFAULT);
-    } else if (ota_wifi_server_get_state() == OTA_WIFI_STATE_READY) {
-        lv_label_set_text(ui_LabelOTAModeStatus, "WiFi ready — connect your phone");
+    } else if (state == OTA_WIFI_STATE_READY) {
+        ui_label_set_text_dirty(ui_LabelOTAModeStatus, "WiFi ready — connect your phone");
         lv_obj_set_style_text_color(ui_LabelOTAModeStatus, lv_color_hex(0x00CC66), LV_PART_MAIN | LV_STATE_DEFAULT);
-    } else if (ota_wifi_server_get_state() == OTA_WIFI_STATE_IDLE) {
-        lv_label_set_text(ui_LabelOTAModeStatus, "Starting WiFi...");
+    } else if (state == OTA_WIFI_STATE_IDLE) {
+        ui_label_set_text_dirty(ui_LabelOTAModeStatus, "Starting WiFi...");
         lv_obj_set_style_text_color(ui_LabelOTAModeStatus, lv_color_hex(0xAAAAAA), LV_PART_MAIN | LV_STATE_DEFAULT);
-    } else if (ota_wifi_server_get_state() == OTA_WIFI_STATE_ERROR) {
-        lv_label_set_text(ui_LabelOTAModeStatus, "WiFi error");
+    } else if (state == OTA_WIFI_STATE_ERROR) {
+        ui_label_set_text_dirty(ui_LabelOTAModeStatus, "WiFi error");
         lv_obj_set_style_text_color(ui_LabelOTAModeStatus, lv_color_hex(0xFF0000), LV_PART_MAIN | LV_STATE_DEFAULT);
     }
 }

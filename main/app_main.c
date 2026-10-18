@@ -36,6 +36,7 @@
 #include "bsp_obd_dsp/racechrono_ble_diy.h"
 #include "app_obd_dsp/boot_media_mount.h"
 #include "app_media/sd_media_manager.h"
+#include "app_media/media_alert.h"
 #include "app_media/es8311_audio.h"
 #include "app_media/wav_player.h"
 #include "bsp_obd_dsp/rs485_brake_temp.h"
@@ -76,6 +77,12 @@ static void start_media_services(void)
     esp_err_t sd_init_err = sd_media_init();
     if (sd_init_err != ESP_OK) {
         ESP_LOGW(TAG, "SD media service unavailable (%s)", esp_err_to_name(sd_init_err));
+    }
+
+    esp_err_t alert_init_err = media_alert_init();
+    if (alert_init_err != ESP_OK) {
+        ESP_LOGW(TAG, "Media alert service unavailable (%s)",
+                 esp_err_to_name(alert_init_err));
     }
 }
 

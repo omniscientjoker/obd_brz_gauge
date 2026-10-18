@@ -4,8 +4,10 @@
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
+#include "freertos/idf_additions.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+#include "esp_attr.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 
@@ -17,10 +19,11 @@ static const char *TAG = "wav_player";
 #define WAV_QUEUE_DEPTH 4
 #define WAV_PATH_MAX 160
 #define WAV_READ_BYTES 1024
-/* 8 kHz mono is the worst supported input: one input chunk expands to
- * exactly WAV_READ_BYTES output frames at the fixed 16 kHz codec rate. */
+/* Keep the fixed output chunk small enough for internal DRAM. If a lower-rate
+ * input expands past this buffer, play_file flushes it and continues instead
+ * of dropping the rest of the input chunk. */
 #define WAV_OUTPUT_FRAMES WAV_READ_BYTES
-#define WAV_OUTPUT_RATE 16000
+#define WAV_OUTPUT_RATE 44100
 
 typedef struct {
     char path[WAV_PATH_MAX];
@@ -42,8 +45,13 @@ static QueueHandle_t s_queue;
 static TaskHandle_t s_task;
 static volatile bool s_playing;
 static volatile uint32_t s_generation = 1;
-static uint8_t *s_input;
-static int16_t *s_stereo;
+/* Keep the small streaming buffers in linker-placed internal DRAM. Dynamic
+ * DMA allocation happens late in app startup, after LVGL and the display
+ * buffers have fragmented the DMA heap, and can fail even with free SRAM. */
+static DRAM_ATTR uint8_t s_input_storage[WAV_READ_BYTES] __attribute__((aligned(4)));
+static DRAM_ATTR int16_t s_stereo_storage[WAV_OUTPUT_FRAMES * 2] __attribute__((aligned(4)));
+static uint8_t *s_input = s_input_storage;
+static int16_t *s_stereo = s_stereo_storage;
 
 static bool read_exact(FILE *fp, void *buf, size_t len)
 {
@@ -108,26 +116,26 @@ static bool job_is_current(const wav_job_t *job)
     return job && s_playing && job->generation == s_generation;
 }
 
-static void play_file(const wav_job_t *job)
+static esp_err_t play_file(const wav_job_t *job)
 {
     const char *path = job ? job->path : NULL;
     if (!path) {
         ESP_LOGW(TAG, "Playback skipped: invalid path");
-        return;
+        return ESP_ERR_INVALID_ARG;
     }
     if (!sd_media_is_ready()) {
         ESP_LOGW(TAG, "Playback skipped: SD card is not ready (%s)", path);
-        return;
+        return ESP_ERR_NOT_FOUND;
     }
     if (!sd_media_lock(1000)) {
         ESP_LOGW(TAG, "Playback skipped: SD card lock timeout (%s)", path);
-        return;
+        return ESP_ERR_TIMEOUT;
     }
     FILE *fp = fopen(path, "rb");
     if (!fp) {
         ESP_LOGW(TAG, "Cannot open %s", path);
         sd_media_unlock();
-        return;
+        return ESP_ERR_NOT_FOUND;
     }
     uint16_t channels = 0;
     uint16_t bits = 0;
@@ -139,7 +147,7 @@ static void play_file(const wav_job_t *job)
         ESP_LOGW(TAG, "Unsupported WAV %s (PCM16, 8-96kHz, mono or stereo required)", path);
         fclose(fp);
         sd_media_unlock();
-        return;
+        return ESP_ERR_INVALID_ARG;
     }
     uint8_t *input = s_input;
     int16_t *stereo = s_stereo;
@@ -147,29 +155,40 @@ static void play_file(const wav_job_t *job)
         ESP_LOGE(TAG, "Audio buffers are not initialized");
         fclose(fp);
         sd_media_unlock();
-        return;
+        return ESP_ERR_NO_MEM;
     }
     uint32_t remaining = data_size;
     uint32_t rate_accum = 0;
+    esp_err_t result = ESP_OK;
     while (remaining > 0 && job_is_current(job)) {
         const size_t frame_bytes = channels * sizeof(int16_t);
         size_t want = remaining < WAV_READ_BYTES ? remaining : WAV_READ_BYTES;
         want -= want % frame_bytes;
         if (want == 0) {
+            result = ESP_ERR_INVALID_SIZE;
             break;
         }
         size_t got = fread(input, 1, want, fp);
         if (got != want) {
             ESP_LOGW(TAG, "Short WAV read for %s", path);
+            result = ESP_ERR_INVALID_SIZE;
             break;
         }
         const int16_t *pcm = (const int16_t *)input;
         const size_t input_frames = got / frame_bytes;
         size_t output_frames = 0;
+        bool write_failed = false;
         for (size_t frame = 0; frame < input_frames; ++frame) {
             rate_accum += WAV_OUTPUT_RATE;
             while (rate_accum >= sample_rate) {
-                if (output_frames >= WAV_OUTPUT_FRAMES) break;
+                if (output_frames == WAV_OUTPUT_FRAMES) {
+                    if (es8311_audio_write(stereo, output_frames * 2 * sizeof(int16_t)) != ESP_OK) {
+                        write_failed = true;
+                        result = ESP_FAIL;
+                        break;
+                    }
+                    output_frames = 0;
+                }
                 const int16_t left = pcm[frame * channels];
                 const int16_t right = channels == 2 ? pcm[frame * channels + 1] : left;
                 stereo[output_frames * 2] = left;
@@ -177,19 +196,35 @@ static void play_file(const wav_job_t *job)
                 ++output_frames;
                 rate_accum -= sample_rate;
             }
-            if (output_frames >= WAV_OUTPUT_FRAMES) break;
+            if (write_failed) break;
         }
-        if (output_frames > 0 &&
+        if (!write_failed && output_frames > 0 &&
             es8311_audio_write(stereo, output_frames * 2 * sizeof(int16_t)) != ESP_OK) {
+            write_failed = true;
+        }
+        if (write_failed) {
             ESP_LOGW(TAG, "I2S write failed for %s", path);
+            result = ESP_FAIL;
             break;
         }
         remaining -= (uint32_t)got;
     }
+    if (result == ESP_OK && !job_is_current(job)) {
+        result = ESP_ERR_INVALID_STATE;
+    } else if (result == ESP_OK && remaining != 0) {
+        result = ESP_ERR_INVALID_SIZE;
+    }
     fclose(fp);
     sd_media_unlock();
-    ESP_LOGI(TAG, "Played %s (%u Hz, %u ch, %u bit)", path,
-             (unsigned)sample_rate, (unsigned)channels, (unsigned)bits);
+    if (result == ESP_OK) {
+        ESP_LOGI(TAG, "Played %s (%u Hz, %u ch, %u bit)", path,
+                 (unsigned)sample_rate, (unsigned)channels, (unsigned)bits);
+    } else if (result == ESP_ERR_INVALID_STATE) {
+        ESP_LOGI(TAG, "Playback stopped %s", path);
+    } else {
+        ESP_LOGW(TAG, "Playback failed %s: %s", path, esp_err_to_name(result));
+    }
+    return result;
 }
 
 static void wav_player_task(void *arg)
@@ -197,12 +232,17 @@ static void wav_player_task(void *arg)
     (void)arg;
     wav_job_t job;
     while (true) {
-        if (xQueueReceive(s_queue, &job, portMAX_DELAY) == pdTRUE) {
-            if (job.generation != s_generation) continue;
-            s_playing = true;
-            play_file(&job);
+        /* Keep the queue non-empty until busy is visible. Consumers checking
+         * global audio/video exclusion therefore cannot observe a false idle
+         * gap between dequeue and playback startup. */
+        if (xQueuePeek(s_queue, &job, portMAX_DELAY) != pdTRUE) continue;
+        s_playing = true;
+        if (xQueueReceive(s_queue, &job, 0) != pdTRUE) {
             s_playing = false;
+            continue;
         }
+        if (job.generation == s_generation) play_file(&job);
+        s_playing = false;
     }
 }
 
@@ -214,33 +254,15 @@ esp_err_t wav_player_init(void)
     if (!es8311_audio_is_ready()) {
         return ESP_ERR_NOT_SUPPORTED;
     }
-    s_input = heap_caps_malloc(WAV_READ_BYTES, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
-    s_stereo = heap_caps_malloc(WAV_OUTPUT_FRAMES * 2 * sizeof(int16_t),
-                                MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
-    if (!s_input || !s_stereo) {
-        ESP_LOGE(TAG, "Cannot allocate DMA audio buffers");
-        heap_caps_free(s_input);
-        heap_caps_free(s_stereo);
-        s_input = NULL;
-        s_stereo = NULL;
-        return ESP_ERR_NO_MEM;
-    }
     s_queue = xQueueCreate(WAV_QUEUE_DEPTH, sizeof(wav_job_t));
     if (!s_queue) {
-        heap_caps_free(s_input);
-        heap_caps_free(s_stereo);
-        s_input = NULL;
-        s_stereo = NULL;
         return ESP_ERR_NO_MEM;
     }
-    if (xTaskCreate(wav_player_task, "wav_player", 6144, NULL,
-                    tskIDLE_PRIORITY + 2, &s_task) != pdPASS) {
+    if (xTaskCreateWithCaps(wav_player_task, "wav_player", 6144, NULL,
+                            tskIDLE_PRIORITY + 2, &s_task,
+                            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT) != pdPASS) {
         vQueueDelete(s_queue);
         s_queue = NULL;
-        heap_caps_free(s_input);
-        heap_caps_free(s_stereo);
-        s_input = NULL;
-        s_stereo = NULL;
         return ESP_ERR_NO_MEM;
     }
     return ESP_OK;
@@ -261,7 +283,9 @@ esp_err_t wav_player_play(const char *path)
 void wav_player_stop(void)
 {
     if (!s_queue) return;
-    s_playing = false;
+    /* The worker owns this flag until its current I2S write and file cleanup
+     * finish. Clearing it here makes callers believe audio is idle while a
+     * final chunk may still be in flight (which can overlap video playback). */
     ++s_generation;
     if (s_generation == 0) ++s_generation;
 }
@@ -285,4 +309,10 @@ esp_err_t wav_player_preview(const char *path)
 bool wav_player_is_playing(void)
 {
     return s_playing;
+}
+
+bool wav_player_is_busy(void)
+{
+    if (!s_queue) return false;
+    return s_playing || uxQueueMessagesWaiting(s_queue) != 0;
 }

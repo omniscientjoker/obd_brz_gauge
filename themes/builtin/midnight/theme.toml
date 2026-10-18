@@ -1,0 +1,21 @@
+# MIDNIGHT — muted mint telemetry for night driving.
+# MIDNIGHT —— 夜间驾驶用低刺激薄荷绿遥测主题。
+
+id   = "midnight"
+name = "MIDNIGHT"
+
+author      = "steveEcode"
+description = "Deep graphite face with a low-glare mint telemetry ring."
+
+[colors]
+bg             = 0x07100D
+ring           = 0x79E9BE
+arc_track      = 0x263632
+arc_indicator  = 0x8CF2C4
+text_primary   = 0xF1F6EF
+text_secondary = 0x8E9C96
+needle         = 0xFFC46A
+panel          = 0x12211B
+
+[bezel]
+style_id = 0

@@ -29,12 +29,11 @@ void ui_ScreenPageSpeed_screen_init(void)
     ui_helpers_style_screen_bg(ui_ScreenPageSpeed);
     lv_obj_set_style_bg_opa(ui_ScreenPageSpeed, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    static const ui_color_arc_stop_t speed_stops[] = {
-        {0, LV_COLOR_MAKE(0x00, 0xCC, 0x66)},
-        {250, LV_COLOR_MAKE(0x00, 0xCC, 0x66)},
-        {500, LV_COLOR_MAKE(0xFF, 0xD1, 0x66)},
-        {750, LV_COLOR_MAKE(0xFF, 0x8C, 0x42)},
-        {1000, LV_COLOR_MAKE(0xFF, 0x4D, 0x4D)},
+    static const lv_color_t speed_gradient[] = {
+        LV_COLOR_MAKE(0x00, 0xCC, 0x66),
+        LV_COLOR_MAKE(0xFF, 0xD1, 0x66),
+        LV_COLOR_MAKE(0xFF, 0x8C, 0x42),
+        LV_COLOR_MAKE(0xFF, 0x4D, 0x4D),
     };
     const nvs_user_cfg_t *cfg = nvs_cfg_get();
     uint16_t max_speed = cfg->speed_max_kmh;
@@ -47,8 +46,7 @@ void ui_ScreenPageSpeed_screen_init(void)
         .width = SPEED_ARC_WIDTH,
         .start_angle = 90,
         .track_color = ui_theme_color_lv(UI_COLOR_ARC_TRACK),
-        .stops = speed_stops,
-        .stop_count = sizeof(speed_stops) / sizeof(speed_stops[0]),
+        .gradient_colors = speed_gradient,
         .slice_count = 32,
     };
     ui_color_arc_create(&s_speed_arc, ui_ScreenPageSpeed, &arc_config);

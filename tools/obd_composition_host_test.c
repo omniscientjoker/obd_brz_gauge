@@ -475,16 +475,17 @@ static void test_ford_mondeo_2014_tpms(void)
     obd_response_dispatcher_t dispatcher;
     char command[32];
 
-    assert(pack && pack->rule_count == 4);
+    assert(pack && pack->rule_count == 5);
     composition.rule_packs[0] = pack;
     composition.rule_pack_count = 1;
     assert(obd_composition_build_plan(&composition, &plan));
     assert(obd_request_plan_build(&composition, &request_plan));
-    assert(request_plan.slot_count == 4);
+    assert(request_plan.slot_count == 5);
     static const char *const expected_commands[] = {
         "22 28 13\r", "22 28 14\r", "22 28 16\r", "22 28 15\r",
+        "22 F4 2F\r",
     };
-    for (uint8_t slot = 12; slot <= 15; ++slot) {
+    for (uint8_t slot = 12; slot <= 16; ++slot) {
         const obd_request_slot_t *request =
             obd_request_plan_find(&request_plan, slot);
         assert(request && request->rule);
@@ -513,6 +514,12 @@ static void test_ford_mondeo_2014_tpms(void)
         assert(state.value > captures[i].bar - 0.001f);
         assert(state.value < captures[i].bar + 0.001f);
     }
+
+    context.header = "ATSH7E0\r";
+    assert(obd_response_dispatch_text_mode22(&context,
+                                             "7E8 04 62 F4 2F C2\r>"));
+    assert(state.rule_id == 0xF42F);
+    assert(state.value > 76.0f && state.value < 76.1f);
 }
 
 static void test_mode21_special_handler(void)

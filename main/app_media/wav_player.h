@@ -22,6 +22,9 @@ void wav_player_stop(void);
 
 bool wav_player_is_playing(void);
 
+/* True while a file is playing or waiting in the serialized queue. */
+bool wav_player_is_busy(void);
+
 #ifdef __cplusplus
 }
 #endif

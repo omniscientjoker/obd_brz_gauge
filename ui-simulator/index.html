@@ -10,23 +10,28 @@
 <body>
   <main class="workspace">
     <section class="simulator" aria-label="OBD 仪表 UI 模拟器">
+      <div class="simulator-topline">
+        <span class="brand-mark"><i></i> OBD / TRACK DISPLAY</span>
+        <span class="topline-note">BRZ · DIGITAL CLUSTER</span>
+      </div>
       <div class="device">
         <div class="speaker" aria-hidden="true"></div>
         <div class="screen-shell">
-          <div class="screen" id="screen" data-theme="cyan" aria-label="仪表屏幕：左右滑动切换页面，上滑显示页面列表">
+          <div class="screen" id="screen" data-theme="midnight" aria-label="仪表屏幕：左右滑动切换页面，上滑显示页面列表">
             <div class="statusbar"><span id="connectionState">OBD 就绪</span><span id="clock">12:48</span></div>
             <div class="page" id="page" aria-live="polite"></div>
           </div>
         </div>
       </div>
-      <p class="gesture-hint">左右滑动切换页面；上滑显示页面列表。</p>
+      <div class="gesture-hint"><span>↔</span> 左右滑动切换页面 <span>↑</span> 上滑打开页面列表</div>
     </section>
 
     <aside class="control-panel" aria-label="模拟数据与状态">
       <div class="panel-heading">
         <div>
-          <p class="eyebrow">桌面预览</p>
-          <h1>OBD 仪表</h1>
+          <p class="eyebrow">LIVE DESKTOP PREVIEW</p>
+          <h1>OBD 仪表 <span>/</span> 赛道模式</h1>
+          <p class="panel-subtitle">把关键数据留在视线里。</p>
         </div>
         <button class="icon-button" id="resetSimulation" title="重置模拟器" aria-label="重置模拟器">&#8635;</button>
       </div>

@@ -1,6 +1,7 @@
 #include "elm327_ble_client.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 #include "esp_bt.h"
 #include "esp_bt_main.h"
 #include "esp_gap_ble_api.h"
@@ -15,6 +16,7 @@
 #include "app_obd_dsp/obd_response_dispatch.h"
 #include "app_obd_dsp/obd_request_plan.h"
 #include "app_obd_dsp/obd_channel_arbiter.h"
+#include "app_obd_dsp/obd_manager.h"
 #include "app_obd_dsp/obd_tpms_cache.h"
 #include "app_obd_dsp/obd_special_mode21.h"
 #include "app_obd_dsp/obd_special_bmw.h"
@@ -37,6 +39,9 @@
 #define UUID16_CCCD              0x2902
 
 static const char *TAG = "elm327_ble";
+static void gattc_event_handler(esp_gattc_cb_event_t event,
+                                esp_gatt_if_t gattc_if,
+                                esp_ble_gattc_cb_param_t *param);
 
 static esp_gatt_if_t s_gattc_if = ESP_GATT_IF_NONE;   // 0 is a valid real interface number; NONE distinguishes "not registered yet"
 static uint16_t s_conn_id = 0xFFFF;
@@ -72,6 +77,26 @@ static bool s_ble_inited = false;  // whether the BLE stack has been initialized
 static bool s_poll_task_started = false; // whether the poll task has been created
 static volatile bool s_ota_paused = false; // during WiFi OTA: suppress auto-reconnect + polling so BLE stops competing for the radio
 static TaskHandle_t s_poll_task_handle = NULL; // poll task handle, used for task-notification wakeup
+static QueueHandle_t s_rx_queue = NULL;
+static volatile bool s_rx_dispatching = false;
+#define OBD_RX_QUEUE_LENGTH 8
+#define OBD_RX_MAX_NOTIFY 512
+typedef struct {
+    uint16_t len;
+    uint8_t data[OBD_RX_MAX_NOTIFY];
+} obd_rx_item_t;
+static struct {
+    uint32_t rx_enqueued;
+    uint32_t rx_dropped;
+    uint32_t rx_processed;
+    uint32_t poll_slots;
+    uint32_t poll_rounds;
+    uint32_t valid_frames;
+    uint32_t disconnects;
+    uint32_t queue_high_watermark;
+    int64_t last_rx_us;
+} s_runtime_stats;
+static portMUX_TYPE s_runtime_mux = portMUX_INITIALIZER_UNLOCKED;
 static volatile bool s_notify_ready = false;   // set only after CCCD notify subscription completes; init/poll proceed based on this (prevents losing handshake responses)
 static volatile int64_t s_last_obd_valid_us = 0; // time of the last valid OBD data; a timeout without data triggers self-heal re-init
 static volatile bool s_got_valid_data = false;   // whether a genuinely valid frame has been parsed since the last poll round; set only by the parse path (not by do_elm_init), lets the poll task clear the self-heal counter
@@ -83,6 +108,7 @@ static uint8_t s_oil_query_mode = 0;     // current query mode index (0-2)
 static inline void mark_obd_data_valid(void) {
     s_last_obd_valid_us = esp_timer_get_time();
     s_got_valid_data = true;
+    s_runtime_stats.valid_frames++;
 }
 
 bool elm327_ble_send_ascii_blocking(const char *ascii_cmd);
@@ -130,11 +156,12 @@ static bool s_vehicle_profile_inited = false;
 // Runtime composition plan. The BLE transport remains in this file, while
 // response decoding is delegated to the pure rule dispatcher. A failed plan
 // build leaves the legacy switch/parser available as a compatibility fallback.
-static obd_composed_plan_t s_composed_plan;
-static obd_request_plan_t s_request_plan;
-static obd_response_dispatcher_t s_response_dispatcher;
-static obd_channel_arbiter_t s_channel_arbiter;
-static bool s_composition_runtime_ready = false;
+static obd_manager_t s_obd_manager;
+#define s_composed_plan s_obd_manager.composed_plan
+#define s_request_plan s_obd_manager.request_plan
+#define s_response_dispatcher s_obd_manager.dispatcher
+#define s_channel_arbiter s_obd_manager.arbiter
+#define s_composition_runtime_ready s_obd_manager.ready
 // ELM327 responses do not carry the request header after normalization. Keep
 // the immutable rule header for the single in-flight request so identical
 // DIDs addressed to different ECUs remain unambiguous.
@@ -357,24 +384,16 @@ static bool init_composition_runtime(void)
     return false;
 #else
     const obd_vehicle_composition_t *composition = obd_composition_get_active();
-    if (!composition || !obd_composition_build_plan(composition, &s_composed_plan) ||
-        !obd_composition_validate_plan(&s_composed_plan) ||
-        !obd_request_plan_build(composition, &s_request_plan)) {
+    static const obd_response_sink_t sink = {
+        .on_value = composition_on_value,
+        .on_frame_valid = composition_on_frame_valid,
+    };
+    if (!composition || !obd_manager_rebuild(&s_obd_manager, composition, &sink, NULL)) {
         // Do not leave a prior profile's plan, arbitration timestamps, or
         // TPMS values visible after a failed rebuild.
         reset_composition_runtime();
         return false;
     }
-    static const obd_response_sink_t sink = {
-        .on_value = composition_on_value,
-        .on_frame_valid = composition_on_frame_valid,
-    };
-    s_response_dispatcher = (obd_response_dispatcher_t){
-        .plan = &s_composed_plan,
-        .sink = &sink,
-        .ctx = NULL,
-    };
-    obd_channel_arbiter_reset(&s_channel_arbiter);
     obd_tpms_cache_reset();
     s_composition_runtime_ready = true;
     return true;
@@ -385,11 +404,7 @@ static void reset_composition_runtime(void)
 {
     s_pending_response_header = NULL;
     s_pending_adapter_voltage = false;
-    obd_channel_arbiter_reset(&s_channel_arbiter);
-    memset(&s_composed_plan, 0, sizeof(s_composed_plan));
-    memset(&s_request_plan, 0, sizeof(s_request_plan));
-    memset(&s_response_dispatcher, 0, sizeof(s_response_dispatcher));
-    s_composition_runtime_ready = false;
+    obd_manager_reset(&s_obd_manager);
 }
 
 static bool send_composed_slot(uint8_t slot_id)
@@ -932,7 +947,7 @@ static void can_expire_stale_temp_channels(void)
 
     if (can_rules_have_channel(ov, CH_COOLANT) && s_can_coolant_last_us > 0 &&
         (now_us - s_can_coolant_last_us) > ZC6_CAN_TEMP_STALE_US) {
-        obd_data_set_coolant_temp(-40);
+        obd_data_set_coolant_temp_invalid();
         s_can_coolant_last_us = 0;
     }
 }
@@ -1262,16 +1277,38 @@ static void do_elm_init(void) {
     s_last_obd_valid_us = esp_timer_get_time();   // give a fresh "valid data" baseline so self-heal doesn't trigger right after init
 }
 
-static void obd_poll_task(void *arg) {
+static void process_rx_queue(void)
+{
+    if (!s_rx_queue) return;
+    obd_rx_item_t item;
+    unsigned processed = 0;
+    while (processed++ < 4 && xQueueReceive(s_rx_queue, &item, 0) == pdTRUE) {
+        esp_ble_gattc_cb_param_t param = {0};
+        param.notify.value = item.data;
+        param.notify.value_len = item.len;
+        s_rx_dispatching = true;
+        gattc_event_handler(ESP_GATTC_NOTIFY_EVT, s_gattc_if, &param);
+        s_rx_dispatching = false;
+        portENTER_CRITICAL(&s_runtime_mux);
+        s_runtime_stats.rx_processed++;
+        s_runtime_stats.last_rx_us = esp_timer_get_time();
+        portEXIT_CRITICAL(&s_runtime_mux);
+    }
+}
+
+static void obd_manager_task(void *arg) {
     s_poll_task_handle = xTaskGetCurrentTaskHandle();
     esp_task_wdt_add(NULL);  // register with the watchdog
     uint32_t tick_count = 0;
+    TickType_t next_slot_wake = xTaskGetTickCount();
+    int64_t last_stats_log_us = 0;
     bool inited = false;
     uint8_t heal_attempts = 0;   // consecutive self-heal count; escalates to a forced reconnect if resending ATZ a few times still yields no data
 
     // 12-slot poll: 0=RPM, 1=IAT, 2=Speed, 3=CLT, 4=Load(0x04), 5=TPS(0x11), 6=OIL(vehicle strategy), 7=vehicle battery voltage (01 42), 8=Boost, 9=AFR, 10=Oil pressure, 11=Gear
     while (1)
     {
+        process_rx_queue();
         // The first twelve slots are the legacy cadence. Opt-in rule packs
         // may append extension slots (for example four Ford TPMS DIDs) while
         // standard-only vehicles keep the exact old cycle length.
@@ -1310,6 +1347,7 @@ static void obd_poll_task(void *arg) {
             if (!s_connected) continue;
             inited = true;
             tick_count = 0;
+            next_slot_wake = xTaskGetTickCount();
             continue;
         }
         // Real valid data is flowing (any frame parsed since the last round) → clear the self-heal counter.
@@ -1554,14 +1592,12 @@ static void obd_poll_task(void *arg) {
                 break;
         }
 
-        if ((!can_broadcast || can_obd_primary) && tick_count != 0 && tick_count < 12) {
-            send_rpm_request("dup");
-        }
-
+        s_runtime_stats.poll_slots++;
         tick_count++;
         if(tick_count >= poll_slot_count)
         {
             tick_count = 0;
+            s_runtime_stats.poll_rounds++;
         }
         } // end standard OBD poll block
 
@@ -1584,7 +1620,24 @@ static void obd_poll_task(void *arg) {
                            ? ov_gap->poll_gap_ms
                            : ((vp_gap && vp_gap->poll_gap_ms > 0)
                               ? vp_gap->poll_gap_ms : OBD_POLL_SLOT_GAP_MS);
-            if (gap > 0) vTaskDelay(pdMS_TO_TICKS(gap));
+            if (gap > 0) vTaskDelayUntil(&next_slot_wake, pdMS_TO_TICKS(gap));
+        }
+
+        int64_t stats_now_us = esp_timer_get_time();
+        if (stats_now_us - last_stats_log_us >= 10000000LL) {
+            elm327_ble_runtime_stats_t stats;
+            elm327_ble_get_runtime_stats(&stats);
+            ESP_LOGI(TAG, "OBD stats rx=%lu drop=%lu q=%lu/%u poll=%lu/%lu valid=%lu stack=%u prio=%u",
+                     (unsigned long)stats.rx_processed,
+                     (unsigned long)stats.rx_dropped,
+                     (unsigned long)stats.rx_enqueued,
+                     (unsigned)stats.queue_high_watermark,
+                     (unsigned long)stats.poll_slots,
+                     (unsigned long)stats.poll_rounds,
+                     (unsigned long)stats.valid_frames,
+                     (unsigned)uxTaskGetStackHighWaterMark(NULL),
+                     (unsigned)uxTaskPriorityGet(NULL));
+            last_stats_log_us = stats_now_us;
         }
     }
 }
@@ -1624,11 +1677,28 @@ static void enable_notify_if_ready(void) {
     }
 }
 
-static void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param);
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
+static void process_rx_queue(void);
+
+void elm327_ble_get_runtime_stats(elm327_ble_runtime_stats_t *out)
+{
+    if (!out) return;
+    portENTER_CRITICAL(&s_runtime_mux);
+    out->rx_enqueued = s_runtime_stats.rx_enqueued;
+    out->rx_dropped = s_runtime_stats.rx_dropped;
+    out->rx_processed = s_runtime_stats.rx_processed;
+    out->poll_slots = s_runtime_stats.poll_slots;
+    out->poll_rounds = s_runtime_stats.poll_rounds;
+    out->valid_frames = s_runtime_stats.valid_frames;
+    out->disconnects = s_runtime_stats.disconnects;
+    out->queue_high_watermark = s_runtime_stats.queue_high_watermark;
+    out->last_rx_us = s_runtime_stats.last_rx_us;
+    portEXIT_CRITICAL(&s_runtime_mux);
+}
 
 void elm327_ble_init_and_start(const char *target_name, const elm327_ble_callbacks_t *cbs) {
     if (cbs) s_cbs = *cbs;
+    if (!s_rx_queue) s_rx_queue = xQueueCreate(OBD_RX_QUEUE_LENGTH, sizeof(obd_rx_item_t));
     if (target_name && target_name[0]) {
         strncpy(s_target_name, target_name, sizeof(s_target_name)-1);
         s_target_name[sizeof(s_target_name)-1] = '\0';
@@ -1690,6 +1760,7 @@ bool elm327_ble_send_ascii_blocking(const char *ascii_cmd)
             // Wait at most 10ms (as a fallback); xTaskNotify wakes early when '>' arrives
             ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(10));
             waited_ms += 10;
+            process_rx_queue();
             // Feed the watchdog: this wait loop itself can run close to 3s (adapter unresponsive / protocol detection timing out repeatedly).
             // The TWDT timeout is only 5s; without feeding here, a few consecutive protocol-detect timeouts would
             // trip the obd_poll task's watchdog and reboot (reproduced in testing).
@@ -2020,6 +2091,30 @@ static void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_
         break;
     }
     case ESP_GATTC_NOTIFY_EVT: {
+        // The Bluedroid callback must stay bounded: copy the packet and defer
+        // all response accumulation, parsing, callbacks, and cache writes to
+        // the OBD manager task.
+        if (!s_rx_dispatching) {
+            if (!s_rx_queue) break;
+            obd_rx_item_t item = {0};
+            item.len = param->notify.value_len > OBD_RX_MAX_NOTIFY
+                     ? OBD_RX_MAX_NOTIFY : param->notify.value_len;
+            memcpy(item.data, param->notify.value, item.len);
+            if (xQueueSend(s_rx_queue, &item, 0) != pdTRUE) {
+                portENTER_CRITICAL(&s_runtime_mux);
+                s_runtime_stats.rx_dropped++;
+                portEXIT_CRITICAL(&s_runtime_mux);
+            } else {
+                portENTER_CRITICAL(&s_runtime_mux);
+                s_runtime_stats.rx_enqueued++;
+                UBaseType_t depth = uxQueueMessagesWaiting(s_rx_queue);
+                if (depth > s_runtime_stats.queue_high_watermark)
+                    s_runtime_stats.queue_high_watermark = depth;
+                portEXIT_CRITICAL(&s_runtime_mux);
+                if (s_poll_task_handle) xTaskNotify(s_poll_task_handle, 0, eNoAction);
+            }
+            break;
+        }
         if (s_cbs.on_raw_notify) s_cbs.on_raw_notify(param->notify.value, param->notify.value_len);
         const uint8_t *v = param->notify.value;
         int n = param->notify.value_len;
@@ -2591,6 +2686,9 @@ normalized_response_done:
     }
     case ESP_GATTC_DISCONNECT_EVT: {
         s_connected = false;
+        portENTER_CRITICAL(&s_runtime_mux);
+        s_runtime_stats.disconnects++;
+        portEXIT_CRITICAL(&s_runtime_mux);
         s_notify_ready = false;   // disconnect → notifications invalid; must re-subscribe + re-init after reconnect
         s_elm_ready = true;       // release any blocking send wait immediately (no '>' will ever arrive)
         if (s_poll_task_handle) xTaskNotify(s_poll_task_handle, 0, eNoAction); // wake the poll task so it sees the disconnect without waiting up to 3s
@@ -2614,8 +2712,7 @@ normalized_response_done:
         s_accum_len = 0; s_accum_buf[0] = '\0'; // clear the response accumulation buffer
         s_zc6_can_monitor_active = false;        // reset the CAN continuous monitor
         s_zc6_can_monitor_len = 0;
-        obd_data_reset_temp_cache();
-        obd_tpms_cache_reset();
+        obd_manager_reset_data(&s_obd_manager);
         s_zc_can_obd_phase = false;
         s_zc_can_obd_round_started = false;
         s_zc6_can_temp_probe_last_us = 0;
@@ -2679,7 +2776,7 @@ void elm327_ble_start_default(const char *target_name, const uint8_t mac[6]) {
     }
     elm327_ble_init_and_start(target_name, &cbs);
     if (!s_poll_task_started) {
-        xTaskCreate(obd_poll_task, "obd_poll", 4096, NULL, 4, NULL);
+        xTaskCreate(obd_manager_task, "obd_manager", 4096, NULL, 5, NULL);
         s_poll_task_started = true;
     }
 }
@@ -2758,7 +2855,7 @@ void elm327_ble_connect_by_addr(const uint8_t mac[6], const char *name) {
     esp_ble_gap_start_scanning(15);
     // Create the poll task (if not already created)
     if (!s_poll_task_started) {
-        xTaskCreate(obd_poll_task, "obd_poll", 4096, NULL, 4, NULL);
+        xTaskCreate(obd_manager_task, "obd_manager", 4096, NULL, 5, NULL);
         s_poll_task_started = true;
     }
 }
@@ -2802,6 +2899,8 @@ void elm327_ble_forget_device(void) {
     s_connected = false;
     s_notify_ready = false;
     s_elm_ready = true;
+    if (s_rx_queue) xQueueReset(s_rx_queue);
+    obd_manager_reset_data(&s_obd_manager);
     s_conn_id = 0xFFFF;
     if (s_poll_task_handle) xTaskNotify(s_poll_task_handle, 0, eNoAction);
     if (was_connected && gattc_if != ESP_GATT_IF_NONE && conn_id != 0xFFFF) {
@@ -2823,6 +2922,7 @@ void elm327_ble_pause_for_ota(void) {
         esp_ble_gattc_close(s_gattc_if, s_conn_id);
     }
     if (s_poll_task_handle) xTaskNotify(s_poll_task_handle, 0, eNoAction);
+    obd_manager_reset_data(&s_obd_manager);
     ESP_LOGI(TAG, "BLE paused for WiFi OTA");
 }
 

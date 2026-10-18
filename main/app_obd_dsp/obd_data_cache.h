@@ -28,6 +28,29 @@ typedef enum {
     BRAKE_RS485_PARSE_FAIL,
 } brake_rs485_status_t;
 
+typedef enum {
+    OBD_DATA_RPM = 0,
+    OBD_DATA_SPEED,
+    OBD_DATA_COOLANT,
+    OBD_DATA_OIL,
+    OBD_DATA_INTAKE,
+    OBD_DATA_LOAD,
+    OBD_DATA_TPS,
+    OBD_DATA_BATTERY,
+    OBD_DATA_OIL_PRESSURE,
+    OBD_DATA_BOOST,
+    OBD_DATA_BRAKE_TEMP,
+    OBD_DATA_GEAR,
+    OBD_DATA_AFR,
+    OBD_DATA_FUEL,
+    OBD_DATA_CHANNEL_COUNT,
+} obd_data_channel_t;
+
+typedef struct {
+    bool valid;
+    int64_t updated_us;
+} obd_data_channel_state_t;
+
 typedef struct {
     uint16_t rpm;
     uint8_t  speed;
@@ -44,13 +67,22 @@ typedef struct {
     int16_t  afr_x100;
     int16_t  fuel_pct;
     brake_rs485_status_t brake_rs485_status;
+    obd_data_channel_state_t state[OBD_DATA_CHANNEL_COUNT];
 } obd_data_snapshot_t;
 
 void obd_data_set_rpm(uint16_t rpm);
 // RPM override layer: for multi-gauge linkage tests. When enabled, get_rpm returns val; disabling restores the real value.
 void obd_data_rpm_override_set(bool en, uint16_t val);
 void obd_data_reset_temp_cache(void);
+/* Invalidate every cached OBD value after disconnect or an ownership handoff. */
+void obd_data_reset(void);
+/* Mark a single channel unavailable without refreshing its timestamp. */
+void obd_data_invalidate_channel(obd_data_channel_t channel);
+bool obd_data_get_channel_state(obd_data_channel_t channel,
+                                obd_data_channel_state_t *out);
+bool obd_data_channel_is_fresh(obd_data_channel_t channel, int64_t max_age_us);
 void obd_data_set_oil_temp_invalid(void);
+void obd_data_set_coolant_temp_invalid(void);
 void obd_data_set_speed(uint8_t kmh);
 void obd_data_set_coolant_temp(int16_t temp);
 void obd_data_set_oil_temp(int16_t temp);   // actual oil temp °C (SSM 22 10 17, A-40)

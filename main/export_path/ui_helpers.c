@@ -80,7 +80,13 @@ void _ui_slider_increment(lv_obj_t * target, int val, int anm)
 
 void _ui_keyboard_set_target(lv_obj_t * keyboard, lv_obj_t * textarea)
 {
+#if CONFIG_LV_USE_KEYBOARD
     lv_keyboard_set_textarea(keyboard, textarea);
+#else
+    // Keep the SquareLine helper ABI without pulling in the optional keyboard widget.
+    (void)keyboard;
+    (void)textarea;
+#endif
 }
 
 void _ui_flag_modify(lv_obj_t * target, int32_t flag, int value)

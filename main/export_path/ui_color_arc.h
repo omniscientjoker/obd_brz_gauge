@@ -10,13 +10,8 @@ extern "C" {
 #endif
 
 #define UI_COLOR_ARC_POSITION_MAX 1000
-#define UI_COLOR_ARC_MAX_STOPS 8
 #define UI_COLOR_ARC_MAX_SLICES 48
-
-typedef struct {
-    uint16_t position;  // 0..UI_COLOR_ARC_POSITION_MAX
-    lv_color_t color;
-} ui_color_arc_stop_t;
+#define UI_COLOR_ARC_GRADIENT_COLORS 4
 
 typedef struct {
     int32_t min_value;
@@ -25,19 +20,19 @@ typedef struct {
     lv_coord_t width;
     uint16_t start_angle;  // degrees; 90 starts at 6 o'clock in LVGL
     lv_color_t track_color;
-    const ui_color_arc_stop_t *stops;
-    uint8_t stop_count;
+    /* Four externally supplied colors. They are placed at equal points along
+     * the ring and linearly interpolated A->B->C->D. */
+    const lv_color_t *gradient_colors;
     uint8_t slice_count;   // 0 selects the default resolution
 } ui_color_arc_config_t;
 
 typedef struct {
     lv_obj_t *track;
     lv_obj_t *slices[UI_COLOR_ARC_MAX_SLICES];
-    ui_color_arc_stop_t stops[UI_COLOR_ARC_MAX_STOPS];
+    lv_color_t gradient_colors[UI_COLOR_ARC_GRADIENT_COLORS];
     int32_t min_value;
     int32_t max_value;
     int32_t value;
-    uint8_t stop_count;
     uint8_t slice_count;
 } ui_color_arc_t;
 

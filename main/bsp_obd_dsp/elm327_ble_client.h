@@ -103,6 +103,20 @@ const char *elm327_ble_get_connected_name(void);
 void elm327_ble_pause_for_ota(void);
 void elm327_ble_resume_after_ota(void);
 
+typedef struct {
+    uint32_t rx_enqueued;
+    uint32_t rx_dropped;
+    uint32_t rx_processed;
+    uint32_t poll_slots;
+    uint32_t poll_rounds;
+    uint32_t valid_frames;
+    uint32_t disconnects;
+    uint32_t queue_high_watermark;
+    int64_t last_rx_us;
+} elm327_ble_runtime_stats_t;
+
+void elm327_ble_get_runtime_stats(elm327_ble_runtime_stats_t *out);
+
 // Get the currently connected / target device name.
 // ---- Oil temperature calibration API ----
 // Set the oil-temp offset (calibration compensation), in °C.

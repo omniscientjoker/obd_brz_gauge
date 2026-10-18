@@ -31,3 +31,4 @@
 0  default
 1  amber
 2  ocean
+3  midnight

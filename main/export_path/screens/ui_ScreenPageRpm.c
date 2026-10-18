@@ -4,6 +4,16 @@
 // Project name: OBD_PRJ
 
 #include "../ui.h"
+#include "../ui_color_arc.h"
+
+#define RPM_ARC_WIDTH 17
+
+static ui_color_arc_t s_rpm_arc;
+
+void ui_rpm_arc_set_value(uint16_t rpm)
+{
+    ui_color_arc_set_value(&s_rpm_arc, rpm);
+}
 
 void ui_ScreenPageRpm_screen_init(void)
 {
@@ -13,26 +23,24 @@ void ui_ScreenPageRpm_screen_init(void)
     ui_helpers_style_screen_bg(ui_ScreenPageRpm);
     lv_obj_set_style_bg_opa(ui_ScreenPageRpm, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_RpmPageArcRpmBack = lv_arc_create(ui_ScreenPageRpm);
-    // The simulator's primary gauge is a 230px ring on the 360px display.
-    lv_obj_set_size(ui_RpmPageArcRpmBack, 230, 230);
-    lv_obj_set_align(ui_RpmPageArcRpmBack, LV_ALIGN_CENTER);
-    lv_obj_clear_flag(ui_RpmPageArcRpmBack, LV_OBJ_FLAG_CLICKABLE);      /// Flags
-    lv_arc_set_value(ui_RpmPageArcRpmBack, 0);
-    lv_arc_set_bg_angles(ui_RpmPageArcRpmBack, 0, 360);
-    lv_arc_set_rotation(ui_RpmPageArcRpmBack, 90);
-    lv_obj_set_style_arc_color(ui_RpmPageArcRpmBack, ui_theme_color_lv(UI_COLOR_ARC_TRACK), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_opa(ui_RpmPageArcRpmBack, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_width(ui_RpmPageArcRpmBack, 11, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_rounded(ui_RpmPageArcRpmBack, false, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_set_style_arc_color(ui_RpmPageArcRpmBack, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_opa(ui_RpmPageArcRpmBack, 255, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_width(ui_RpmPageArcRpmBack, 11, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-    lv_obj_set_style_arc_rounded(ui_RpmPageArcRpmBack, false, LV_PART_INDICATOR | LV_STATE_DEFAULT);
-
-    lv_obj_set_style_bg_color(ui_RpmPageArcRpmBack, ui_theme_color_lv(UI_COLOR_ARC_INDICATOR), LV_PART_KNOB | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_RpmPageArcRpmBack, 0, LV_PART_KNOB | LV_STATE_DEFAULT);
+    static const lv_color_t rpm_gradient[] = {
+        LV_COLOR_MAKE(0x00, 0xCC, 0x66),
+        LV_COLOR_MAKE(0xFF, 0xD1, 0x66),
+        LV_COLOR_MAKE(0xFF, 0x8C, 0x42),
+        LV_COLOR_MAKE(0xFF, 0x4D, 0x4D),
+    };
+    ui_color_arc_config_t arc_config = {
+        .min_value = 0,
+        .max_value = 8000,
+        .size = 230,
+        .width = RPM_ARC_WIDTH,
+        .start_angle = 90,
+        .track_color = ui_theme_color_lv(UI_COLOR_ARC_TRACK),
+        .gradient_colors = rpm_gradient,
+        .slice_count = 32,
+    };
+    ui_color_arc_create(&s_rpm_arc, ui_ScreenPageRpm, &arc_config);
+    ui_RpmPageArcRpmBack = s_rpm_arc.track;
 
     ui_LabelRpmTitle = lv_label_create(ui_ScreenPageRpm);
     lv_label_set_text(ui_LabelRpmTitle, "ENGINE RPM");

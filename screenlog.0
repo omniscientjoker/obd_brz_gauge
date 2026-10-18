@@ -1,0 +1,44 @@
+[0;33mW (35316) brake_temp: Query fail x3 (st=1): baud=9600 add[0;33mW (386612) brake_temp: Query fail x3 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (389640) brake_temp: Query fail x6 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (390650) brake_temp: RS485 RX timeout: 0 bytes in 500 ms[0m
+[0;33mW (392669) brake_temp: Query fail x3 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (395697) brake_temp: Query fail x6 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (396707) brake_temp: RS485 RX timeout: 0 bytes in 500 ms[0m
+[0;33mW (398726) brake_temp: Query fail x3 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (401754) brake_temp: Query fail x6 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (402764) brake_temp: RS485 RX timeout: 0 bytes in 500 ms[0m
+[0;33mW (404783) brake_temp: Query fail x3 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (407811) brake_temp: Query fail x6 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (408821) brake_temp: RS485 RX timeout: 0 bytes in 500 ms[0m
+[0;33mW (410840) brake_temp: Query fail x3 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (413868) brake_temp: Query fail x6 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (414878) brake_temp: RS485 RX timeout: 0 bytes in 500 ms[0m
+[0;33mW (416897) brake_temp: Query fail x3 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (419925) brake_temp: Query fail x6 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (420935) brake_temp: RS485 RX timeout: 0 bytes in 500 ms[0m
+[0;33mW (422954) brake_temp: Query fail x3 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (425983) brake_temp: Query fail x6 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (426993) brake_temp: RS485 RX timeout: 0 bytes in 500 ms[0m
+[0;33mW (429012) brake_temp: Query fail x3 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (432040) brake_temp: Query fail x6 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (433050) brake_temp: RS485 RX timeout: 0 bytes in 500 ms[0m
+[0;33mW (435069) brake_temp: Query fail x3 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;32mI (437325) alert_media: Audio selected: /sdcard/ALERT/gundam00exia.WAV[0m
+[0;32mI (437325) wav_player: Preview /sdcard/ALERT/gundam00exia.WAV: ESP_OK[0m
+[0;33mW (438097) brake_temp: Query fail x6 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (439107) brake_temp: RS485 RX timeout: 0 bytes in 500 ms[0m
+[0;33mW (441125) brake_temp: Query fail x3 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (444153) brake_temp: Query fail x6 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;32mI (444289) wav_player: Played /sdcard/ALERT/gundam00exia.WAV (44100 Hz, 2 ch, 16 bit)[0m
+[0;33mW (445162) brake_temp: RS485 RX timeout: 0 bytes in 500 ms[0m
+[0;33mW (447181) brake_temp: Query fail x3 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (450209) brake_temp: Query fail x6 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (451219) brake_temp: RS485 RX timeout: 0 bytes in 500 ms[0m
+[0;33mW (453238) brake_temp: Query fail x3 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (456266) brake_temp: Query fail x6 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (457276) brake_temp: RS485 RX timeout: 0 bytes in 500 ms[0m
+[0;33mW (459295) brake_temp: Query fail x3 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (462324) brake_temp: Query fail x6 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (463334) brake_temp: RS485 RX timeout: 0 bytes in 500 ms[0m
+[0;33mW (465353) brake_temp: Query fail x3 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
+[0;33mW (468381) brake_temp: Query fail x6 (st=1): baud=9600 addr=0x01 reg=0x0000 func=0x03[0m
