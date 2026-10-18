@@ -1,0 +1,121 @@
+[
+  {
+    "name": "panel",
+    "connectedSolids": 1,
+    "bounds": [
+      [
+        -103.5,
+        103.5
+      ],
+      [
+        -41,
+        41
+      ],
+      [
+        0,
+        5
+      ]
+    ],
+    "triangles": 12820
+  },
+  {
+    "name": "base",
+    "connectedSolids": 1,
+    "bounds": [
+      [
+        -103.5,
+        103.5
+      ],
+      [
+        -41,
+        41
+      ],
+      [
+        0,
+        26
+      ]
+    ],
+    "triangles": 4768
+  },
+  {
+    "name": "carrier_left",
+    "connectedSolids": 1,
+    "bounds": [
+      [
+        -27.25,
+        29.450000762939453
+      ],
+      [
+        -27.25,
+        33.20000076293945
+      ],
+      [
+        0,
+        5
+      ]
+    ],
+    "triangles": 3564
+  },
+  {
+    "name": "carrier_centre",
+    "connectedSolids": 1,
+    "bounds": [
+      [
+        -27.25,
+        29.450000762939453
+      ],
+      [
+        -27.25,
+        33.20000076293945
+      ],
+      [
+        0,
+        5
+      ]
+    ],
+    "triangles": 3564
+  },
+  {
+    "name": "carrier_right",
+    "connectedSolids": 1,
+    "bounds": [
+      [
+        -27.25,
+        29.450000762939453
+      ],
+      [
+        -27.25,
+        33.20000076293945
+      ],
+      [
+        0,
+        5
+      ]
+    ],
+    "triangles": 3564
+  },
+  {
+    "name": "fit_template",
+    "connectedSolids": 1,
+    "bounds": [
+      [
+        -27.25,
+        29.450000762939453
+      ],
+      [
+        -33.20000076293945,
+        27.25
+      ],
+      [
+        0,
+        1
+      ]
+    ],
+    "triangles": 3504
+  },
+  {
+    "assembledInterference": "no positive-volume overlap",
+    "zeroThicknessContacts": true,
+    "physicalFit": "not verified"
+  }
+]

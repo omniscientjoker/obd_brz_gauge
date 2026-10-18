@@ -6,9 +6,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <stdint.h>
 
 #include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "app_media/sd_media_manager.h"
 #include "app_obd_dsp/boot_media_mount.h"
 
@@ -39,6 +41,11 @@ typedef struct {
     lv_color_t *canvas_buf;
     uint16_t *x_edges;
     uint16_t *y_edges;
+    uint32_t decode_last_us;
+    uint32_t decode_max_us;
+    uint32_t decode_changes_last;
+    lv_area_t dirty_area;
+    bool dirty_valid;
     boot_block_manifest_t manifest;
 } boot_block_player_state_t;
 
@@ -164,6 +171,11 @@ static bool manifest_load(boot_block_manifest_t *out) {
         ESP_LOGE(TAG, "Manifest validation failed: canvas too large");
         return false;
     }
+    if (m.grid_width > m.canvas_width || m.grid_height > m.canvas_height || m.fps > 1000) {
+        ESP_LOGE(TAG, "Manifest validation failed: invalid grid/fps (%ux%u @ %u)",
+                 m.grid_width, m.grid_height, m.fps);
+        return false;
+    }
     if (!m.duration_ms) m.duration_ms = ((uint32_t)m.frame_count * 1000u) / m.fps;
     if (strcmp(m.stream_format, BOOT_BLOCK_DEFAULT_STREAM_FORMAT) != 0 &&
         strcmp(m.stream_format, BOOT_BLOCK_STREAM_FORMAT_V2) != 0) {
@@ -195,11 +207,28 @@ static bool read_varint_u32(uint32_t *out) {
     return false;
 }
 
-static uint32_t rgb565_to_rgb24(uint16_t rgb565) {
-    uint32_t r5 = (rgb565 >> 11) & 0x1F;
-    uint32_t g6 = (rgb565 >> 5) & 0x3F;
-    uint32_t b5 = rgb565 & 0x1F;
-    return (((r5 << 3) | (r5 >> 2)) << 16) | (((g6 << 2) | (g6 >> 4)) << 8) | ((b5 << 3) | (b5 >> 2));
+/*
+ * The stream already stores native RGB565.  LVGL is configured with
+ * LV_COLOR_DEPTH=16 and LV_COLOR_16_SWAP=1, so its in-memory 16-bit value is
+ * the byte-swapped form expected by the QSPI panel.  Keeping this conversion
+ * at 16 bits avoids the old RGB565 -> RGB888 -> RGB565 round trip for every
+ * changed cell.
+ */
+static inline lv_color_t rgb565_to_lv_color(uint16_t rgb565)
+{
+    lv_color_t color;
+#if LV_COLOR_DEPTH == 16
+#if LV_COLOR_16_SWAP
+    color.full = (uint16_t)((rgb565 << 8) | (rgb565 >> 8));
+#else
+    color.full = rgb565;
+#endif
+#else
+    color = lv_color_make((uint8_t)(((rgb565 >> 11) & 0x1F) * 255 / 31),
+                          (uint8_t)(((rgb565 >> 5) & 0x3F) * 255 / 63),
+                          (uint8_t)((rgb565 & 0x1F) * 255 / 31));
+#endif
+    return color;
 }
 
 static bool prepare_edges(uint16_t **out, uint16_t canvas_size, uint16_t grid_size) {
@@ -209,6 +238,12 @@ static bool prepare_edges(uint16_t **out, uint16_t canvas_size, uint16_t grid_si
         edges[i] = (uint16_t)((uint32_t)i * canvas_size / grid_size);
     *out = edges;
     return true;
+}
+
+static uint32_t frame_due_ms(uint16_t frame_index)
+{
+    if (!s_state.manifest.fps) return 0;
+    return ((uint32_t)frame_index * 1000u) / s_state.manifest.fps;
 }
 
 static bool prepare_canvas(lv_obj_t *parent, const boot_block_manifest_t *m) {
@@ -293,25 +328,44 @@ static bool load_stream(void) {
     return true;
 }
 
-static bool apply_change(uint32_t idx, uint32_t packed) {
+static bool apply_change(uint32_t idx, uint16_t rgb565) {
     if (idx >= (uint32_t)s_state.manifest.grid_width * s_state.manifest.grid_height) return false;
 
     uint16_t gx = (uint16_t)(idx % s_state.manifest.grid_width);
     uint16_t gy = (uint16_t)(idx / s_state.manifest.grid_width);
     uint16_t x0 = s_state.x_edges[gx], x1 = s_state.x_edges[gx + 1];
     uint16_t y0 = s_state.y_edges[gy], y1 = s_state.y_edges[gy + 1];
-    lv_color_t color = (packed == 0) ? lv_color_black()
-        : lv_color_make((packed >> 16) & 0xFF, (packed >> 8) & 0xFF, packed & 0xFF);
+    if (x1 > x0 && y1 > y0) {
+        if (!s_state.dirty_valid) {
+            s_state.dirty_area.x1 = x0;
+            s_state.dirty_area.y1 = y0;
+            s_state.dirty_area.x2 = (lv_coord_t)x1 - 1;
+            s_state.dirty_area.y2 = (lv_coord_t)y1 - 1;
+            s_state.dirty_valid = true;
+        } else {
+            if (x0 < s_state.dirty_area.x1) s_state.dirty_area.x1 = x0;
+            if (y0 < s_state.dirty_area.y1) s_state.dirty_area.y1 = y0;
+            if ((lv_coord_t)x1 - 1 > s_state.dirty_area.x2) s_state.dirty_area.x2 = (lv_coord_t)x1 - 1;
+            if ((lv_coord_t)y1 - 1 > s_state.dirty_area.y2) s_state.dirty_area.y2 = (lv_coord_t)y1 - 1;
+        }
+    }
+    lv_color_t color = rgb565 ? rgb565_to_lv_color(rgb565) : lv_color_black();
+    const uint16_t width = (uint16_t)(x1 - x0);
 
     for (uint16_t y = y0; y < y1; y++) {
         uint32_t row = (uint32_t)y * s_state.manifest.canvas_width;
-        for (uint16_t x = x0; x < x1; x++)
-            s_state.canvas_buf[row + x] = color;
+        lv_color_t *dst = &s_state.canvas_buf[row + x0];
+        /* Black is the common clear value and can be filled as bytes. */
+        if (rgb565 == 0) {
+            memset(dst, 0, (size_t)width * sizeof(*dst));
+        } else {
+            for (uint16_t x = 0; x < width; x++) dst[x] = color;
+        }
     }
     return true;
 }
 
-static bool apply_next_frame(void) {
+static bool apply_next_frame(uint32_t *out_change_count) {
     // v2 frame change count is a 4-byte u32 (single-frame changes can exceed 65535 in full-resolution encoding); v1 remains a 2-byte u16
     bool count_u32 = (strcmp(s_state.manifest.stream_format, BOOT_BLOCK_STREAM_FORMAT_V2) == 0);
     uint8_t header[4];
@@ -320,6 +374,8 @@ static bool apply_next_frame(void) {
     uint32_t change_count = (uint32_t)header[0] | ((uint32_t)header[1] << 8);
     if (count_u32) change_count |= ((uint32_t)header[2] << 16) | ((uint32_t)header[3] << 24);
     uint32_t prev_idx = UINT32_MAX;
+
+    if (out_change_count) *out_change_count = change_count;
 
     for (uint32_t i = 0; i < change_count; i++) {
         uint32_t delta_and_black;
@@ -330,14 +386,13 @@ static bool apply_next_frame(void) {
         uint32_t idx = (prev_idx == UINT32_MAX) ? delta_idx : prev_idx + delta_idx;
         prev_idx = idx;
 
-        uint32_t packed = 0;
+        uint16_t rgb565 = 0;
         if (!is_black) {
             uint8_t color_bytes[2];
             if (!read_bytes(color_bytes, 2)) return false;
-            uint16_t rgb565 = (uint16_t)color_bytes[0] | ((uint16_t)color_bytes[1] << 8);
-            packed = rgb565_to_rgb24(rgb565);
+            rgb565 = (uint16_t)color_bytes[0] | ((uint16_t)color_bytes[1] << 8);
         }
-        if (!apply_change(idx, packed)) return false;
+        if (!apply_change(idx, rgb565)) return false;
     }
     return true;
 }
@@ -382,9 +437,9 @@ bool boot_block_player_create(lv_obj_t *parent, lv_obj_t **out_obj) {
     s_state.next_frame_due_ms = 0;
 
     // Decode the first frame immediately
-    if (apply_next_frame()) {
+    if (apply_next_frame(NULL)) {
         s_state.next_frame_index = 1;
-        s_state.next_frame_due_ms = s_state.frame_interval_ms;
+        s_state.next_frame_due_ms = frame_due_ms(s_state.next_frame_index);
         if (s_state.canvas_obj) lv_obj_invalidate(s_state.canvas_obj);
     } else {
         boot_block_player_destroy();
@@ -425,21 +480,44 @@ uint32_t boot_block_player_get_duration_ms(void) {
     return s_state.manifest.duration_ms;
 }
 
+uint32_t boot_block_player_get_frame_interval_ms(void)
+{
+    return s_state.frame_interval_ms;
+}
+
 void boot_block_player_update(uint32_t elapsed_ms) {
     if (!s_state.active || s_state.finished) return;
 
     bool changed = false;
+    s_state.dirty_valid = false;
+    uint32_t decoded_changes = 0;
+    uint32_t decoded_frames = 0;
+    int64_t decode_start_us = esp_timer_get_time();
     while (s_state.next_frame_index < s_state.manifest.frame_count &&
            elapsed_ms >= s_state.next_frame_due_ms) {
-        if (!apply_next_frame()) {
+        uint32_t frame_changes = 0;
+        if (!apply_next_frame(&frame_changes)) {
             ESP_LOGW(TAG, "stream ended early at frame %u/%u (elapsed=%ums)",
                      s_state.next_frame_index, s_state.manifest.frame_count, elapsed_ms);
             s_state.finished = true;
             break;
         }
+        decoded_changes += frame_changes;
+        decoded_frames++;
         s_state.next_frame_index++;
-        s_state.next_frame_due_ms += s_state.frame_interval_ms;
+        s_state.next_frame_due_ms = frame_due_ms(s_state.next_frame_index);
         changed = true;
+    }
+
+    if (decoded_frames) {
+        uint32_t decode_us = (uint32_t)(esp_timer_get_time() - decode_start_us);
+        s_state.decode_last_us = decode_us;
+        if (decode_us > s_state.decode_max_us) s_state.decode_max_us = decode_us;
+        s_state.decode_changes_last = decoded_changes;
+        if (decoded_frames > 1 || decode_us > 5000) {
+            ESP_LOGD(TAG, "decode: frames=%u changes=%u time=%uus max=%uus",
+                     decoded_frames, decoded_changes, decode_us, s_state.decode_max_us);
+        }
     }
 
     if (s_state.next_frame_index >= s_state.manifest.frame_count ||
@@ -451,7 +529,20 @@ void boot_block_player_update(uint32_t elapsed_ms) {
         close_stream();
     }
 
-    if (changed && s_state.canvas_obj) {
-        lv_obj_invalidate(s_state.canvas_obj);
+    if (changed && s_state.canvas_obj && s_state.dirty_valid) {
+        const uint32_t canvas_pixels = (uint32_t)s_state.manifest.canvas_width * s_state.manifest.canvas_height;
+        const uint32_t dirty_pixels = (uint32_t)lv_area_get_size(&s_state.dirty_area);
+        if (dirty_pixels * 2u >= canvas_pixels) {
+            lv_obj_invalidate(s_state.canvas_obj);
+        } else {
+            lv_area_t obj_area;
+            lv_obj_get_coords(s_state.canvas_obj, &obj_area);
+            lv_area_t dirty = s_state.dirty_area;
+            dirty.x1 += obj_area.x1;
+            dirty.x2 += obj_area.x1;
+            dirty.y1 += obj_area.y1;
+            dirty.y2 += obj_area.y1;
+            lv_obj_invalidate_area(s_state.canvas_obj, &dirty);
+        }
     }
 }

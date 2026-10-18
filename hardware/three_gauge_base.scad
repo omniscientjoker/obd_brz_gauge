@@ -16,7 +16,6 @@ main_board_h     = 49.69;
 // ---------- base geometry ----------
 side_wall        = 2.4;
 bottom_wall      = 3.0; // reinforced rear plate
-front_thickness  = 3.0; // matching panel thickness; used for cable retainers
 rear_depth       = 23.0;
 screen_gap       = 8.0;
 outer_margin_x   = 12.0;
@@ -37,14 +36,18 @@ enclosure_points = [
 // ---------- wiring ----------
 wire_channel_w   = 5.0;
 wire_channel_h   = 3.0;
+wire_retainer_h  = 3.0;
 
 // Panel-mount USB-C female connector. usb_cutout_z is measured from the
-// panel mating edge (z=0), placing the connector slightly below centre.
+// panel mating edge (z=0). Increasing Z moves it toward the rear bottom.
 usb_cutout_w        = 12.5;
 usb_cutout_h        = 6.5;
-usb_cutout_z        = 8.0;
+usb_cutout_z        = 14.0;
 usb_mount_hole_d    = 2.2;
 usb_mount_hole_pitch = 16.0;
+
+assert(usb_cutout_z + usb_cutout_h/2 < rear_depth - bottom_wall,
+       "USB-C opening must leave clearance above the bottom plate");
 
 // External circular pocket for the magnetic ring on the rear plate.
 magnet_ring_d           = 56.0;
@@ -123,10 +126,12 @@ module rear_base() {
     // These six pillars receive the six M3 screws through the front panel.
     enclosure_posts();
 
-    // Low cable retainers. Use zip ties or adhesive-backed saddles.
+    // Embed the low cable retainers in the rear floor, not in the open
+    // cavity. The 0.3 mm overlap covers the cavity subtraction tolerance.
     for (x = [-side_module_w - screen_gap, side_module_w + screen_gap]) {
-        translate([x, -25, front_thickness + 1])
-            cube([10, 2.5, 3], center = true);
+        translate([x, -25,
+                   rear_depth - bottom_wall - wire_retainer_h/2 + 0.3])
+            cube([10, 2.5, wire_retainer_h], center = true);
     }
 }
 

@@ -32,10 +32,15 @@ enclosure_points = [
 // Three M2 screws per display/board module, matching the triangular fixing
 // arrangement in the reference device.
 device_screw_d      = 2.2;
-device_post_d       = 5.5;
+device_post_d       = 7.0;
 device_post_h       = 3.0;
+device_root_d       = 9.0;
+device_root_h       = 1.5;
 device_screw_radius = 22.0;
 device_hole_angles  = [90, 210, 330];
+
+assert(device_root_d > device_post_d && device_root_h < device_post_h,
+       "Pillar roots must be wider and lower than the board contact faces");
 
 module rounded_prism(w, h, d, r) {
     linear_extrude(height = d)
@@ -65,14 +70,28 @@ module device_cutouts(x) {
 
 module device_bosses(x) {
     for (a = device_hole_angles) {
-        translate([x + device_screw_radius * cos(a),
-                   device_screw_radius * sin(a), front_thickness])
-            difference() {
-                cylinder(d = device_post_d, h = device_post_h);
-                translate([0, 0, -0.1])
-                    cylinder(d = device_screw_d - 0.25,
-                             h = device_post_h + 0.2);
+        post_x = x + device_screw_radius * cos(a);
+        post_y = device_screw_radius * sin(a);
+        difference() {
+            union() {
+                translate([post_x, post_y, front_thickness])
+                    cylinder(d = device_post_d, h = device_post_h);
+
+                // Flared roots overlap the solid panel by 0.2 mm. Clip the
+                // extra root material to the outside of the screen aperture.
+                difference() {
+                    translate([post_x, post_y, front_thickness - 0.2])
+                        cylinder(d1 = device_root_d, d2 = device_post_d,
+                                 h = device_root_h + 0.2);
+                    translate([x, 0, front_thickness - 0.3])
+                        cylinder(d = screen_opening_d,
+                                 h = device_root_h + 0.4);
+                }
             }
+            translate([post_x, post_y, front_thickness - 0.3])
+                cylinder(d = device_screw_d - 0.25,
+                         h = device_post_h + 0.4);
+        }
     }
 }
 

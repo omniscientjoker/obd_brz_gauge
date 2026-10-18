@@ -234,7 +234,7 @@ static void showroom_fake_data(void) {
  *  Boot / video helpers
  * ================================================================ */
 
-// Dedicated high-rate timer for video (33ms ≈ 30fps)
+// Dedicated timer for video; cadence follows the manifest FPS.
 static void boot_video_timer_cb(lv_timer_t *t)
 {
     if (!s_boot_video_active) return;
@@ -262,6 +262,12 @@ static void boot_video_timer_cb(lv_timer_t *t)
             s_boot_video_screen = NULL;
         }
     }
+}
+
+static uint32_t boot_video_timer_period_ms(void)
+{
+    uint32_t period_ms = boot_block_player_get_frame_interval_ms();
+    return period_ms ? period_ms : 33;
 }
 
 void ui_ext_stop_alert_video_preview(void)
@@ -335,7 +341,7 @@ esp_err_t ui_ext_preview_alert_video(const char *manifest_path, const char *data
         lv_obj_add_event_cb(canvas, on_alert_video_preview_tapped, LV_EVENT_CLICKED, NULL);
         lv_obj_add_event_cb(canvas, on_alert_video_preview_tapped, LV_EVENT_GESTURE, NULL);
     }
-    s_alert_video_timer = lv_timer_create(alert_video_timer_cb, 33, NULL);
+    s_alert_video_timer = lv_timer_create(alert_video_timer_cb, boot_video_timer_period_ms(), NULL);
     if (!s_alert_video_timer) {
         s_alert_video_active = false;
         boot_block_player_destroy();
@@ -553,7 +559,7 @@ void ui_ext_showroom_tick(bool is_slave)
             s_boot_video_active = true;
             s_boot_video_start_us = esp_timer_get_time();
             if (!s_boot_video_timer)
-                s_boot_video_timer = lv_timer_create(boot_video_timer_cb, 33, NULL);
+                s_boot_video_timer = lv_timer_create(boot_video_timer_cb, boot_video_timer_period_ms(), NULL);
         }
 
         // Local tick page switching:
@@ -745,7 +751,7 @@ bool ui_ext_boot_video_tick(void)
             lv_scr_load(s_boot_video_screen);
             s_boot_video_active = true;
             s_boot_video_start_us = esp_timer_get_time();
-            s_boot_video_timer = lv_timer_create(boot_video_timer_cb, 33, NULL);
+            s_boot_video_timer = lv_timer_create(boot_video_timer_cb, boot_video_timer_period_ms(), NULL);
             ESP_LOGD(TAG, "Boot video started");
         }
     }

@@ -24,5 +24,8 @@ void boot_block_player_update(uint32_t elapsed_ms);
 // Get the total animation duration (ms)
 uint32_t boot_block_player_get_duration_ms(void);
 
+// Get the decoder's frame interval (ms), for matching the LVGL timer cadence.
+uint32_t boot_block_player_get_frame_interval_ms(void);
+
 // Set the manifest and data file paths (call before create)
 void boot_block_player_set_paths(const char *manifest, const char *data);
