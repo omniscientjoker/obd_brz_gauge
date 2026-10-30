@@ -14,7 +14,6 @@ pid_can_summary.csv
 tools/probe_log
 tools/elm_pids
 tools/pids_full.csv
-/build.arch
 /build.flash
 /.playwright-cli
 /build.arch
@@ -24,6 +23,6 @@ tools/pids_full.csv
 /build.verify6
 /output
 /build.verify7
-/build
 /build-master
 /build-slave
+/screenlog.*

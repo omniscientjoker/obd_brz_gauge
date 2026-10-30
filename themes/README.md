@@ -106,7 +106,8 @@ style_id = 0
 **第 4 步 — 编译**
 
 ```bash
-idf.py build flash monitor
+./tools/build_gauge_firmware.sh master
+idf.py -B build-master -D SDKCONFIG=sdkconfig.master flash monitor
 ```
 
 开机进 **设置 → THEME**，滚轮里就有了。选中后设备**自动重启**生效 —— 这是正常的，
@@ -280,7 +281,8 @@ style_id = 0
 **Step 4 — build**
 
 ```bash
-idf.py build flash monitor
+./tools/build_gauge_firmware.sh master
+idf.py -B build-master -D SDKCONFIG=sdkconfig.master flash monitor
 ```
 
 Go to **Settings → THEME**; your theme is in the roller. Selecting it **reboots

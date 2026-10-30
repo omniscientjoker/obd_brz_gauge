@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+repo_dir="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$repo_dir"
+
 target=${1:-master}
 case "$target" in
   master) build_dir=build-master; config="$PWD/sdkconfig.master"; defaults="sdkconfig.defaults;sdkconfig.defaults.master"; image=obd_brz_gauge_master.bin ;;

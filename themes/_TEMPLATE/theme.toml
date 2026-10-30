@@ -10,7 +10,7 @@
 #       编辑本文件：把 id 改成文件夹名，填上你的配色。
 #    3. Append a line to themes/registry.txt.
 #       在 themes/registry.txt 末尾追加一行。
-#    4. idf.py build — done. No C code to edit.
+#    4. ./tools/build_gauge_firmware.sh master — done. No C code to edit.
 #       编译即可，不用改任何 C 代码。
 #
 #  Full guide: themes/README.md / 完整说明见 themes/README.md

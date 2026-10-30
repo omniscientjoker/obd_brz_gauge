@@ -1,94 +1,83 @@
-# Firmware Package
+# 主表 / 从表固件
 
-This directory contains pre-built firmware binaries ready to flash onto an ESP32-S3 board.
+同一仓库构建两套 ESP32-S3 固件，使用同一份 `partitions.csv`（16 MB Flash）。
 
-本目录包含可直接烧录到 ESP32-S3 开发板的预编译固件。
+| 目标 | 硬件 | 构建目录 | 配置 | 应用文件 |
+|---|---|---|---|---|
+| master | ESP32-S3-Touch-LCD-1.85B，360×360 | `build-master/` | `sdkconfig.master` | `obd_brz_gauge_master.bin` |
+| slave | ESP32-S3-LCD-1.85，360×360 | `build-slave/` | `sdkconfig.slave` | `obd_brz_gauge_slave.bin` |
 
-⚠️ **Branch-specific flash addresses**: The `theme-upgrade` branch has different partition layout. See [Flash Offsets](#flash-offsets) below.
+左右从表使用同一份 slave 固件，接线决定左右身份。
 
-⚠️ **分支特定烧录地址**：`theme-upgrade` 分支的分区布局不同。参见下方[烧录地址](#flash-offsets)。
+## 构建与打包
 
-## Files
+先激活 ESP-IDF v5.5.3 环境，在仓库根目录执行：
 
-| File | Description |
-|------|-------------|
-| `release/bootloader/bootloader.bin` | Bootloader |
-| `release/partition_table/partition-table.bin` | Partition table |
-| `release/ota_data_initial.bin` | OTA data initial partition |
-| `release/obd_brz_gauge.bin` | Application firmware |
-| `release/bootmedia.bin` | Boot animation media (SPIFFS partition) |
-| `release/latest.json` | Release manifest (build tag, file hashes) — the app fetches this to detect a new firmware |
-| `release/flash_address_map.txt` | Flash address reference |
-
-## Flash Offsets
-
-### main branch / main 分支
-
-| Offset | File |
-|--------|------|
-| `0x0` | `release/bootloader/bootloader.bin` |
-| `0x8000` | `release/partition_table/partition-table.bin` |
-| `0xf000` | `release/ota_data_initial.bin` |
-| `0x20000` | `release/obd_brz_gauge.bin` |
-| `0x620000` | `release/bootmedia.bin` |
-
-### theme-upgrade branch / theme-upgrade 分支
-
-| Offset | File | Notes |
-|--------|------|-------|
-| `0x0` | `release/bootloader/bootloader.bin` | |
-| `0x8000` | `release/partition_table/partition-table.bin` | |
-| `0xf000` | `release/ota_data_initial.bin` | |
-| `0x20000` | `release/obd_brz_gauge.bin` | |
-| `0x620000` | `release/theme_0.bin` (optional) | 4MB theme partition (NEW) |
-| `0xA20000` | `release/bootmedia.bin` | ⚠️ **Address changed** from 0x620000 |
-
-**Key difference**: `bootmedia.bin` moved from `0x620000` to `0xA20000` to make room for the 4MB theme partition.
-
-**主要区别**：`bootmedia.bin` 从 `0x620000` 移动到 `0xA20000`，为 4MB 主题分区腾出空间。
-
-## Example Flash Command
-
-### main branch / main 分支
-
-Flash all partitions at once:
-
-```bash
-esptool.py --chip esp32s3 -p PORT -b 460800 write_flash \
-  0x0 release/bootloader/bootloader.bin \
-  0x8000 release/partition_table/partition-table.bin \
-  0xf000 release/ota_data_initial.bin \
-  0x20000 release/obd_brz_gauge.bin \
-  0x620000 release/bootmedia.bin
+```sh
+./tools/build_gauge_firmware.sh master
+./tools/build_gauge_firmware.sh slave
+python3 tools/gen_release.py
 ```
 
-### theme-upgrade branch / theme-upgrade 分支
+也可执行 `./tools/release.sh` 一次完成两套构建和本地打包。脚本不会提交、推送或烧录。
 
-Flash all partitions (note different bootmedia address):
+共享配置为 `sdkconfig.defaults`，目标配置分别为 `sdkconfig.defaults.master` 和
+`sdkconfig.defaults.slave`。不要使用旧的 `build/` 或根目录 `sdkconfig` 构建。
 
-```bash
-esptool.py --chip esp32s3 -p PORT -b 460800 write_flash \
-  0x0 release/bootloader/bootloader.bin \
-  0x8000 release/partition_table/partition-table.bin \
-  0xf000 release/ota_data_initial.bin \
-  0x20000 release/obd_brz_gauge.bin \
-  0xA20000 release/bootmedia.bin
+输出目录：
+
+```text
+firmware/release/
+├── latest.json                  # 兼容现有主表 OTA 客户端，文件路径指向 master/
+├── master/
+│   ├── obd_brz_gauge_master.bin
+│   ├── bootloader/bootloader.bin
+│   ├── partition_table/partition-table.bin
+│   ├── ota_data_initial.bin
+│   ├── bootmedia.bin
+│   ├── vehicle_fuel_tanks.json
+│   ├── latest.json
+│   ├── flash_args
+│   └── flash_address_map.txt
+└── slave/
+    ├── obd_brz_gauge_slave.bin
+    ├── bootloader/bootloader.bin
+    ├── partition_table/partition-table.bin
+    ├── ota_data_initial.bin
+    ├── bootmedia.bin
+    ├── latest.json
+    ├── flash_args
+    └── flash_address_map.txt
 ```
 
-Optional: Flash a theme to the theme partition (theme-upgrade only):
+打包器校验目标类型、所需文件和两套构建的版本信息；校验通过后替换旧包。
+清单记录各文件大小和 SHA256，版本信息来自构建目录，不从当前 Git HEAD 推测。
+`count` 随提交递增，未提交修改仍沿用同一计数；对外发布前应先提交源码再重新构建。
+根目录和各目标目录的 `latest.json` 中，文件路径均相对于对应清单所在目录。
+从表保留同样的分区布局和 bootmedia 镜像，但运行时不启动媒体服务。
 
-```bash
-esptool.py --chip esp32s3 -p PORT -b 460800 write_flash \
-  0x620000 release/theme_0.bin
+## 烧录
+
+从仓库根目录进入对应目标目录，在其内部执行参数文件：
+
+```sh
+cd firmware/release/master
+python -m esptool --chip esp32s3 --port PORT -b 460800 \
+  --before default_reset --after hard_reset write_flash @flash_args
 ```
 
-## Notes
+从表改为 `firmware/release/slave`。将 `PORT` 替换为实际串口。
 
-- All binaries are built from the current source tree.
-- The `bootmedia.bin` partition contains boot animation assets and is optional if you do not need the animated startup sequence.
-- `release/latest.json` is the release manifest the companion app fetches to detect and verify a new firmware; its `firmware.count`/`build_tag` fields are compared against the device's own manifest (see [docs/APP_INTEGRATION.md](../docs/APP_INTEGRATION.md)). Regenerate it whenever the release binaries change.
-- See the flash address map in `release/flash_address_map.txt` for full layout details.
+| 地址 | 内容 |
+|---|---|
+| `0x0` | 对应目标 Bootloader |
+| `0x8000` | 分区表 |
+| `0xF000` | OTA 初始数据 |
+| `0x20000` | 对应目标应用 |
+| `0x620000` | 主题分区，不由此命令写入 |
+| `0xA20000` | 开机动画原始分区镜像 |
 
-- 所有二进制文件均从当前源码树构建。
-- `bootmedia.bin` 分区包含开机动画资源，如不需要可跳过烧录。
-- 完整分区布局参见 `release/flash_address_map.txt`。
+实际参数从各构建目录的 `flasher_args.json` 生成。`write_flash` 只擦写指定区域，
+不擦除整个芯片，不主动清除 NVS 和主题；OTA 初始数据会将启动槽位设为 ota_0。
+
+开机动画源文件位于 `bootmedia/slot_a/`，由 CMake 生成各构建目录的 `bootmedia.bin`。

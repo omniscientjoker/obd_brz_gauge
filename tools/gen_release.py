@@ -1,159 +1,161 @@
 #!/usr/bin/env python3
-"""Generate firmware/release/latest.json from git metadata + the release binaries.
+"""Package build-master/ and build-slave/ without invoking Git or flashing.
 
-Run from anywhere (uses the repo root relative to this file). It assumes the
-project has already been built, so `build/` holds the fresh *.bin files:
-
-    idf.py build
-    python3 tools/gen_release.py [--build-dir build.verify7]
-
-It does two things:
-  1. copies build/{bootloader,partition_table,ota_data_initial,obd_brz_gauge,bootmedia}
-     into firmware/release/ (the static release directory the app reads);
-  2. writes firmware/release/latest.json with the git build tag and the
-     sha256/size of every release binary.
-
-The companion app compares `firmware.count` here against the device's own
-manifest to decide whether an update is available. `count` comes from the
-current git HEAD, so remember to `git commit` your code *before* building
-(see docs/APP_INTEGRATION.md).
+Each target has its own manifest and flash_args. The root latest.json remains
+the master OTA manifest; its paths point into master/ for existing clients.
 """
 
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
-import os
+from pathlib import Path
 import re
 import shutil
-import subprocess
-import sys
-import time
+import tempfile
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BUILD_DIR = os.path.join(ROOT, "build")
-RELEASE_DIR = os.path.join(ROOT, "firmware", "release")
-
-# Device block must stay in sync with main/app_obd_dsp/device_identity.c.
-DEVICE = {
-    "board": "Waveshare ESP32-S3-Touch-LCD-1.85",
-    "variant": "obd_brz_gauge",
-    "lcd": "ST77916",
-    "screen": {"w": 360, "h": 360, "bpp": 16},
-    "flash_mb": 16,
-    "psram_mb": 8,
-    "ota_slots": 2,
-    "bootmedia_slots": 1,
-    "bootmedia_format": 1,
-}
-
-# Firmware metadata not derivable from git. Update IDF_VER when you upgrade ESP-IDF.
-PROJECT = "obd_brz_gauge"
-VERSION = "1"
-IDF_VER = "v5.5.3"
-SLOT = "ota_0"
-
-# build/ source -> firmware/release/ destination (relative to RELEASE_DIR).
+ROOT = Path(__file__).resolve().parent.parent
 BINS = {
     "firmware": "obd_brz_gauge.bin",
-    "bootmedia": "bootmedia.bin",
-    "partition_table": "partition_table/partition-table.bin",
     "bootloader": "bootloader/bootloader.bin",
+    "partition_table": "partition_table/partition-table.bin",
     "ota_data_initial": "ota_data_initial.bin",
+    "bootmedia": "bootmedia.bin",
 }
-CONFIG_FILES = {
-    "vehicle_fuel_tanks": "config/vehicle_fuel_tanks.json",
-}
-ALIASES = {
-    "firmware.bin": "obd_brz_gauge.bin",
-    "bootloader.bin": "bootloader/bootloader.bin",
-    "partition-table.bin": "partition_table/partition-table.bin",
+BOARDS = {
+    "master": "Waveshare ESP32-S3-Touch-LCD-1.85",
+    "slave": "Waveshare ESP32-S3-LCD-1.85",
 }
 
 
-def git(*args):
-    return subprocess.check_output(["git", "-C", ROOT, *args], text=True).strip()
+def file_info(path, relative):
+    return {"path": relative, "size": path.stat().st_size,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
 
 
-def sha256(path):
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
+def read_build(build_dir, target):
+    config = (build_dir / "config/sdkconfig.h").read_text()
+    other = "slave" if target == "master" else "master"
+    if (f"#define CONFIG_GAUGE_FIRMWARE_{target.upper()} 1" not in config or
+            f"#define CONFIG_GAUGE_FIRMWARE_{other.upper()} 1" in config):
+        raise ValueError(f"{build_dir}: firmware target is not {target}")
+    project = json.loads((build_dir / "project_description.json").read_text())
+    flash = json.loads((build_dir / "flasher_args.json").read_text())
+    ninja = (build_dir / "build.ninja").read_text()
+
+    def define(name, quoted=True):
+        pattern = (rf'-D{name}=\\"([^"\\]+)\\"' if quoted
+                   else rf'-D{name}=(\d+)\b')
+        match = re.search(pattern, ninja)
+        if not match:
+            raise ValueError(f"{build_dir}: missing build metadata {name}")
+        return match.group(1)
+
+    metadata = {
+        "project": project["project_name"],
+        "version": project["project_version"],
+        "target": target,
+        "build_tag": define("OBD_GAUGE_BUILD_TAG"),
+        "git": define("OBD_GAUGE_GIT_HASH"),
+        "branch": define("OBD_GAUGE_GIT_BRANCH"),
+        "count": int(define("OBD_GAUGE_GIT_COUNT", quoted=False)),
+        "idf": define("IDF_VER"),
+        "slot": "ota_0",
+        "built": datetime.fromtimestamp(
+            (build_dir / BINS["firmware"]).stat().st_mtime,
+            timezone.utc).isoformat(),
+    }
+    for relative in BINS.values():
+        if not (build_dir / relative).is_file():
+            raise ValueError(f"missing build artifact: {build_dir / relative}")
+    if set(flash["flash_files"].values()) != set(BINS.values()):
+        raise ValueError(f"{build_dir}: unexpected flash files; update the packager")
+    return metadata, flash
+
+
+def write_json(path, value):
+    path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n")
+
+
+def package_target(build_dir, target, output, metadata, flash):
+    destination = output / target
+    destination.mkdir()
+    paths = dict(BINS)
+    paths["firmware"] = f"obd_brz_gauge_{target}.bin"
+    files = {}
+    for key, source in BINS.items():
+        relative = paths[key]
+        path = destination / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(build_dir / source, path)
+        files[key] = file_info(path, relative)
+    if target == "master":
+        path = destination / "vehicle_fuel_tanks.json"
+        shutil.copy2(ROOT / "config/vehicle_fuel_tanks.json", path)
+        files["vehicle_fuel_tanks"] = file_info(path, path.name)
+    manifest = {
+        "device": {
+            "board": BOARDS[target], "variant": "obd_brz_gauge",
+            "lcd": "ST77916", "screen": {"w": 360, "h": 360, "bpp": 16},
+            "flash_mb": 16, "psram_mb": 8, "ota_slots": 2,
+            "bootmedia_slots": 1, "bootmedia_format": 1,
+        },
+        "firmware": metadata,
+        "files": files,
+    }
+    write_json(destination / "latest.json", manifest)
+    args = list(flash["write_flash_args"])
+    address_map = []
+    for offset, source in sorted(flash["flash_files"].items(), key=lambda item: int(item[0], 0)):
+        relative = paths["firmware"] if source == BINS["firmware"] else source
+        args.extend([offset, relative])
+        address_map.append(f"{offset:12} {relative}")
+    (destination / "flash_args").write_text("\n".join(args) + "\n")
+    (destination / "flash_address_map.txt").write_text("\n".join(address_map) + "\n")
+    return manifest
+
+
+def generate_release(master_build, slave_build, output):
+    # Check both targets before replacing any existing release files.
+    builds = {"master": master_build, "slave": slave_build}
+    inputs = {target: read_build(path, target) for target, path in builds.items()}
+    for key in ("git", "branch", "count", "build_tag", "idf"):
+        if inputs["master"][0][key] != inputs["slave"][0][key]:
+            raise ValueError(f"master/slave build metadata differs: {key}; rebuild both targets")
+    if output.resolve() in {ROOT, ROOT / "firmware", master_build.resolve(), slave_build.resolve()}:
+        raise ValueError("output must be a dedicated release directory")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".release-", dir=output.parent) as temp:
+        staged = Path(temp) / "package"
+        staged.mkdir()
+        for target, path in builds.items():
+            manifest = package_target(path, target, staged, *inputs[target])
+            if target == "master":
+                for info in manifest["files"].values():
+                    info["path"] = "master/" + info["path"]
+                write_json(staged / "latest.json", manifest)
+        old = Path(temp) / "previous"
+        if output.exists():
+            output.rename(old)
+        try:
+            staged.rename(output)
+        except OSError:
+            if old.exists():
+                old.rename(output)
+            raise
+    print(f"Packaged master + slave: {output}")
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--build-dir", default=BUILD_DIR, help="ESP-IDF build directory")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--master-build-dir", type=Path, default=ROOT / "build-master")
+    parser.add_argument("--slave-build-dir", type=Path, default=ROOT / "build-slave")
+    parser.add_argument("--output-dir", type=Path, default=ROOT / "firmware/release")
     args = parser.parse_args()
-    build_dir = os.path.abspath(args.build_dir)
-
-    # 1. Copy the fresh build artifacts into the release directory.
-    for rel in BINS.values():
-        src = os.path.join(build_dir, rel)
-        dst = os.path.join(RELEASE_DIR, rel)
-        if not os.path.isfile(src):
-            sys.exit(f"missing build artifact: {src}\nRun `idf.py build` first.")
-        os.makedirs(os.path.dirname(dst), exist_ok=True)
-        shutil.copy2(src, dst)
-        print(f"copied {rel}")
-
-    for alias, canonical in ALIASES.items():
-        shutil.copy2(os.path.join(RELEASE_DIR, canonical), os.path.join(RELEASE_DIR, alias))
-        print(f"copied {alias}")
-
-    # Keep vehicle capacities alongside each release so the packaged values are
-    # inspectable without reverse-engineering the application binary.
-    for key, rel in CONFIG_FILES.items():
-        src = os.path.join(ROOT, rel)
-        dst = os.path.join(RELEASE_DIR, os.path.basename(rel))
-        if not os.path.isfile(src):
-            sys.exit(f"missing release configuration: {src}")
-        shutil.copy2(src, dst)
-        print(f"copied {rel}")
-
-    # 2. Build the version metadata from the current git HEAD.
-    branch = git("rev-parse", "--abbrev-ref", "HEAD")
-    count = int(git("rev-list", "--count", "HEAD"))
-    short = git("rev-parse", "--short=12", "HEAD")
-    branch_safe = re.sub(r"[^A-Za-z0-9._-]", "_", branch)
-
-    # built timestamp from the freshly copied firmware image (its build mtime).
-    fw_path = os.path.join(RELEASE_DIR, "obd_brz_gauge.bin")
-    built = time.strftime("%b %d %Y %H:%M:%S", time.localtime(os.path.getmtime(fw_path)))
-
-    files = {}
-    for key, rel in BINS.items():
-        p = os.path.join(RELEASE_DIR, rel)
-        files[key] = {"path": rel, "size": os.path.getsize(p), "sha256": sha256(p)}
-    for key, rel in CONFIG_FILES.items():
-        packaged_rel = os.path.basename(rel)
-        p = os.path.join(RELEASE_DIR, packaged_rel)
-        files[key] = {"path": packaged_rel, "size": os.path.getsize(p), "sha256": sha256(p)}
-
-    manifest = {
-        "device": DEVICE,
-        "firmware": {
-            "project": PROJECT,
-            "version": VERSION,
-            "build_tag": f"{branch_safe}-{count}-{short}",
-            "git": short,
-            "branch": branch,
-            "count": count,
-            "built": built,
-            "idf": IDF_VER,
-            "slot": SLOT,
-        },
-        "files": files,
-    }
-
-    out = os.path.join(RELEASE_DIR, "latest.json")
-    with open(out, "w") as f:
-        json.dump(manifest, f, indent=2)
-        f.write("\n")
-
-    print(f"wrote latest.json  count={count}  build_tag={manifest['firmware']['build_tag']}")
-    print("next: git add firmware/release/ && git commit -m \"build: update release firmware binaries\"")
+    try:
+        generate_release(args.master_build_dir, args.slave_build_dir, args.output_dir)
+    except (OSError, ValueError, KeyError) as error:
+        parser.exit(1, f"Package failed: {error}\nBuild both targets with tools/release.sh first.\n")
 
 
 if __name__ == "__main__":

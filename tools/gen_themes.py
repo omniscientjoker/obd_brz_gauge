@@ -536,7 +536,7 @@ def collect(themes_dir, budget):
             f"{budget // 1024} KB budget:\n{detail}\n"
             f"Artwork for every registered theme is linked in unconditionally.\n"
             f"Drop a theme, shrink artwork, or raise --asset-budget if the app\n"
-            f"partition can take it (it is 4 MB; check build/*.bin size first).")
+            f"partition can take it (check partitions.csv and build-master/obd_brz_gauge.bin first).")
     return themes, total
 
 
