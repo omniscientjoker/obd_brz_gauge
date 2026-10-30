@@ -1,0 +1,26 @@
+{
+  "pass": true,
+  "pcb_sha256": "9d332c00e763aa93b3a76596c559d684d2cc782b26be1c9eb7428c3ae2f2f119",
+  "schematic_sha256": "ca78c2b90ba080f9680c24393c050b5afb792eeffc8d2028bc5dd2d343dc73bf",
+  "board_components": 93,
+  "schematic_components": 93,
+  "numbered_pins_compared": 269,
+  "pcb_named_nets": 56,
+  "schematic_named_nets": 55,
+  "explicit_no_connects": 22,
+  "installed_bom_parts": 86,
+  "power_flags_excluded": 6,
+  "strict_pin_net_name_match": false,
+  "electrical_connectivity_match": true,
+  "annotation_differences": [
+    {
+      "reference": "UPD",
+      "pin": "10",
+      "pcb_net": "/PD_GOOD",
+      "schematic_state": "explicit no-connect",
+      "copper_items": 0,
+      "reason": "Unused open-drain PG output; the single-pad name is not an electrical connection."
+    }
+  ],
+  "mismatches": []
+}

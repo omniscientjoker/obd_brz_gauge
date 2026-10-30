@@ -1,0 +1,33 @@
+{
+  "pass": true,
+  "delivery_revision": "R3-PRODUCTION-20261026-R1",
+  "pcb_sha256": "9d332c00e763aa93b3a76596c559d684d2cc782b26be1c9eb7428c3ae2f2f119",
+  "schematic_sha256": "ca78c2b90ba080f9680c24393c050b5afb792eeffc8d2028bc5dd2d343dc73bf",
+  "project_rules_sha256": "85b7ffaac239888a3bf0e0b3a593c5697aa573e162d90aa065780c98b2dd5fe4",
+  "SMT": 82,
+  "Top": 31,
+  "Bottom": 51,
+  "THT": 4,
+  "MPN": 31,
+  "gerber_files": 14,
+  "copper_layers": 4,
+  "VIPPO_candidates": 27,
+  "drc_violations": 0,
+  "unconnected": 0,
+  "erc_violations": 0,
+  "files": {
+    "ASSEMBLY_NOTES.md": "4d0c58d784287ff3b7939787555eedefdd0993041473a6e826a1b7b44920080a",
+    "FIRST_ARTICLE_TEST.md": "82c028a16d6928130158c7bd8c6550b2fc3b3cc1eb5375c42c3c9d10e08409e8",
+    "ORDER_PARAMETERS.md": "51f97ab2871727b31f788e8c5ec94090390fefb488fc91765646e9a057b7ff2c",
+    "PCB_GERBER.zip": "84c67fc57c1376f167152287482a4e97abb2f20ca9828bd7a9f16a303c94679a",
+    "README.md": "f2387a80099de656d0b6aa54fa7f6416306e74de52d00886b29a18f900d18c90",
+    "assembly/ASSEMBLY_TOP_BOTTOM.pdf": "2bd210f3e43006795edeacd0aa9f6be46c5b3543fdc319e7e3e4bbf29ca0d00b",
+    "assembly/BOM_ALL.csv": "32fd878d94a1e6551c940ba5079ded86720f05e9f93958c98ec5d8347db2c22c",
+    "assembly/BOM_SMT.csv": "983b69eeff7b67595f84d22a3019657484e3825b8798a736dd454a71dcd965f2",
+    "assembly/BOM_THT.csv": "10c74ac8f61ac3ea5f300532fdee3c276722eb577696f66999e37ca74ed423a7",
+    "assembly/CPL_SMT.csv": "1c62223cbe1a2b6821b325247d8409730ecc477ea3ded3acedc40bdb8609acab",
+    "assembly/PIN1_POLARITY.csv": "45f7d6d150b0b8745ff5419b8a1b098ffcd8517a015f9a4400f965d939c8a012",
+    "assembly/THT_POSITION.csv": "368e1f33b90208ee3c68c498ca43156a2c9c3347b074b2cb465f550d32b82a36",
+    "pcb/VIPPO_HOLES.csv": "ddad338ba2d176ff07e2fcadac8b8838f91695e0e739a72fe1f90b4084472243"
+  }
+}

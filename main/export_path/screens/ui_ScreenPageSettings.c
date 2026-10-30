@@ -266,6 +266,7 @@ void ui_ScreenPageSettings_screen_init(void)
     lv_obj_set_style_radius(ui_ScreenPageSettings, 360, LV_PART_MAIN);
     ui_helpers_style_screen_bg(ui_ScreenPageSettings);
     lv_obj_set_style_bg_opa(ui_ScreenPageSettings, 255, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(ui_ScreenPageSettings, 0, LV_PART_MAIN);
 
 
     // Black ear image at top (created before the widgets so the title and
@@ -278,6 +279,12 @@ void ui_ScreenPageSettings_screen_init(void)
     lv_obj_set_align(ear, LV_ALIGN_CENTER);
     lv_obj_add_flag(ear, LV_OBJ_FLAG_ADV_HITTEST);
     lv_obj_clear_flag(ear, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *title = lv_label_create(ui_ScreenPageSettings);
+    lv_label_set_text(title, "设置");
+    lv_obj_set_style_text_font(title, &ui_font_Chinese20, 0);
+    lv_obj_set_style_text_color(title, ui_theme_color_lv(UI_COLOR_TEXT_PRIMARY), 0);
+    lv_obj_align(title, LV_ALIGN_CENTER, 0, -108);
 
     // ====== Row 1: Default Page (Boot Page) ======
     lv_obj_t *label_page = lv_label_create(ui_ScreenPageSettings);

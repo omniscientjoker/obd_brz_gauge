@@ -37,6 +37,7 @@
 #include "app_obd_dsp/boot_media_mount.h"
 #include "app_media/sd_media_manager.h"
 #include "app_media/media_alert.h"
+#include "app_media/usb_sd_storage.h"
 #include "app_media/es8311_audio.h"
 #include "app_media/wav_player.h"
 #include "bsp_obd_dsp/rs485_brake_temp.h"
@@ -47,13 +48,19 @@
 #include "app_obd_dsp/vehicle_profiles.h"
 #include "export_path/ui_ext.h"
 #include "export_path/ui_helpers.h"
+#include "export_path/ui_usb_storage.h"
 #include "app_obd_dsp/app_event.h"
 #include "theme_engine/theme_interface.h"
+#if CONFIG_GAUGE_FIRMWARE_MASTER
+#include "master/gauge_uart_tx.h"
+#endif
 
 // ===== Triple-gauge roles =====
 // Normally select master/slave via "Settings page -> swipe down to the MULTI-GAUGE page" (stored in NVS device_role, effective after reboot); one firmware is enough.
 // The macro below is only a debug forced override: uncommenting it ignores the setting and forces this board to slave. Keep it commented out normally.
 // #define ESPNOW_FORCE_SLAVE
+
+#if CONFIG_GAUGE_FIRMWARE_MASTER
 
 static const char *TAG = "obd_dsp";
 
@@ -103,7 +110,9 @@ static void mark_app_valid_task(void *arg)
 }
 
 extern void ui_init(void);
+#if CONFIG_GAUGE_FIRMWARE_MASTER
 SemaphoreHandle_t lvgl_mux = NULL; // non-static: used by BLE scan page
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////// LCD & LVGL configuration ///////////////////////////////////////////////////////////////////////////////////
@@ -225,6 +234,7 @@ void app_main(void)
 {
     static lv_disp_draw_buf_t disp_buf;
     static lv_disp_drv_t disp_drv;
+    const bool usb_transfer_boot = usb_sd_take_boot_request();
 
     /* 1. NVS init (must be first) */
     nvs_storage_init();
@@ -334,6 +344,20 @@ void app_main(void)
         ESP_LOGW(TAG, "Failed to create OTA validity task");
     }
 
+    /* Dedicated transfer boot: no BLE, OBD, local SD mount, media playback or
+     * UART services may access the card while the computer owns it. A restart
+     * back to normal mode mounts SD and rebuilds the resource table once. */
+    if (usb_transfer_boot) {
+        Set_Backlight(user_cfg->brightness_day);
+        if (lvgl_lock(-1)) {
+            ui_usb_storage_show();
+            lvgl_unlock();
+        }
+        esp_err_t usb_err = usb_sd_start();
+        if (usb_err != ESP_OK) ESP_LOGE(TAG, "USB transfer unavailable: %s", esp_err_to_name(usb_err));
+        return;
+    }
+
     /* 6.5 Initialize Bluetooth stack BEFORE UI to claim internal RAM early */
     elm327_ble_ensure_stack_init();
 
@@ -373,7 +397,9 @@ void app_main(void)
     boot_media_recover_previous_if_needed();
 
     /* 8. Branch by role: master (connects to ELM327 for readings + ESP-NOW broadcast) / slave (only receives and displays the master's data) */
-    uint8_t dev_role = user_cfg->device_role;
+    /* The dedicated master image owns OBD and the two UART links regardless
+       of the legacy ESP-NOW device_role stored by older firmware. */
+    uint8_t dev_role = ESPNOW_ROLE_MASTER;
 #ifdef ESPNOW_FORCE_SLAVE
     dev_role = ESPNOW_ROLE_SLAVE;   // step 1 test: force slave
 #endif
@@ -450,4 +476,10 @@ void app_main(void)
     /* Media services run after the BLE role has been established. */
     start_media_services();
 
+    /* The master is the only owner of OBD parsing. UART1/UART2 only publish
+       the already-parsed snapshot to the two physical slave slots. */
+    esp_err_t link_err = gauge_uart_tx_start();
+    if (link_err != ESP_OK) ESP_LOGE(TAG, "Gauge UART link unavailable: %s", esp_err_to_name(link_err));
+
 }
+#endif

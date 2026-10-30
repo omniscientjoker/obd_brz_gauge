@@ -1,0 +1,353 @@
+{
+  "revision": "R4-VIPPO-OPT-20261026",
+  "source_board_sha256": "5fec24d041bc46d7f735615d4579f7a2da8dfcc488c17f22f47beb3b79109d40",
+  "source_parent_sha256": "9d332c00e763aa93b3a76596c559d684d2cc782b26be1c9eb7428c3ae2f2f119",
+  "method": "via drill circle checked against all SMD copper/mask/paste pad bounding boxes exposed by KiCad native inspection; final CAM check remains required",
+  "unique_via_count": 99,
+  "via_pad_intersections": 0,
+  "removed_vias": 2,
+  "moved_vias": [
+    {
+      "ref": "RUVINL",
+      "id": "2ded97ac-5890-47ff-a0bc-a73e4bc1ce08",
+      "from": [
+        123.1,
+        119.41
+      ],
+      "to": [
+        124,
+        119.41
+      ]
+    },
+    {
+      "ref": "RUVINH",
+      "id": "67d4bee7-fd0b-41dd-91d2-4ff4a5ca38ce",
+      "from": [
+        123.1,
+        114.89
+      ],
+      "to": [
+        124,
+        114.89
+      ]
+    },
+    {
+      "ref": "ROVINL",
+      "id": "69b2d922-8355-46c6-b27c-0c871d2e7712",
+      "from": [
+        126.6,
+        119.41
+      ],
+      "to": [
+        127.5,
+        119.41
+      ]
+    },
+    {
+      "ref": "ROVINH",
+      "id": "b7e74f7e-d17c-4aae-b0bc-7d623a4cd96c",
+      "from": [
+        126.6,
+        114.89
+      ],
+      "to": [
+        127.5,
+        114.89
+      ]
+    },
+    {
+      "ref": "COUT3A",
+      "id": "2441409e-41e9-4236-9071-cb9c7f7919b5",
+      "from": [
+        109.455,
+        85.72
+      ],
+      "to": [
+        110.955,
+        85.72
+      ]
+    },
+    {
+      "ref": "COUT2A",
+      "id": "a12d32af-d5a8-4df5-bf9f-9b1181424136",
+      "from": [
+        87.055,
+        85.72
+      ],
+      "to": [
+        87.055,
+        87.2
+      ]
+    },
+    {
+      "ref": "CE4",
+      "id": "396869dc-2128-47cb-b801-4c908a180258",
+      "from": [
+        120.55,
+        88.7
+      ],
+      "to": [
+        120.55,
+        88
+      ]
+    },
+    {
+      "ref": "CE4",
+      "id": "c2415e1c-8835-4d62-845d-f135b75d8ca0",
+      "from": [
+        121.45,
+        88.7
+      ],
+      "to": [
+        121.45,
+        88
+      ]
+    },
+    {
+      "ref": "CE4",
+      "id": "7ab3d7f1-afd4-46b0-83aa-64d46520ea90",
+      "from": [
+        121.45,
+        89.6
+      ],
+      "to": [
+        121.45,
+        91
+      ]
+    },
+    {
+      "ref": "CE4",
+      "id": "b12ae02b-3fe1-4278-a1a4-8d4ecbd38876",
+      "from": [
+        120.55,
+        89.6
+      ],
+      "to": [
+        120.55,
+        91
+      ]
+    },
+    {
+      "ref": "CD3",
+      "id": "cabf711f-65e9-4c9f-a0af-de49eb14d32c",
+      "from": [
+        105.45,
+        87.8
+      ],
+      "to": [
+        104.45,
+        87.8
+      ]
+    },
+    {
+      "ref": "U2",
+      "id": "163f1c95-62bf-4fa8-81e0-24cd7ac145cc",
+      "from": [
+        76.62,
+        105.4
+      ],
+      "to": [
+        76.5,
+        107.3
+      ]
+    },
+    {
+      "ref": "U2",
+      "id": "1710671c-4a24-4615-903f-2607074c7a94",
+      "from": [
+        76.62,
+        106.1
+      ],
+      "to": [
+        77.25,
+        107.3
+      ]
+    },
+    {
+      "ref": "U3",
+      "id": "337a6ea5-dd0f-4ca0-b42b-aeff975e14ff",
+      "from": [
+        97.45,
+        105.5
+      ],
+      "to": [
+        97.3,
+        107.3
+      ]
+    },
+    {
+      "ref": "U3",
+      "id": "852b3ada-081e-410f-862f-5446659f1057",
+      "from": [
+        97.45,
+        104.6
+      ],
+      "to": [
+        99.3,
+        107.3
+      ]
+    },
+    {
+      "ref": "U4",
+      "id": "114b2d22-c867-4a10-897a-41550a063cea",
+      "from": [
+        120.72,
+        106.1
+      ],
+      "to": [
+        119.85,
+        102.55
+      ]
+    },
+    {
+      "ref": "U4",
+      "id": "3136d08a-dee5-408d-994e-a182a233d700",
+      "from": [
+        120.22,
+        103.9
+      ],
+      "to": [
+        120.65,
+        102.55
+      ]
+    },
+    {
+      "ref": "U4",
+      "id": "5f6d43af-28df-45f7-9ffd-200519dce3db",
+      "from": [
+        120.92,
+        104.2
+      ],
+      "to": [
+        121.45,
+        102.55
+      ]
+    },
+    {
+      "ref": "U4",
+      "id": "7b29a3d9-fa7e-4a95-ac09-20e2a50f6f9c",
+      "from": [
+        121.22,
+        104.9
+      ],
+      "to": [
+        119.85,
+        101.75
+      ]
+    },
+    {
+      "ref": "U4",
+      "id": "7c485eef-6d49-4392-a38e-9e3c227df23a",
+      "from": [
+        121.32,
+        105.7
+      ],
+      "to": [
+        120.65,
+        101.75
+      ]
+    },
+    {
+      "ref": "U4",
+      "id": "be5618aa-d15b-408e-bec2-49d8684e008c",
+      "from": [
+        120.22,
+        104.9
+      ],
+      "to": [
+        121.45,
+        101.75
+      ]
+    },
+    {
+      "ref": "U4",
+      "id": "f4524680-5d2f-4ec1-8105-393083834879",
+      "from": [
+        120.02,
+        105.7
+      ],
+      "to": [
+        120.72,
+        107.3
+      ]
+    },
+    {
+      "ref": "UPD",
+      "id": "0e456552-56f2-44fa-b054-f9a385a9bfb4",
+      "from": [
+        99.2,
+        110.92
+      ],
+      "to": [
+        98.45,
+        113.9
+      ]
+    },
+    {
+      "ref": "UPD",
+      "id": "1b0cda9b-186d-41db-aa2c-3c16d014d6e4",
+      "from": [
+        99.1,
+        112.82
+      ],
+      "to": [
+        99.2,
+        113.9
+      ]
+    },
+    {
+      "ref": "UPD",
+      "id": "6b7a1587-8d91-48c8-960d-3f4e8b37b890",
+      "from": [
+        98.6,
+        112.02
+      ],
+      "to": [
+        95.8,
+        108
+      ]
+    },
+    {
+      "ref": "UPD",
+      "id": "f36ae71f-42ee-4304-bf3b-718b39878a93",
+      "from": [
+        98,
+        111.12
+      ],
+      "to": [
+        96.6,
+        107.8
+      ]
+    },
+    {
+      "ref": "UIN",
+      "id": "add185cf-7b44-491e-964c-b36eab6087ee",
+      "from": [
+        119.38,
+        117.3
+      ],
+      "to": [
+        117.8,
+        121.6
+      ]
+    }
+  ],
+  "footprints_unchanged": true,
+  "pad_contract_unchanged": true,
+  "board_geometry": {
+    "size_mm": "82 x 55.8",
+    "thickness_mm": 1.2,
+    "layers": 4
+  },
+  "drc": {
+    "source": "power_pd_3x5v_r4.kicad_pcb",
+    "kicad_version": "10.0.7",
+    "violation_count": 0,
+    "violations": [],
+    "unconnected_count": 0,
+    "unconnected_items": [],
+    "note": null,
+    "source_sha256": "5fec24d041bc46d7f735615d4579f7a2da8dfcc488c17f22f47beb3b79109d40",
+    "project_rules_sha256": "85b7ffaac239888a3bf0e0b3a593c5697aa573e162d90aa065780c98b2dd5fe4"
+  }
+}

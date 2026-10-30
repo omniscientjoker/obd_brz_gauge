@@ -1,0 +1,62 @@
+(footprint "M2_NPTH_2.4mm"
+	(version 20241229)
+	(generator "pcbnew")
+	(generator_version "9.0")
+	(layer "F.Cu")
+	(property "Reference" "H1"
+		(at 0 0 0)
+		(layer "F.SilkS")
+		(hide yes)
+		(uuid "84b62fe0-1f25-4ec5-9f28-b1f26e1a347b")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "M2 NPTH / KEEP DIA7"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "da42f094-db6f-4704-a7e3-297eed35b9d3")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "5384ddc7-0f7f-47b0-861a-7e9cd19b105d")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "a3c27056-4160-41c7-9632-7c41ecd46828")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "" np_thru_hole circle
+		(at 0 0)
+		(size 2.4 2.4)
+		(drill 2.4)
+		(layers "*.Cu")
+		(uuid "32df4197-3d4c-4830-9540-b1238d03a217")
+	)
+	(embedded_fonts no)
+)

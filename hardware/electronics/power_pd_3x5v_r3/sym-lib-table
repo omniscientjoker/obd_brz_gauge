@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "GaugePower")(type "KiCad")(uri "${KIPRJMOD}/GaugePower.kicad_sym")(options "")(descr ""))
+)

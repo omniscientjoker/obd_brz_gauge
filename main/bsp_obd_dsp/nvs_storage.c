@@ -19,7 +19,7 @@
 #define KEY_MG_EXTRA          "mgextra"   // multi-gauge boot animation settings
 #define KEY_MEDIA_ALERT       "alertmedia"
 #define KEY_CFG_VERSION       "cfgver"    // config version (missing = v0)
-#define CFG_VERSION_CURRENT   5           // current version; bump on field add/semantic change (migration in nvs_storage_init)
+#define CFG_VERSION_CURRENT   6           // current version; bump on field add/semantic change (migration in nvs_storage_init)
 #define INTRO_MODE_COUNT      3
 
 static nvs_user_cfg_t s_cfg =   {
@@ -41,6 +41,8 @@ static nvs_user_cfg_t s_cfg =   {
                         .tpms_voltage_min_mv = 12000,
                         .speed_max_kmh = NVS_SPEED_MAX_DEFAULT_KMH,
                         .audio_volume = 70,
+                        .left_dashboard_id = 0,
+                        .right_dashboard_id = 1,
                     };
 static nvs_stat_t     s_stat = {0};   // runtime-only stats, not persisted (reset every boot to save flash)
 static nvs_media_alert_cfg_t s_media_alert_cfg = {
@@ -222,6 +224,8 @@ esp_err_t nvs_storage_init(void)
         s_cfg.speed_max_kmh > NVS_SPEED_MAX_MAX_KMH)
         s_cfg.speed_max_kmh = NVS_SPEED_MAX_DEFAULT_KMH;
     if (s_cfg.audio_volume < 10 || s_cfg.audio_volume > 100) s_cfg.audio_volume = 70;
+    if (s_cfg.left_dashboard_id >= 8) s_cfg.left_dashboard_id = 0;
+    if (s_cfg.right_dashboard_id >= 8) s_cfg.right_dashboard_id = 1;
 
     // Validate TEMP/INFO custom display-item maps: 0..(DISP_ITEM_COUNT-1)
     for (int i = 0; i < 3; ++i) {
@@ -478,6 +482,8 @@ static void cfg_normalize(nvs_user_cfg_t *cfg)
         cfg->speed_max_kmh > NVS_SPEED_MAX_MAX_KMH)
         cfg->speed_max_kmh = NVS_SPEED_MAX_DEFAULT_KMH;
     if (cfg->audio_volume < 10 || cfg->audio_volume > 100) cfg->audio_volume = 70;
+    if (cfg->left_dashboard_id >= 8) cfg->left_dashboard_id = 0;
+    if (cfg->right_dashboard_id >= 8) cfg->right_dashboard_id = 1;
     for (size_t i = 0; i < 3; ++i) if (cfg->temp_display_map[i] >= DISP_ITEM_COUNT) cfg->temp_display_map[i] = (uint8_t)i;
     static const uint8_t default_info_map[5] = {0, 2, 3, 4, 1};
     for (size_t i = 0; i < 5; ++i) if (cfg->info_display_map[i] >= DISP_ITEM_COUNT) cfg->info_display_map[i] = default_info_map[i];
@@ -502,6 +508,7 @@ static bool cfg_validate(const nvs_user_cfg_t *cfg)
         cfg->speed_max_kmh < NVS_SPEED_MAX_MIN_KMH ||
         cfg->speed_max_kmh > NVS_SPEED_MAX_MAX_KMH ||
         cfg->audio_volume < 10 || cfg->audio_volume > 100 ||
+        cfg->left_dashboard_id >= 8 || cfg->right_dashboard_id >= 8 ||
         (vehicle_count > 0 && cfg->vehicle_profile_idx >= vehicle_count)) return false;
     for (size_t i = 0; i < 3; ++i) if (cfg->temp_display_map[i] >= DISP_ITEM_COUNT) return false;
     for (size_t i = 0; i < 5; ++i) if (cfg->info_display_map[i] >= DISP_ITEM_COUNT) return false;

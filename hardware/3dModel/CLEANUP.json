@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-23",
+  "scope": "hardware/v2",
+  "method": "move_obsolete_files_to_external_recovery_archive",
+  "archive": "/Users/jiangmiao/work_dict/.codex-cleanup/obd_brz_gauge-v2-20261023-085443",
+  "restore_manifest": "/Users/jiangmiao/work_dict/.codex-cleanup/obd_brz_gauge-v2-20261023-085443/RESTORE_MANIFEST.json",
+  "targets_moved": 102,
+  "files_moved": 229,
+  "bytes_moved": 38017377,
+  "protected_files_verified_before_and_after_move": 93,
+  "files_before_cleanup": 322,
+  "bytes_before_cleanup": 56021398,
+  "pcb_source": "electronics/power_pd_3x5v_r3/power_pd_3x5v_r3.xh.kicad_pcb",
+  "pcb_sha256": "d31ebbdd3f8458362aab80eefcb572f4bd216c7d809af2c359913162fca11a51",
+  "manufacturing_package": "electronics/power_pd_3x5v_r3/release/huaqiu-smt-20261023.zip",
+  "manufacturing_package_sha256": "fcca41f7352d33d386f8fc8cbfee894cdcc58f4aed114424c6e7b368c49715c9",
+  "smt_revision_cleanup": {
+    "revision": "R3-SMT-20261023",
+    "archive": "/Users/jiangmiao/work_dict/.codex-cleanup/obd_brz_gauge-smt-20261023-final",
+    "restore_manifest": "/Users/jiangmiao/work_dict/.codex-cleanup/obd_brz_gauge-smt-20261023-final/RESTORE_MANIFEST.json",
+    "files_moved": 49,
+    "bytes_moved": 5381424,
+    "preserved_current_board_package_and_print_parts": 9,
+    "superseded_release": "drc-repair-20261023.zip",
+    "superseded_release_sha256": "e522c381e78ec82ac2601498ab7dc431dde979cbb7ab87696a7dfd65b032dc4f",
+    "current_release_files": 96,
+    "smt_parts": 83,
+    "tht_parts": 3,
+    "drc_errors_warnings_unconnected": [0, 0, 0],
+    "zip_crc_and_all_manifest_hashes_verified": true,
+    "note": "Top-level initial cleanup counts refer to the earlier 322-to-95 cleanup. Current release pointers above supersede the old PCB-only package. All six existing print STLs were preserved; no enclosure fit release is implied."
+  },
+  "files_after_cleanup": 95,
+  "verification": {
+    "manufacturing_files": 45,
+    "matched_smt_bom_cpl_references": 83,
+    "valid_local_document_links": 34,
+    "drc_violations": 0,
+    "unconnected": 0,
+    "source_board_and_rules_unchanged": true
+  },
+  "preserved_print_parts": [
+    "stl/panel.stl",
+    "stl/base.stl",
+    "stl/carrier_a.stl",
+    "stl/carrier_b.stl",
+    "stl/fit_template.stl",
+    "stl/fit_template_b.stl"
+  ],
+  "restore": "Read RESTORE_MANIFEST.json and copy only the required archived paths back to original_root. Do not overwrite current final files without checking their hashes.",
+  "enclosure_validation": "Old validation, PCB mockup STL, previews and printing ZIP were archived. Current six print parts are preserved; regenerate whole-enclosure interference validation before releasing a new printing package."
+}

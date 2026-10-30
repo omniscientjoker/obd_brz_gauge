@@ -394,7 +394,12 @@ static void boot_enter_default_page(void)
         return;
     }
 
-    if (pg_cfg->device_role == ESPNOW_ROLE_SLAVE) {
+#if CONFIG_GAUGE_FIRMWARE_MASTER || CONFIG_GAUGE_FIRMWARE_SLAVE
+    const bool legacy_slave = false;
+#else
+    const bool legacy_slave = pg_cfg->device_role == ESPNOW_ROLE_SLAVE;
+#endif
+    if (legacy_slave) {
         // Slave: not yet bound to a master → go to the BLE page to pair (ui_ScreenPageBLEScan enters "FIND MASTER" mode automatically per role);
         // if already bound, do nothing and fall through to the same default_page branch as the master, showing gauge data directly.
         const uint8_t *bound_mac = espnow_link_get_bound_master_mac();
@@ -712,7 +717,12 @@ bool ui_ext_boot_video_tick(void)
     // Phase 2: wait for the sync signal before playing
     if (s_boot_video_ready && !s_boot_video_active) {
         bool should_start = false;
+#if CONFIG_GAUGE_FIRMWARE_MASTER
+        // UART slaves render independently; old ESP-NOW roles cannot delay boot.
+        const uint8_t role = ESPNOW_ROLE_STANDALONE;
+#else
         uint8_t role = nvs_cfg_get()->device_role;
+#endif
         if (role == ESPNOW_ROLE_STANDALONE) {
             // standalone: play directly
             should_start = true;

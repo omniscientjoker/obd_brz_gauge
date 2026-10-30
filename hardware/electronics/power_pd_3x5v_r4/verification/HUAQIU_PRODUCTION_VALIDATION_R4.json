@@ -1,0 +1,8 @@
+{
+  "pass": true,
+  "archive_sha256": "f30dedae87663c4f5bf045d96b8e8131dbee1eca8fb12e6f2ee654e77939f710",
+  "huaqiu_files": 20,
+  "pcb_sha256": "5fec24d041bc46d7f735615d4579f7a2da8dfcc488c17f22f47beb3b79109d40",
+  "bom_tolerance_format": "±",
+  "bom_format_revision": "BOM-IMPORT-20261027-R2"
+}

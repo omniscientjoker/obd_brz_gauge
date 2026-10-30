@@ -1,0 +1,10 @@
+{
+  "checked_on": "2026-10-26",
+  "method": "KiCad MCP run_drc_verified; unchanged source and project rules",
+  "source": "power_pd_3x5v_r3.xh.kicad_pcb",
+  "kicad_version": "10.0.7",
+  "violation_count": 0,
+  "unconnected_count": 0,
+  "source_sha256": "9d332c00e763aa93b3a76596c559d684d2cc782b26be1c9eb7428c3ae2f2f119",
+  "project_rules_sha256": "85b7ffaac239888a3bf0e0b3a593c5697aa573e162d90aa065780c98b2dd5fe4"
+}

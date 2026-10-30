@@ -1,0 +1,8 @@
+Item,MPN_or_requirement,Quantity,Unit,Notes
+Cable housing,XHP-2,3,pcs,XH 2.50mm 2P; circuit 1 must match PCB pad 1
+Crimp contact,SXH-001T-P0.6,6,pcs,AWG28-22; choose non-N contact for normal retention
+Red +5V wire,24AWG stranded copper,450,mm max total,3 lengths <=150mm including USB-C tail; use 22AWG for catalogue 3A condition
+Black GND wire,24AWG stranded copper,450,mm max total,No CCA; insulation OD must fit chosen crimp contact
+USB-C source plug cable end,"5V captive-source, Rp22k / 1.5A advertisement",3,pcs,"Verify CC, VBUS/GND continuity and both orientations; no battery connector"
+External PD adapter,USB-C PD with 15V/3A PDO,1,pcs,45W total alone does not establish support for 15V/3A
+External USB-C cable,USB-C to USB-C rated >=3A,1,pcs,Must carry CC; no power-only 2-wire PD input cable

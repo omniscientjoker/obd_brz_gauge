@@ -1,0 +1,22 @@
+{
+  "pass": true,
+  "delivery_revision": "R4-VIPPO-OPT-20261026-R1",
+  "pcb_sha256": "5fec24d041bc46d7f735615d4579f7a2da8dfcc488c17f22f47beb3b79109d40",
+  "schematic_sha256": "ca78c2b90ba080f9680c24393c050b5afb792eeffc8d2028bc5dd2d343dc73bf",
+  "project_rules_sha256": "85b7ffaac239888a3bf0e0b3a593c5697aa573e162d90aa065780c98b2dd5fe4",
+  "SMT": 82,
+  "Top": 31,
+  "Bottom": 51,
+  "THT": 4,
+  "MPN": 31,
+  "gerber_files": 14,
+  "copper_layers": 4,
+  "VIPPO_candidates": 0,
+  "drc_violations": 0,
+  "unconnected": 0,
+  "erc_violations": 0,
+  "archive_sha256": "d8acd893694cd0b1eb6209cdb21246715b45c52f7ebd9d0d03b5a91d2c1a274f",
+  "production_files": 14,
+  "bom_tolerance_format": "±",
+  "bom_format_revision": "BOM-IMPORT-20261027-R2"
+}

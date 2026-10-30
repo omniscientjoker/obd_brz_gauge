@@ -1,0 +1,86 @@
+{
+  "pass": true,
+  "revision": "R3-ERC-20261026",
+  "source_hashes": {
+    "power_pd_3x5v_r3.xh.kicad_sch": "ca78c2b90ba080f9680c24393c050b5afb792eeffc8d2028bc5dd2d343dc73bf",
+    "power_pd_3x5v_r3.xh.kicad_pcb": "9d332c00e763aa93b3a76596c559d684d2cc782b26be1c9eb7428c3ae2f2f119",
+    "power_pd_3x5v_r3.xh.kicad_pro": "85b7ffaac239888a3bf0e0b3a593c5697aa573e162d90aa065780c98b2dd5fe4",
+    "GaugePower.kicad_sym": "c8bce92202552d95a7fd9d4b4e97f00679824433c46e4d4305093ec1be05653e",
+    "sym-lib-table": "b616590cac462675b31705e02321985cc45ed051573f5224ec33cf936c58beed"
+  },
+  "erc": {
+    "source": "power_pd_3x5v_r3.xh.kicad_sch",
+    "kicad_version": "10.0.7",
+    "violation_count": 0,
+    "violations": [],
+    "note": null
+  },
+  "erc_errors": 0,
+  "erc_warnings": 0,
+  "erc_exclusions": 0,
+  "erc_ignored_checks": [
+    {
+      "description": "Global label only appears once in the schematic",
+      "key": "single_global_label"
+    },
+    {
+      "description": "Four connection points are joined together",
+      "key": "four_way_junction"
+    },
+    {
+      "description": "SPICE model issue",
+      "key": "simulation_model_issue"
+    },
+    {
+      "description": "Assigned footprint doesn't match footprint filters",
+      "key": "footprint_filter"
+    }
+  ],
+  "hierarchy": {
+    "status": "ok",
+    "issue_count": 0,
+    "issues": []
+  },
+  "netlist_comparison": {
+    "pass": true,
+    "pcb_sha256": "9d332c00e763aa93b3a76596c559d684d2cc782b26be1c9eb7428c3ae2f2f119",
+    "schematic_sha256": "ca78c2b90ba080f9680c24393c050b5afb792eeffc8d2028bc5dd2d343dc73bf",
+    "board_components": 93,
+    "schematic_components": 93,
+    "numbered_pins_compared": 269,
+    "pcb_named_nets": 56,
+    "schematic_named_nets": 55,
+    "explicit_no_connects": 22,
+    "installed_bom_parts": 86,
+    "power_flags_excluded": 6,
+    "strict_pin_net_name_match": false,
+    "electrical_connectivity_match": true,
+    "annotation_differences": [
+      {
+        "reference": "UPD",
+        "pin": "10",
+        "pcb_net": "/PD_GOOD",
+        "schematic_state": "explicit no-connect",
+        "copper_items": 0,
+        "reason": "Unused open-drain PG output; the single-pad name is not an electrical connection."
+      }
+    ],
+    "mismatches": []
+  },
+  "drc": {
+    "violation_count": 0,
+    "unconnected_count": 0,
+    "source_sha256": "9d332c00e763aa93b3a76596c559d684d2cc782b26be1c9eb7428c3ae2f2f119",
+    "project_rules_sha256": "85b7ffaac239888a3bf0e0b3a593c5697aa573e162d90aa065780c98b2dd5fe4"
+  },
+  "schematic_pdf": {
+    "path": "/Users/jiangmiao/work_dict/aicode/shcode/obd_brz_gauge/hardware/v2/electronics/power_pd_3x5v_r3/assembly-review/erc-20261026/power_pd_3x5v_r3.xh.pdf",
+    "format": "pdf",
+    "files": [
+      "power_pd_3x5v_r3.xh.pdf"
+    ],
+    "count": 1,
+    "size_bytes": 302300
+  },
+  "physical_load_tests_performed": false
+}

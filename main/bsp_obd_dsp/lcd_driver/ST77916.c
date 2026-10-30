@@ -627,6 +627,14 @@ static const st77916_lcd_init_cmd_t vendor_specific_init_new[] = {
 #endif
 void ST77916_Reset(){
 #if CONFIG_OBD_HW_VERSION_V1_WAVESHARE
+#if CONFIG_GAUGE_BOARD_LCD185
+  /* ESP32-S3-LCD-1.85 routes LCD_RST to TCA9554 EXIO2. The expander is
+     initialized by the slave entry point before the panel is installed. */
+  Set_EXIO(TCA9554_EXIO2, false);
+  vTaskDelay(pdMS_TO_TICKS(10));
+  Set_EXIO(TCA9554_EXIO2, true);
+  vTaskDelay(pdMS_TO_TICKS(50));
+#else
   /* 1.85B routes LCD_RST directly to GPIO3; it has no TCA9554 reset path. */
   gpio_config_t rst_config = {
     .mode = GPIO_MODE_OUTPUT,
@@ -637,6 +645,7 @@ void ST77916_Reset(){
   vTaskDelay(pdMS_TO_TICKS(10));
   gpio_set_level(EXAMPLE_LCD_PIN_NUM_RST, 1);
   vTaskDelay(pdMS_TO_TICKS(50));
+#endif
 #else
   /* New boards: LCD reset is a direct GPIO (EXAMPLE_LCD_PIN_NUM_RST=47),
      already handled by esp_lcd_panel_reset() inside QSPI_Init(). */

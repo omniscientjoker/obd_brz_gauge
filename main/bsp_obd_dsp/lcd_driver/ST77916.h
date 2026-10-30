@@ -58,7 +58,11 @@
 #define ESP_PANEL_LCD_SPI_IO_DATA2          (42)
 #define ESP_PANEL_LCD_SPI_IO_DATA3          (41)
 #define ESP_PANEL_LCD_SPI_IO_CS             (21)
+#if CONFIG_GAUGE_BOARD_LCD185
+#define EXAMPLE_LCD_PIN_NUM_RST             (-1)    // LCD_RST is TCA9554 EXIO2
+#else
 #define EXAMPLE_LCD_PIN_NUM_RST             (3)     // LCD_RST (direct GPIO)
+#endif
 #define EXAMPLE_LCD_PIN_NUM_BK_LIGHT        (5)
 #endif
 

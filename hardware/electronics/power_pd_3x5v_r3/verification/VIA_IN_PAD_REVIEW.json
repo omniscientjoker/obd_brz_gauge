@@ -1,0 +1,470 @@
+{
+  "source_sha256": "9d332c00e763aa93b3a76596c559d684d2cc782b26be1c9eb7428c3ae2f2f119",
+  "method": "Conservative via-drill circle intersection with all SMD copper/paste pad bounding boxes, including anonymous EP paste windows. CAM must confirm exact intersection.",
+  "unique_via_count": 27,
+  "required_process": "Resin fill, planarize and copper cap (VIPPO) for pad/paste intersections; simple mask tenting is not equivalent.",
+  "intersections": [
+    {
+      "ref": "UIN",
+      "pad": "",
+      "via_id": "add185cf-7b44-491e-964c-b36eab6087ee",
+      "via_xy": [
+        119.38,
+        117.3
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "UIN",
+      "pad": "25",
+      "via_id": "add185cf-7b44-491e-964c-b36eab6087ee",
+      "via_xy": [
+        119.38,
+        117.3
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U3",
+      "pad": "",
+      "via_id": "852b3ada-081e-410f-862f-5446659f1057",
+      "via_xy": [
+        97.45,
+        104.6
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U3",
+      "pad": "",
+      "via_id": "337a6ea5-dd0f-4ca0-b42b-aeff975e14ff",
+      "via_xy": [
+        97.45,
+        105.5
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U3",
+      "pad": "9",
+      "via_id": "337a6ea5-dd0f-4ca0-b42b-aeff975e14ff",
+      "via_xy": [
+        97.45,
+        105.5
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U3",
+      "pad": "9",
+      "via_id": "852b3ada-081e-410f-862f-5446659f1057",
+      "via_xy": [
+        97.45,
+        104.6
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "UPD",
+      "pad": "",
+      "via_id": "0e456552-56f2-44fa-b054-f9a385a9bfb4",
+      "via_xy": [
+        99.2,
+        110.92
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "UPD",
+      "pad": "",
+      "via_id": "1b0cda9b-186d-41db-aa2c-3c16d014d6e4",
+      "via_xy": [
+        99.1,
+        112.82
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "UPD",
+      "pad": "",
+      "via_id": "6b7a1587-8d91-48c8-960d-3f4e8b37b890",
+      "via_xy": [
+        98.6,
+        112.02
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "UPD",
+      "pad": "",
+      "via_id": "f36ae71f-42ee-4304-bf3b-718b39878a93",
+      "via_xy": [
+        98,
+        111.12
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "UPD",
+      "pad": "11",
+      "via_id": "0e456552-56f2-44fa-b054-f9a385a9bfb4",
+      "via_xy": [
+        99.2,
+        110.92
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "UPD",
+      "pad": "11",
+      "via_id": "1b0cda9b-186d-41db-aa2c-3c16d014d6e4",
+      "via_xy": [
+        99.1,
+        112.82
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "UPD",
+      "pad": "11",
+      "via_id": "6b7a1587-8d91-48c8-960d-3f4e8b37b890",
+      "via_xy": [
+        98.6,
+        112.02
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "UPD",
+      "pad": "11",
+      "via_id": "f36ae71f-42ee-4304-bf3b-718b39878a93",
+      "via_xy": [
+        98,
+        111.12
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U4",
+      "pad": "",
+      "via_id": "3136d08a-dee5-408d-994e-a182a233d700",
+      "via_xy": [
+        120.22,
+        103.9
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U4",
+      "pad": "",
+      "via_id": "114b2d22-c867-4a10-897a-41550a063cea",
+      "via_xy": [
+        120.72,
+        106.1
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U4",
+      "pad": "",
+      "via_id": "f4524680-5d2f-4ec1-8105-393083834879",
+      "via_xy": [
+        120.02,
+        105.7
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U4",
+      "pad": "",
+      "via_id": "5f6d43af-28df-45f7-9ffd-200519dce3db",
+      "via_xy": [
+        120.92,
+        104.2
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U4",
+      "pad": "",
+      "via_id": "114b2d22-c867-4a10-897a-41550a063cea",
+      "via_xy": [
+        120.72,
+        106.1
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U4",
+      "pad": "",
+      "via_id": "7c485eef-6d49-4392-a38e-9e3c227df23a",
+      "via_xy": [
+        121.32,
+        105.7
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U4",
+      "pad": "9",
+      "via_id": "114b2d22-c867-4a10-897a-41550a063cea",
+      "via_xy": [
+        120.72,
+        106.1
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U4",
+      "pad": "9",
+      "via_id": "3136d08a-dee5-408d-994e-a182a233d700",
+      "via_xy": [
+        120.22,
+        103.9
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U4",
+      "pad": "9",
+      "via_id": "5f6d43af-28df-45f7-9ffd-200519dce3db",
+      "via_xy": [
+        120.92,
+        104.2
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U4",
+      "pad": "9",
+      "via_id": "7b29a3d9-fa7e-4a95-ac09-20e2a50f6f9c",
+      "via_xy": [
+        121.22,
+        104.9
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U4",
+      "pad": "9",
+      "via_id": "7c485eef-6d49-4392-a38e-9e3c227df23a",
+      "via_xy": [
+        121.32,
+        105.7
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U4",
+      "pad": "9",
+      "via_id": "be5618aa-d15b-408e-bec2-49d8684e008c",
+      "via_xy": [
+        120.22,
+        104.9
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U4",
+      "pad": "9",
+      "via_id": "f4524680-5d2f-4ec1-8105-393083834879",
+      "via_xy": [
+        120.02,
+        105.7
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "CE4",
+      "pad": "2",
+      "via_id": "396869dc-2128-47cb-b801-4c908a180258",
+      "via_xy": [
+        120.55,
+        88.7
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "CE4",
+      "pad": "2",
+      "via_id": "7ab3d7f1-afd4-46b0-83aa-64d46520ea90",
+      "via_xy": [
+        121.45,
+        89.6
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "CE4",
+      "pad": "2",
+      "via_id": "b12ae02b-3fe1-4278-a1a4-8d4ecbd38876",
+      "via_xy": [
+        120.55,
+        89.6
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "CE4",
+      "pad": "2",
+      "via_id": "c2415e1c-8835-4d62-845d-f135b75d8ca0",
+      "via_xy": [
+        121.45,
+        88.7
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U2",
+      "pad": "",
+      "via_id": "163f1c95-62bf-4fa8-81e0-24cd7ac145cc",
+      "via_xy": [
+        76.62,
+        105.4
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U2",
+      "pad": "",
+      "via_id": "1710671c-4a24-4615-903f-2607074c7a94",
+      "via_xy": [
+        76.62,
+        106.1
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U2",
+      "pad": "9",
+      "via_id": "163f1c95-62bf-4fa8-81e0-24cd7ac145cc",
+      "via_xy": [
+        76.62,
+        105.4
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "U2",
+      "pad": "9",
+      "via_id": "1710671c-4a24-4615-903f-2607074c7a94",
+      "via_xy": [
+        76.62,
+        106.1
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "RUVINL",
+      "pad": "1",
+      "via_id": "2ded97ac-5890-47ff-a0bc-a73e4bc1ce08",
+      "via_xy": [
+        123.1,
+        119.41
+      ],
+      "drill_mm": 0.3,
+      "net": "/UV_IN"
+    },
+    {
+      "ref": "COUT3A",
+      "pad": "1",
+      "via_id": "2441409e-41e9-4236-9071-cb9c7f7919b5",
+      "via_xy": [
+        109.455,
+        85.72
+      ],
+      "drill_mm": 0.3,
+      "net": "/PRE_CENTRE"
+    },
+    {
+      "ref": "COUT2A",
+      "pad": "1",
+      "via_id": "a12d32af-d5a8-4df5-bf9f-9b1181424136",
+      "via_xy": [
+        87.055,
+        85.72
+      ],
+      "drill_mm": 0.3,
+      "net": "/PRE_LEFT"
+    },
+    {
+      "ref": "RUVINH",
+      "pad": "2",
+      "via_id": "67d4bee7-fd0b-41dd-91d2-4ff4a5ca38ce",
+      "via_xy": [
+        123.1,
+        114.89
+      ],
+      "drill_mm": 0.3,
+      "net": "/UV_IN"
+    },
+    {
+      "ref": "CD3",
+      "pad": "2",
+      "via_id": "cabf711f-65e9-4c9f-a0af-de49eb14d32c",
+      "via_xy": [
+        105.45,
+        87.8
+      ],
+      "drill_mm": 0.3,
+      "net": "/GND"
+    },
+    {
+      "ref": "ROVINL",
+      "pad": "1",
+      "via_id": "69b2d922-8355-46c6-b27c-0c871d2e7712",
+      "via_xy": [
+        126.6,
+        119.41
+      ],
+      "drill_mm": 0.3,
+      "net": "/OV_IN"
+    },
+    {
+      "ref": "ROVINH",
+      "pad": "2",
+      "via_id": "b7e74f7e-d17c-4aae-b0bc-7d623a4cd96c",
+      "via_xy": [
+        126.6,
+        114.89
+      ],
+      "drill_mm": 0.3,
+      "net": "/OV_IN"
+    }
+  ]
+}

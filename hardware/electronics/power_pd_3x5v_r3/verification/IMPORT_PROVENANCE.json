@@ -1,0 +1,15 @@
+{
+  "imported_from": "erc-20261026.zip",
+  "legacy_zip_sha256": "4907e6b4519ee40adeb0cffe8a4fe69a120113bc682e058ccfb26e99603a1bef",
+  "pcb_sha256": "9d332c00e763aa93b3a76596c559d684d2cc782b26be1c9eb7428c3ae2f2f119",
+  "unchanged_exports": {
+    "PCB_GERBER.zip": "84c67fc57c1376f167152287482a4e97abb2f20ca9828bd7a9f16a303c94679a",
+    "assembly/BOM_ALL.csv": "32fd878d94a1e6551c940ba5079ded86720f05e9f93958c98ec5d8347db2c22c",
+    "assembly/BOM_SMT.csv": "983b69eeff7b67595f84d22a3019657484e3825b8798a736dd454a71dcd965f2",
+    "assembly/BOM_THT.csv": "10c74ac8f61ac3ea5f300532fdee3c276722eb577696f66999e37ca74ed423a7",
+    "assembly/CPL_SMT.csv": "1c62223cbe1a2b6821b325247d8409730ecc477ea3ded3acedc40bdb8609acab",
+    "assembly/THT_POSITION.csv": "368e1f33b90208ee3c68c498ca43156a2c9c3347b074b2cb465f550d32b82a36",
+    "assembly/PIN1_POLARITY.csv": "45f7d6d150b0b8745ff5419b8a1b098ffcd8517a015f9a4400f965d939c8a012",
+    "assembly/ASSEMBLY_TOP_BOTTOM.pdf": "2bd210f3e43006795edeacd0aa9f6be46c5b3543fdc319e7e3e4bbf29ca0d00b"
+  }
+}

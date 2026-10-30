@@ -106,9 +106,15 @@ idf_component_register(SRC_DIRS
                     "bsp_obd_dsp/exio"
                     "bsp_obd_dsp/i2c_driver"
                     "bsp_obd_dsp/touch_driver"
+                    "common"
+                    "master"
+                    "slave"
                     "theme_engine"
                     INCLUDE_DIRS
                     "."
+                    "common"
+                    "master"
+                    "slave"
                     REQUIRES
                     esp_http_server
                     esp_wifi
@@ -117,6 +123,7 @@ idf_component_register(SRC_DIRS
                     fatfs
                     sdmmc
                     esp_driver_i2s
+                    usb
                     esp_codec_dev
                     mbedtls
                     nvs_flash

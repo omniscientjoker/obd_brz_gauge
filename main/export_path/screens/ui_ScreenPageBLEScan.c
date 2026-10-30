@@ -552,7 +552,12 @@ static void refresh_obd_view(void) {
 
 void ui_ScreenPageBLEScan_screen_init(void)
 {
+#if CONFIG_GAUGE_FIRMWARE_MASTER || CONFIG_GAUGE_FIRMWARE_SLAVE
+    // UART firmware does not use legacy ESP-NOW pairing.
+    s_slave_mode = false;
+#else
     s_slave_mode = (nvs_cfg_get()->device_role == ESPNOW_ROLE_SLAVE);
+#endif
 
     ui_ScreenPageBLEScan = lv_obj_create(NULL);
     lv_obj_clear_flag(ui_ScreenPageBLEScan, LV_OBJ_FLAG_SCROLLABLE);
@@ -707,6 +712,12 @@ void ui_ScreenPageBLEScan_screen_init(void)
     lv_obj_set_style_bg_color(s_action_divider, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(s_action_divider, LV_OPA_50, LV_PART_MAIN);
     lv_obj_add_flag(s_action_divider, LV_OBJ_FLAG_HIDDEN);
+
+    lv_obj_t *usb_hint = lv_label_create(ui_ScreenPageBLEScan);
+    lv_label_set_text(usb_hint, "上滑 USB 模式");
+    lv_obj_set_style_text_font(usb_hint, &ui_font_Chinese16, 0);
+    lv_obj_set_style_text_color(usb_hint, lv_color_hex(0x888888), 0);
+    lv_obj_align(usb_hint, LV_ALIGN_CENTER, 0, 116);
 
     // Gesture event for navigation
     ui_nav_attach_gesture(ui_ScreenPageBLEScan, UI_NAV_PAGE_BLE_SCAN);

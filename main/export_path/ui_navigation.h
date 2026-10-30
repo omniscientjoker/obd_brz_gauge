@@ -36,6 +36,7 @@ typedef enum {
     UI_NAV_PAGE_OBD_PROTOCOL,
     UI_NAV_PAGE_OTA_MODE,
     UI_NAV_PAGE_ALERT_MEDIA,
+    UI_NAV_PAGE_USB_SETTINGS,
     UI_NAV_PAGE_COUNT
 } ui_nav_page_t;
 

@@ -25,3 +25,5 @@ tools/pids_full.csv
 /output
 /build.verify7
 /build
+/build-master
+/build-slave

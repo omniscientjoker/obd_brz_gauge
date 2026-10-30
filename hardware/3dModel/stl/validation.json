@@ -1,0 +1,196 @@
+[
+  {
+    "name": "panel",
+    "connectedSolids": 1,
+    "bounds": [
+      [
+        -115.5,
+        115.5
+      ],
+      [
+        -41,
+        41
+      ],
+      [
+        0,
+        5
+      ]
+    ],
+    "triangles": 14332,
+    "outerOutline": "all mesh vertices inside capsule silhouette",
+    "maxOutlineExcessMm": 0.000003
+  },
+  {
+    "name": "base",
+    "connectedSolids": 1,
+    "bounds": [
+      [
+        -115.5,
+        115.5
+      ],
+      [
+        -41,
+        41
+      ],
+      [
+        0,
+        40
+      ]
+    ],
+    "triangles": 10416,
+    "outerOutline": "all mesh vertices inside capsule silhouette",
+    "maxOutlineExcessMm": 0.000003
+  },
+  {
+    "name": "carrier_a",
+    "connectedSolids": 1,
+    "bounds": [
+      [
+        -36.20000076293945,
+        36.20000076293945
+      ],
+      [
+        -36.20000076293945,
+        25.97430419921875
+      ],
+      [
+        0,
+        5
+      ]
+    ],
+    "triangles": 6288
+  },
+  {
+    "name": "fit_template",
+    "connectedSolids": 1,
+    "bounds": [
+      [
+        -36.20000076293945,
+        36.20000076293945
+      ],
+      [
+        -25.97430419921875,
+        36.20000076293945
+      ],
+      [
+        0,
+        1
+      ]
+    ],
+    "triangles": 6220
+  },
+  {
+    "name": "carrier_b",
+    "connectedSolids": 1,
+    "bounds": [
+      [
+        -36.20000076293945,
+        36.20000076293945
+      ],
+      [
+        -36.20000076293945,
+        28.85501480102539
+      ],
+      [
+        0,
+        5
+      ]
+    ],
+    "triangles": 6136
+  },
+  {
+    "name": "fit_template_b",
+    "connectedSolids": 1,
+    "bounds": [
+      [
+        -36.20000076293945,
+        36.20000076293945
+      ],
+      [
+        -28.85501480102539,
+        36.20000076293945
+      ],
+      [
+        0,
+        1
+      ]
+    ],
+    "triangles": 6076
+  },
+  {
+    "name": "power_board_mockup",
+    "connectedSolids": 1,
+    "bounds": [
+      [
+        -41,
+        41
+      ],
+      [
+        -27.799999237060547,
+        28
+      ],
+      [
+        0,
+        1.1999998092651367
+      ]
+    ],
+    "triangles": 612
+  },
+  {
+    "name": "interference",
+    "assembledInterference": "no positive-volume overlap",
+    "zeroThicknessContacts": true,
+    "floorCableChannel": "5 mm channel has no positive-volume obstruction",
+    "physicalFit": "not verified"
+  },
+  {
+    "name": "interference_b",
+    "assembledInterference": "no positive-volume overlap",
+    "zeroThicknessContacts": true,
+    "floorCableChannel": "5 mm channel has no positive-volume obstruction",
+    "physicalFit": "not verified"
+  },
+  {
+    "name": "electronics_interference",
+    "assembledInterference": "no positive-volume overlap",
+    "zeroThicknessContacts": false,
+    "floorCableChannel": "5 mm channel has no positive-volume obstruction",
+    "powerBoard": "R3 82x55.8x1.2 mm, central tongue 12x0.3 mm, origin=hole midpoint, holes +/-37 mm",
+    "components": "7.2 mm front; 2 mm rear including solder; 2.5 mm standoffs",
+    "connectors": "XH mated leads Y<=37 mm; direct external USB-C, 12x8 mm housing",
+    "wireless": "removed; magnetic mounting recess retained",
+    "physicalFit": "not verified"
+  },
+  {
+    "name": "mixed_interference",
+    "assembledInterference": "no positive-volume overlap",
+    "zeroThicknessContacts": false,
+    "mixedProfiles": "all six mixed A/B combinations covered by cross-profile pairs",
+    "physicalFit": "not verified"
+  },
+  {
+    "name": "usb_interference",
+    "assembledInterference": "no positive-volume overlap",
+    "zeroThicknessContacts": true,
+    "usbService": "unplug only with rear box removed",
+    "installedPlugAndCable": "clear including 0.8 mm margin",
+    "unplugSweep": "6.5 mm travel clear with rear box removed",
+    "envelope": "12 mm wide, 10 mm below mating face, 14 mm behind PCB rear",
+    "bUsbPosition": "A STEP envelope reused; confirm B hardware",
+    "carrierAndTemplateSlots": "A/B: full 14 mm slot clear through thickness",
+    "panelCollarSlots": "rear slots clear; front face retained",
+    "physicalFit": "not verified"
+  },
+  {
+    "name": "power_usb_interference",
+    "assembledInterference": "no positive-volume overlap",
+    "zeroThicknessContacts": false,
+    "input": "board-mounted USB-C; no extension module",
+    "socketExposure": "0.2 mm nominal beyond continuous exterior wall",
+    "aperture": "9.74x3.96 mm, R1.8; full 2.4 mm wall; no recess or thin mask",
+    "externalInsertion": "12x8 mm complete plug housing; 25 mm straight travel clear",
+    "wallWitnesses": "full wall thickness present above, below and on both sides",
+    "ventilation": "12 slots; independent through-floor air paths clear",
+    "physicalFit": "not verified"
+  }
+]

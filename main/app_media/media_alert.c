@@ -27,7 +27,8 @@ static const char *TAG = "media_alert";
 #define MEDIA_ALERT_PATH_MAX          160
 #define MEDIA_ALERT_MONITOR_PERIOD_MS 200
 #define MEDIA_ALERT_DATA_MAX_AGE_US   (4LL * 1000LL * 1000LL)
-#define MEDIA_ALERT_FUEL_LOW_PCT      15
+#define MEDIA_ALERT_FUEL_LOW_PCT      10
+#define MEDIA_ALERT_VOLTAGE_LOW_MV    13000
 #define MEDIA_ALERT_TASK_STACK        4096
 
 typedef struct {
@@ -233,7 +234,12 @@ static void update_edge(media_alert_type_t type, bool state_valid, bool abnormal
     /* Invalid or stale telemetry is unknown, not a recovery edge. */
     if (!state_valid) return;
     if (!abnormal) {
-        s_alert_latched[type] = false;
+        /* Fuel and voltage consume their reminder for this boot only after a
+         * successful enqueue. Recovery, reconnects and suspension cannot rearm
+         * them. Other alerts rearm on a valid recovery sample. */
+        if (type != MEDIA_ALERT_FUEL_LOW && type != MEDIA_ALERT_VOLTAGE) {
+            s_alert_latched[type] = false;
+        }
         return;
     }
     if (s_alert_latched[type]) return;
@@ -276,7 +282,7 @@ static void media_alert_monitor_task(void *arg)
         if (!suspended && cfg_ok) {
             update_edge(MEDIA_ALERT_VOLTAGE,
                         channel_fresh(&obd, OBD_DATA_BATTERY, now_us),
-                        obd.bat_mv > 0 && obd.bat_mv < (int32_t)cfg.tpms_voltage_min_mv);
+                        obd.bat_mv > 0 && obd.bat_mv < MEDIA_ALERT_VOLTAGE_LOW_MV);
             update_edge(MEDIA_ALERT_TEMP_HIGH,
                         channel_fresh(&obd, OBD_DATA_COOLANT, now_us), obd.coolant_temp > 110);
             bool tpms_abnormal = false;
@@ -287,7 +293,7 @@ static void media_alert_monitor_task(void *arg)
                         obd.speed >= cfg.speed_max_kmh);
             update_edge(MEDIA_ALERT_FUEL_LOW,
                         channel_fresh(&obd, OBD_DATA_FUEL, now_us),
-                        obd.fuel_pct >= 0 && obd.fuel_pct <= MEDIA_ALERT_FUEL_LOW_PCT);
+                        obd.fuel_pct >= 0 && obd.fuel_pct < MEDIA_ALERT_FUEL_LOW_PCT);
             update_edge(MEDIA_ALERT_RPM,
                         channel_fresh(&obd, OBD_DATA_RPM, now_us),
                         obd.rpm >= cfg.rpm_warn_threshold);

@@ -1,0 +1,54 @@
+{
+  "revision": "R3-USB-FLUSH-20261026",
+  "input": {
+    "interface": "USB-C PD",
+    "receptacle_mpn": "USB4085-GF-A",
+    "manufacturer": "GCT",
+    "mount": "THT",
+    "requested_voltage_V": 15,
+    "required_adapter_pdo": "15 V / 3 A",
+    "adapter_power_W": 45,
+    "power_only_2pin_extension_before_PD_controller_allowed": false
+  },
+  "output": {
+    "references": {"J2": "LEFT", "J3": "CENTRE", "J4": "RIGHT"},
+    "pitch_mm": 2.5,
+    "positions": 2,
+    "header_mpn": "S2B-XH-A(LF)(SN)",
+    "footprint": "Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal",
+    "housing_mpn": "XHP-2",
+    "contact_mpn": "SXH-001T-P0.6",
+    "contact_allowed_awg": [28, 22],
+    "pin_1": "+5V protected output",
+    "pin_2": "GND",
+    "voltage_V": 5,
+    "continuous_target_A": 1.5,
+    "desired_short_peak_A": 2,
+    "short_peak_guaranteed": false,
+    "series_rating_A": 3,
+    "series_rating_condition_awg": 22,
+    "efuse_Rilm_ohm": 1650,
+    "efuse_current_A_datasheet_min_typ_max": [1.8, 2.028, 2.2],
+    "efuse_resistor_tolerance_percent": 1,
+    "wire_awg_preferred": 24,
+    "wire_awg_for_3A_catalogue_condition": 22,
+    "wire_material": "copper; no CCA",
+    "wire_length_max_mm": 150,
+    "usb_c_end": {
+      "role": "captive source plug, fixed 5 V, no PD",
+      "vbus_contacts": ["A4", "A9", "B4", "B9"],
+      "ground_contacts": ["A1", "A12", "B1", "B12"],
+      "cc": "Correct captive-source plug implementation; Rp 22 kohm to VBUS for 1.5 A advertisement; verify with supplier and both plug orientations",
+      "data": "D+/D- unused; no connection to PD input or other output",
+      "battery_connector_allowed": false
+    },
+    "supplier_datasheet": "https://www.jst.com/wp-content/uploads/2021/01/eXH.pdf",
+    "efuse_datasheet": "https://www.ti.com/lit/ds/symlink/tps25947.pdf"
+  },
+  "qualification": {
+    "connector_selection": "confirmed",
+    "bench_load_thermal_transient": "pending",
+    "guaranteed_2A_peak": "not established; eFuse lower limit and buck inductor ripple must be checked",
+    "enclosure_fit": "matched USB-FLUSH-20261026: 82x55.8 mm central tongue / 74 mm pitch; continuous 2.4 mm wall, 9.74x3.96 mm aperture, nominal 0.2 mm face exposure; physical sample fit pending"
+  }
+}

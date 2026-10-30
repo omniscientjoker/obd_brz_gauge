@@ -1,0 +1,548 @@
+{
+  "groups": [
+    {
+      "refs": [
+        "J1"
+      ],
+      "value": "USB-C PD 15V/3A",
+      "manufacturer": "GCT",
+      "mpn": "USB4085-GF-A",
+      "package": "USB-C 16-contact, all THT, PCB top mount",
+      "description": "USB 2.0 Type-C receptacle; 5A collective VBUS / 48V; design uses 15V/3A; THT contacts and four shell anchors",
+      "datasheet_url": "https://gct.co/files/drawings/usb4085.pdf",
+      "mount": "THT",
+      "category": "连接器",
+      "notes": "GCT drawing revision B 28/02/23. Post-solder all contacts and four SH anchors after both SMT reflows. Inspect 0.85 mm pitch contacts; do not substitute shorter-body HRO footprint.",
+      "height_max_mm": 3.46
+    },
+    {
+      "refs": [
+        "J2",
+        "J3",
+        "J4"
+      ],
+      "value": "XH2.50-2P 5V OUTPUT",
+      "manufacturer": "JST",
+      "mpn": "S2B-XH-A(LF)(SN)",
+      "package": "JST XH 2P horizontal, pitch 2.50mm, THT",
+      "description": "2-position side-entry XH header; 3A with specified AWG22 contact/cable system",
+      "datasheet_url": "https://www.jst.com/wp-content/uploads/2021/01/eXH-new.pdf",
+      "mount": "THT",
+      "category": "连接器",
+      "notes": "Factory hand/selective solder after SMT. Mating XHP-2 housing, SXH-001T-P0.6 contacts; use manufacturer-approved crimped 22AWG harness. Do not substitute PH2.0 or 2.54mm clone."
+    },
+    {
+      "refs": [
+        "F1"
+      ],
+      "value": "3A 63VDC FAST",
+      "manufacturer": "Bourns",
+      "mpn": "SF-1206F300-2",
+      "package": "1206 fast-acting SMD fuse",
+      "description": "3.00A, 63Vdc, 50A interruption at63V, fast-acting; cold R typ0.02325ohm; I2t0.501A2s",
+      "datasheet_url": "https://www.bourns.com/docs/product-datasheets/sf1206f.pdf",
+      "mount": "SMT",
+      "category": "保险丝",
+      "notes": "Exact recommended land pattern already present as GaugePower:SF_1206F_Recommended; do not use generic 1206 resistor land.",
+      "height_max_mm": 0.75
+    },
+    {
+      "refs": [
+        "DTVS"
+      ],
+      "value": "SMAJ16A",
+      "manufacturer": "Vishay General Semiconductor",
+      "mpn": "SMAJ16A-E3/61",
+      "package": "DO-214AC (SMA)",
+      "description": "Unidirectional TVS, 16V VRWM, 17.8..19.7V VBR, 26V clamp at15.4A, 400W 10/1000us",
+      "datasheet_url": "https://www.vishay.com/docs/88390/smaj50a.pdf",
+      "mount": "SMT",
+      "category": "TVS",
+      "notes": "Cathode band must connect VRAW (pad1), anode GND(pad2); polarity controlled by assembly drawing. Source datasheet retried independently.",
+      "height_max_mm": 2.29
+    },
+    {
+      "refs": [
+        "RUVINH"
+      ],
+      "value": "100k 0.1%",
+      "manufacturer": "Vishay",
+      "mpn": "TNPW0402100KBEED",
+      "package": "0402 (1005 metric)",
+      "description": "100kohm +/-0.1%, +/-25ppm/K thin-film, 75V operating rating",
+      "datasheet_url": "https://www.vishay.com/docs/28758/tnpw_e3.pdf",
+      "mount": "SMT",
+      "category": "电阻",
+      "notes": "1.00+/-0.05 x0.50+/-0.05 x0.35+/-0.05mm; ED paper tape10k reel; manufacturer catalog range ends100k for0402.",
+      "height_max_mm": 0.4
+    },
+    {
+      "refs": [
+        "RUVINL",
+        "ROVINL"
+      ],
+      "value": "10k 0.1%",
+      "manufacturer": "Vishay",
+      "mpn": "TNPW040210K0BEED",
+      "package": "0402 (1005 metric)",
+      "description": "10kohm +/-0.1%, +/-25ppm/K thin-film",
+      "datasheet_url": "https://www.vishay.com/docs/28758/tnpw_e3.pdf",
+      "mount": "SMT",
+      "category": "电阻",
+      "notes": "1.00+/-0.05 x0.50+/-0.05 x0.35+/-0.05mm; ED paper tape10k reel.",
+      "height_max_mm": 0.4
+    },
+    {
+      "refs": [
+        "ROVINH"
+      ],
+      "value": "133k 0.1%",
+      "manufacturer": "Bourns",
+      "mpn": "CRT0402-BY-1333GLF",
+      "package": "0402 (1005 metric)",
+      "description": "133kohm +/-0.1%, +/-25ppm/C thin-film precision; E96 standard value",
+      "datasheet_url": "https://www.bourns.com/docs/product-datasheets/crt.pdf",
+      "mount": "SMT",
+      "category": "电阻",
+      "notes": "Catalog0402 B/Y range10..255k, 25V working, 1/16W. G=10k paper tape. Replaces135k in source board after electrical review: input OVP approximately17.16V. 1.00+/-0.10 x0.50+/-0.05 x0.30+/-0.05mm.",
+      "height_max_mm": 0.35
+    },
+    {
+      "refs": [
+        "RSET"
+      ],
+      "value": "56k 1%",
+      "manufacturer": "Vishay",
+      "mpn": "TNPW060356K0FEEA",
+      "package": "0603 (1608 metric)",
+      "description": "56kohm +/-1%, +/-25ppm/K thin-film",
+      "datasheet_url": "https://www.vishay.com/docs/28758/tnpw_e3.pdf",
+      "mount": "SMT",
+      "category": "电阻",
+      "notes": "E24;1.55+/-0.05 x0.85+/-0.10 x0.45+/-0.10mm; EA5k reel.",
+      "height_max_mm": 0.55
+    },
+    {
+      "refs": [
+        "RILIMIN"
+      ],
+      "value": "8.25k 1%",
+      "manufacturer": "Vishay",
+      "mpn": "TNPW06038K25FEEA",
+      "package": "0603 (1608 metric)",
+      "description": "8.25kohm +/-1%, +/-25ppm/K thin-film; exact E96 value",
+      "datasheet_url": "https://www.vishay.com/docs/28758/tnpw_e3.pdf",
+      "mount": "SMT",
+      "category": "电阻",
+      "notes": "Do not substitute8.2k without electrical approval.",
+      "height_max_mm": 0.55
+    },
+    {
+      "refs": [
+        "RPGH"
+      ],
+      "value": "100k 0.1%",
+      "manufacturer": "Vishay",
+      "mpn": "TNPW0603100KBEEA",
+      "package": "0603 (1608 metric)",
+      "description": "100kohm +/-0.1%, +/-25ppm/K thin-film",
+      "datasheet_url": "https://www.vishay.com/docs/28758/tnpw_e3.pdf",
+      "mount": "SMT",
+      "category": "电阻",
+      "notes": "EA5k reel; precision divider value.",
+      "height_max_mm": 0.55
+    },
+    {
+      "refs": [
+        "RPGPU"
+      ],
+      "value": "100k",
+      "manufacturer": "Vishay",
+      "mpn": "TNPW0603100KFEEA",
+      "package": "0603 (1608 metric)",
+      "description": "100kohm +/-1%, +/-25ppm/K thin-film pull-up",
+      "datasheet_url": "https://www.vishay.com/docs/28758/tnpw_e3.pdf",
+      "mount": "SMT",
+      "category": "电阻",
+      "notes": "Source board value has no tolerance; selected1% grade.",
+      "height_max_mm": 0.55
+    },
+    {
+      "refs": [
+        "RPGL",
+        "RFL2",
+        "RFL3",
+        "RFL4",
+        "RUVL2",
+        "RUVL3",
+        "RUVL4",
+        "ROVL2",
+        "ROVL3",
+        "ROVL4"
+      ],
+      "value": "10k 0.1%",
+      "manufacturer": "Vishay",
+      "mpn": "TNPW060310K0BEEA",
+      "package": "0603 (1608 metric)",
+      "description": "10kohm +/-0.1%, +/-25ppm/K thin-film precision divider",
+      "datasheet_url": "https://www.vishay.com/docs/28758/tnpw_e3.pdf",
+      "mount": "SMT",
+      "category": "电阻",
+      "notes": "EA5k reel.",
+      "height_max_mm": 0.55
+    },
+    {
+      "refs": [
+        "RFH2",
+        "RFH3",
+        "RFH4"
+      ],
+      "value": "52.3k 0.1%",
+      "manufacturer": "Vishay",
+      "mpn": "TNPW060352K3BEEA",
+      "package": "0603 (1608 metric)",
+      "description": "52.3kohm +/-0.1%, +/-25ppm/K thin-film; E96 value",
+      "datasheet_url": "https://www.vishay.com/docs/28758/tnpw_e3.pdf",
+      "mount": "SMT",
+      "category": "电阻",
+      "notes": "Buck feedback upper divider, exact value required.",
+      "height_max_mm": 0.55
+    },
+    {
+      "refs": [
+        "RLIM2",
+        "RLIM3",
+        "RLIM4"
+      ],
+      "value": "84.5k 1%",
+      "manufacturer": "Vishay",
+      "mpn": "TNPW060384K5FEEA",
+      "package": "0603 (1608 metric)",
+      "description": "84.5kohm +/-1%, +/-25ppm/K thin-film; E96 value",
+      "datasheet_url": "https://www.vishay.com/docs/28758/tnpw_e3.pdf",
+      "mount": "SMT",
+      "category": "电阻",
+      "notes": "Electrical-reviewed replacement for57.6k, paired withXAL5050-682MEC. Do not revert to old43k BOM.",
+      "height_max_mm": 0.55
+    },
+    {
+      "refs": [
+        "RC2",
+        "RC3",
+        "RC4"
+      ],
+      "value": "24k",
+      "manufacturer": "Vishay",
+      "mpn": "TNPW060324K0FEEA",
+      "package": "0603 (1608 metric)",
+      "description": "24kohm +/-1%, +/-25ppm/K thin-film compensation resistor",
+      "datasheet_url": "https://www.vishay.com/docs/28758/tnpw_e3.pdf",
+      "mount": "SMT",
+      "category": "电阻",
+      "notes": "Source value has no tolerance; chosen1% exceeds former5% note.",
+      "height_max_mm": 0.55
+    },
+    {
+      "refs": [
+        "RUVH2",
+        "RUVH3",
+        "RUVH4"
+      ],
+      "value": "28k 0.1%",
+      "manufacturer": "Vishay",
+      "mpn": "TNPW060328K0BEEA",
+      "package": "0603 (1608 metric)",
+      "description": "28kohm +/-0.1%, +/-25ppm/K thin-film; E96 value",
+      "datasheet_url": "https://www.vishay.com/docs/28758/tnpw_e3.pdf",
+      "mount": "SMT",
+      "category": "电阻",
+      "notes": "Output eFuse UVLO upper divider.",
+      "height_max_mm": 0.55
+    },
+    {
+      "refs": [
+        "ROVH2",
+        "ROVH3",
+        "ROVH4"
+      ],
+      "value": "34k 0.1%",
+      "manufacturer": "Vishay",
+      "mpn": "TNPW060334K0BEEA",
+      "package": "0603 (1608 metric)",
+      "description": "34kohm +/-0.1%, +/-25ppm/K thin-film; E96 value",
+      "datasheet_url": "https://www.vishay.com/docs/28758/tnpw_e3.pdf",
+      "mount": "SMT",
+      "category": "电阻",
+      "notes": "Output eFuse OVP upper divider.",
+      "height_max_mm": 0.55
+    },
+    {
+      "refs": [
+        "RILM2",
+        "RILM3",
+        "RILM4"
+      ],
+      "value": "1.65k 1%",
+      "manufacturer": "Vishay",
+      "mpn": "TNPW06031K65FEEA",
+      "package": "0603 (1608 metric)",
+      "description": "1.65kohm +/-1%, +/-25ppm/K thin-film; E96 value",
+      "datasheet_url": "https://www.vishay.com/docs/28758/tnpw_e3.pdf",
+      "mount": "SMT",
+      "category": "电阻",
+      "notes": "Exact output eFuse current-limit value; do not use old conflictingLCSC code.",
+      "height_max_mm": 0.55
+    },
+    {
+      "refs": [
+        "CPD",
+        "CSYS"
+      ],
+      "value": "1uF 50V X5R",
+      "manufacturer": "Murata",
+      "mpn": "GRM188R61H105KAALD",
+      "package": "0603 (1608 metric)",
+      "description": "1uF+/-10%,50Vdc,X5R,-55..85C,1.6+/-0.1x0.8+/-0.1x0.8+/-0.1mm",
+      "datasheet_url": "https://pim.murata.com/asset/pim4/ceramicCapacitorSMD/GRM188R61H105KAAL-01-EN_PDF_CERAMICCAPACITORSMD?lastModifiedDatetime=20250707225627",
+      "mount": "SMT",
+      "category": "电容",
+      "notes": "OfficialPIM confirms exact packagedMPN. X5R is85C max; DC bias reduces effective capacitance; qualification is prototype-only pending15V bias/load/temperature verification.",
+      "height_max_mm": 0.9
+    },
+    {
+      "refs": [
+        "CUSB2",
+        "CUSB3",
+        "CUSB4"
+      ],
+      "value": "1uF 50V X5R",
+      "manufacturer": "Murata",
+      "mpn": "GRM188R61H105KAALD",
+      "package": "0603 (1608 metric)",
+      "description": "1uF+/-10%,50Vdc,X5R,-55..85C,1.6+/-0.1x0.8+/-0.1x0.8+/-0.1mm",
+      "datasheet_url": "https://pim.murata.com/asset/pim4/ceramicCapacitorSMD/GRM188R61H105KAAL-01-EN_PDF_CERAMICCAPACITORSMD?lastModifiedDatetime=20250707225627",
+      "mount": "SMT",
+      "category": "电容",
+      "notes": "Upgrades old25V1uF to50V common procurement item without reducing rating. X5R85Cmax; validate5V effective capacitance.",
+      "height_max_mm": 0.9
+    },
+    {
+      "refs": [
+        "CDIN",
+        "CB2",
+        "CB3",
+        "CB4"
+      ],
+      "value": "100nF 50V",
+      "manufacturer": "Murata",
+      "mpn": "GRM188R71H104KA93D",
+      "package": "0603 (1608 metric)",
+      "description": "100nF+/-10%,50Vdc,X7R,-55..125C,1.6+/-0.1x0.8+/-0.1x0.8+/-0.1mm",
+      "datasheet_url": "https://pim.murata.com/en-global/pim/details/?partNum=GRM188R71H104KA93%23",
+      "mount": "SMT",
+      "category": "电容",
+      "notes": "Exact packagedMPN and dimensions independently obtained from officialPIM; current PIM record has no direct PDF asset link, retain rawAPI evidence.",
+      "height_max_mm": 0.9
+    },
+    {
+      "refs": [
+        "CIN2A",
+        "CIN2B",
+        "CIN3A",
+        "CIN3B",
+        "CIN4A",
+        "CIN4B"
+      ],
+      "value": "10uF 50V X5R",
+      "manufacturer": "Murata",
+      "mpn": "GRM31CR61H106KA12L",
+      "package": "1206 (3216 metric)",
+      "description": "10uF+/-10%,50Vdc,X5R,-55..85C,3.2+/-0.2x1.6+/-0.2x1.6+/-0.2mm",
+      "datasheet_url": "https://pim.murata.com/asset/pim4/ceramicCapacitorSMD/GRM31CR61H106KA12-01-EN_PDF_CERAMICCAPACITORSMD?lastModifiedDatetime=20250707234421",
+      "mount": "SMT",
+      "category": "电容",
+      "notes": "Replaces unspecified/unverified1206X7R entry with realmanufacturer model.85Cmax; DC bias at15V must be checked;82uF35Vpolymer retained on input. Do not substitute imaginaryGRM31CR71H106KA12L.",
+      "height_max_mm": 1.8
+    },
+    {
+      "refs": [
+        "COUT2A",
+        "COUT2B",
+        "COUT3A",
+        "COUT3B",
+        "COUT4A",
+        "COUT4B"
+      ],
+      "value": "22uF 25V X5R",
+      "manufacturer": "Murata",
+      "mpn": "GRM31CR61E226KE15L",
+      "package": "1206 (3216 metric)",
+      "description": "22uF+/-10%,25Vdc,X5R,-55..85C,3.2+/-0.2x1.6+/-0.2x1.6+/-0.2mm",
+      "datasheet_url": "https://pim.murata.com/en-global/pim/details/?partNum=GRM31CR61E226KE15%23",
+      "mount": "SMT",
+      "category": "电容",
+      "notes": "OfficialPIM confirms exact real25V1206model. Replaces non-existentGRM31CR7YA226KE15L.25V survives input-OVP tolerance;85Cmax. Back side1.8mmmax invalidates former1mmclearance. Effective5V capacitance and transient stability require firstboard test. CurrentPIMrecord has no directPDFasset link; retainAPIevidence.",
+      "height_max_mm": 1.8
+    },
+    {
+      "refs": [
+        "CC2",
+        "CC3",
+        "CC4"
+      ],
+      "value": "2.7nF C0G 50V",
+      "manufacturer": "Murata",
+      "mpn": "GRM1885C1H272JA01D",
+      "package": "0603 (1608 metric)",
+      "description": "2.7nF+/-5%,50Vdc,C0G,-55..125C,1.6+/-0.1x0.8+/-0.1x0.8+/-0.1mm",
+      "datasheet_url": "https://pim.murata.com/asset/pim4/ceramicCapacitorSMD/GRM1885C1H272JA01-01A-EN_PDF_CERAMICCAPACITORSMD?lastModifiedDatetime=20260730162408",
+      "mount": "SMT",
+      "category": "电容",
+      "notes": "Compensation capacitor;C0Gselected for voltage/temperature stability. Real packagedMPN verified byPIM.",
+      "height_max_mm": 0.9
+    },
+    {
+      "refs": [
+        "CD2",
+        "CD3",
+        "CD4"
+      ],
+      "value": "8.2nF C0G 50V",
+      "manufacturer": "Murata",
+      "mpn": "GRM1885C1H822JA01D",
+      "package": "0603 (1608 metric)",
+      "description": "8.2nF+/-5%,50Vdc,C0G,-55..125C,1.6+/-0.1x0.8+/-0.1x0.8+/-0.1mm",
+      "datasheet_url": "https://pim.murata.com/asset/pim4/ceramicCapacitorSMD/GRM1885C1H822JA01-01A-EN_PDF_CERAMICCAPACITORSMD?lastModifiedDatetime=20260730162843",
+      "mount": "SMT",
+      "category": "电容",
+      "notes": "OutputeFuse dV/dt capacitor; real packagedMPN verified byPIM.",
+      "height_max_mm": 0.9
+    },
+    {
+      "refs": [
+        "CBULK1",
+        "CBULK2",
+        "CBULK3"
+      ],
+      "value": "82uF 35V POLYMER",
+      "manufacturer": "Panasonic",
+      "mpn": "35SVPK82M",
+      "package": "SMD OS-CON E7, diameter8.0mm, height6.9mm",
+      "description": "82uF+/-20%,35Vpolymer,ESR25mohm,allowable ripple3.06A at100kHz up to105C",
+      "datasheet_url": "https://industrial.panasonic.com/cdbs/www-data/pdf/AAB8000/AAB8000C226.pdf",
+      "mount": "SMT",
+      "category": "聚合物电容",
+      "notes": "Panasonic manufacturer (notNichicon). E7dimensionsD8.0+/-0.5,L6.9+0.1/-0.4,W/H8.3+/-0.2,C9.0+/-0.2,P3.2ref. Cathode band mustmatchnegativepad2; compatibleCP_Elec_8x6.9. Maxcomponentheight7.0mm.",
+      "height_max_mm": 7
+    },
+    {
+      "refs": [
+        "CE2",
+        "CE3",
+        "CE4"
+      ],
+      "value": "100uF 25V POLYMER",
+      "manufacturer": "Panasonic",
+      "mpn": "25SVPF100M",
+      "package": "SMD OS-CON E7, diameter8.0mm, height6.9mm",
+      "description": "100uF+/-20%,25Vpolymer,ESR24mohm,allowable ripple3.2A at100kHz up to105C",
+      "datasheet_url": "https://industrial.panasonic.com/cdbs/www-data/pdf/AAB8000/AAB8000C177.pdf",
+      "mount": "SMT",
+      "category": "聚合物电容",
+      "notes": "Panasonic manufacturer (notNichicon). E7D8.0+/-0.5,L6.9+0.1/-0.4,W/H8.3+/-0.2,C9.0+/-0.2,P3.2ref. Negativebandtopad2;compatibleCP_Elec_8x6.9.",
+      "height_max_mm": 7
+    },
+    {
+      "refs": [
+        "L2",
+        "L3",
+        "L4"
+      ],
+      "value": "6.8uH / 6A Isat",
+      "manufacturer": "Coilcraft",
+      "mpn": "XAL5050-682MEC",
+      "package": "XAL5050,5.28x5.48mm,H5.1mmmax",
+      "description": "6.8uH+/-20%;Isat6A at30%Ldrop;Irms4.7A@20Crise/6.4A@40Crise;DCR26.75mohmtyp/29.45max",
+      "datasheet_url": "https://www.coilcraft.com/getmedia/49bc46c8-4b2c-45b9-9b6c-2eaa235ea698/xal50xx.pdf",
+      "mount": "SMT",
+      "category": "电感",
+      "notes": "Useofficial1.18x4.70mmpads atX+/-1.655mm,centers3.31mm. Body5.28+/-0.2x5.48+/-0.2. Shortleadbar shouldfaceSW(highdv/dt)side;non-polar. Mechanicalsource:https://www.coilcraft.com/getattachment/6feccfd5-e7e4-46e3-aa0b-2222b11f7450/xal5000d.gif?lang=en-US. Keepnew84.5kRLIMpairing.",
+      "height_max_mm": 5.1
+    },
+    {
+      "refs": [
+        "UPD"
+      ],
+      "value": "CH224A",
+      "manufacturer": "WCH",
+      "mpn": "CH224A",
+      "package": "ESSOP-10-EP, pitch 1.00mm",
+      "description": "USB PD sink voltage request controller; 56k configuration requests fixed 15V",
+      "datasheet_url": "https://www.wch-ic.com/download/file?id=302",
+      "mount": "SMT",
+      "category": "集成电路",
+      "notes": "Official EP0 maps to local PCB pad11, GND; use ESSOP10, not QFN CH224K. EP local land2.1x3.3mm; supplier package/CAM confirmation required."
+    },
+    {
+      "refs": [
+        "UIN"
+      ],
+      "value": "TPS26630RGER",
+      "manufacturer": "Texas Instruments",
+      "mpn": "TPS26630RGER",
+      "package": "RGE VQFN-24 4x4mm, EP2.7x2.7mm",
+      "description": "4.5..60V input eFuse, adjustable overvoltage and current protection",
+      "datasheet_url": "https://www.ti.com/lit/ds/symlink/tps2663.pdf",
+      "mount": "SMT",
+      "category": "集成电路",
+      "notes": "Retain exact TPS26630; MODE open latch-off. NC19..24 intentionally open; EP25 GND."
+    },
+    {
+      "refs": [
+        "U2",
+        "U3",
+        "U4"
+      ],
+      "value": "RT7272BGSP",
+      "manufacturer": "Richtek",
+      "mpn": "RT7272BGSP",
+      "package": "SOP-8 exposed pad, GSP Option2 EP2.4x3.4mm",
+      "description": "36V 3A synchronous buck; fixed feedback network approx4.984V; RLIM84.5k",
+      "datasheet_url": "https://www.richtek.com/assets/product_file/RT7272B/RT7272B_DS-11.pdf",
+      "mount": "SMT",
+      "category": "集成电路",
+      "notes": "Use B GSP PSOP8 option2; EP9 GND. No pin-compatible substitution assumed."
+    },
+    {
+      "refs": [
+        "UP2",
+        "UP3",
+        "UP4"
+      ],
+      "value": "TPS259470LRPWR",
+      "manufacturer": "Texas Instruments",
+      "mpn": "TPS259470LRPWR",
+      "package": "RPW0010A WQFN-10, 2x2mm pitch0.4mm",
+      "description": "2.7..23V output eFuse with reverse-current blocking; typ2.028A limit at1.65k",
+      "datasheet_url": "https://www.ti.com/lit/ds/symlink/tps25947.pdf",
+      "mount": "SMT",
+      "category": "集成电路",
+      "notes": "L variant latches after thermal fault; do not replace with A auto-retry. AUXOFF3 and ITIMER10 intentionally open."
+    }
+  ],
+  "procurement_policy": "No stockavailability promise; nolegacyLCSCcodes retained. OEMMPNauthoritative; substitution requireselectrical/footprintreview.",
+  "temperature_limit_c": 85,
+  "qualification": "SamplePCBAmanufacturingdata; notcommercialautomotivequalification. firstboardload/transient/thermal testsrequired.",
+  "manufacturer_api_evidence_files": [
+    "verification/manufacturer-evidence/smt-murata-known.json",
+    "verification/manufacturer-evidence/smt-murata-1u.json",
+    "verification/manufacturer-evidence/smt-murata-22u.json",
+    "verification/manufacturer-evidence/smt-murata-100n.json",
+    "verification/manufacturer-evidence/smt-murata-2n7.json",
+    "verification/manufacturer-evidence/smt-murata-8n2.json"
+  ],
+  "revision": "R3-USB-FLUSH-20261026",
+  "expected_installed_parts": 86,
+  "expected_smt_parts": 82,
+  "expected_tht_parts": 4
+}

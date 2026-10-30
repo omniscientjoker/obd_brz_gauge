@@ -1,0 +1,35 @@
+{
+  "pass": true,
+  "bom_format_revision": "BOM-IMPORT-20261027-R2",
+  "SMT_BOM_rows": 29,
+  "ALL_BOM_rows": 31,
+  "SMT_units": 82,
+  "THT_units": 4,
+  "manufacturer_MPN_count": 31,
+  "duplicate_MPN_rows": 0,
+  "chip_package_convention": "imperial only: 0402 / 0603 / 1206",
+  "merged_references": "CPD,CSYS,CUSB2,CUSB3,CUSB4",
+  "merged_quantity": 5,
+  "merged_top": 2,
+  "merged_bottom": 3,
+  "excel_csv_match": true,
+  "cpl_reference_match": true,
+  "non_bom_payloads_unchanged": true,
+  "r3_unchanged": true,
+  "supplier_online_import_verified": false,
+  "changed_payloads": {
+    "production": [
+      "SHA256.json",
+      "assembly/BOM_ALL.csv",
+      "assembly/BOM_SMT.csv",
+      "assembly/BOM_THT.csv"
+    ],
+    "huaqiu": [
+      "02_SMT/BOM_HUAQIU_SMT.csv",
+      "02_SMT/BOM_HUAQIU_SMT.xlsx",
+      "03_THT/BOM_HUAQIU_THT.csv",
+      "04_ASSEMBLY/BOM_HUAQIU_ALL.csv",
+      "SHA256.json"
+    ]
+  }
+}

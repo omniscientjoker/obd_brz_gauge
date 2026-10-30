@@ -1,0 +1,27 @@
+{
+  "units": "mm",
+  "revision": "R3-USB-FLUSH-20261026",
+  "pcb_source": "power_pd_3x5v_r3.xh.kicad_pcb",
+  "pcb_sha256": "9d332c00e763aa93b3a76596c559d684d2cc782b26be1c9eb7428c3ae2f2f119",
+  "board": {"width": 82.0, "height": 55.8, "thickness": 1.2, "layers": 4, "outline_xy": [[-41.0, 28.0], [41.0, 28.0], [41.0, -27.5], [6.0, -27.5], [6.0, -27.8], [-6.0, -27.8], [-6.0, -27.5], [-41.0, -27.5]]},
+  "origin": "mounting-hole midpoint; XY = (KiCad x - 100, 100 - KiCad y)",
+  "mounting_holes": [
+    {"xy": [-37.0, 0.0], "diameter": 2.4, "keepout_diameter": 7.0},
+    {"xy": [37.0, 0.0], "diameter": 2.4, "keepout_diameter": 7.0}
+  ],
+  "component_height_targets": {
+    "front_max_mm": 7.2,
+    "back_small_smd_max_mm": 1.8,
+    "back_component_clearance_required_mm": 2.3,
+    "existing_enclosure_post_height_mm": 2.5,
+    "enclosure_post_height_recommended_mm": 2.5,
+    "back_clearance_status": "2.5 mm standoffs provide 0.5 mm margin beyond the 2.0 mm MLCC/solder envelope; USB4085 tails extend approximately 0.91 mm below the 1.2 mm PCB. Verify solder tails on the assembled sample.",
+    "input_bulk": "Panasonic 35SVPK82M: verify purchased reel dimensions",
+    "output_bulk": "Panasonic 25SVPF100M: verify purchased reel dimensions"
+  },
+  "connectors": [
+    {"ref": "J1", "role": "USB-C PD input", "side": "south", "mpn": "USB4085-GF-A", "manufacturer": "GCT", "mount": "THT", "shell_mating_face_y_mm": -30.7, "board_overhang_mm": 2.9, "usb_tongue_edge_y_mm": -27.8, "usb_tongue_width_mm": 12.0, "mouth_width_mm": 8.94, "mouth_height_mm": 3.16, "axis_above_pcb_mm": 1.87, "shell_height_max_mm": 3.46, "status": "2.9 mm reach beyond central tongue: 0.3 mm inner gap + 2.4 mm continuous wall + 0.2 mm nominal exposure. Numerical interference validation is separate from DRC; purchased socket and print tolerances require sample fit."},
+    {"refs": ["J2", "J3", "J4"], "role": "5V cable outputs", "side": "north", "footprint": "JST XH 2.50 mm horizontal", "mpn": "S2B-XH-A(LF)(SN)", "mating_housing": "XHP-2", "pinout": {"1": "+5V", "2": "GND"}, "body_front_y_mm": 31.6, "body_centres_x_mm": [-21.9, 0.5, 22.9], "board_overhang_mm": 3.6, "status": "final PCB F.Fab bounds measured; mated housing and cable-turn target Y<=37 mm still needs physical verification"}
+  ],
+  "enclosure_status": "Matched R3-USB-FLUSH-20261026 enclosure; 74 mm mounting pitch retained. Continuous 2.4 mm side wall, 9.74 x 3.96 mm rounded aperture, no recess or thin mask. Use only the matching PCB and enclosure release. Physical sample fit is pending."
+}

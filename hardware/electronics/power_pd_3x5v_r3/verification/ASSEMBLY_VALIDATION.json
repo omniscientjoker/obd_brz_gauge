@@ -1,0 +1,24 @@
+{
+  "pass": true,
+  "pcb_sha256": "9d332c00e763aa93b3a76596c559d684d2cc782b26be1c9eb7428c3ae2f2f119",
+  "board_footprints": 93,
+  "installed_parts": 86,
+  "smt_parts": 82,
+  "tht_parts": 4,
+  "smt_sides": {
+    "F.Cu": 31,
+    "B.Cu": 51
+  },
+  "procurement_mpn_count": 31,
+  "drc_violations": 0,
+  "unconnected": 0,
+  "checks": [
+    "unique manufacturer MPN/spec identity",
+    "complete BOM/reference coverage",
+    "exact PCB value match",
+    "raw KiCad CPL centre/rotation/side/value match",
+    "no unverified distributor codes",
+    "unchanged source SHA",
+    "zero DRC"
+  ]
+}

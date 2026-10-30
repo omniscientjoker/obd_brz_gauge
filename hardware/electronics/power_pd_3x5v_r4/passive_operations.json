@@ -1,0 +1,339 @@
+[
+  {
+    "op": "via",
+    "id": "2ded97ac-5890-47ff-a0bc-a73e4bc1ce08",
+    "at": [
+      124,
+      119.41
+    ],
+    "tent": true
+  },
+  {
+    "op": "track",
+    "start": [
+      123.1,
+      119.41
+    ],
+    "end": [
+      124,
+      119.41
+    ],
+    "layer": "B.Cu",
+    "net": "/UV_IN",
+    "width": 0.2
+  },
+  {
+    "op": "track",
+    "start": [
+      123.1,
+      119.41
+    ],
+    "end": [
+      124,
+      119.41
+    ],
+    "layer": "In1.Cu",
+    "net": "/UV_IN",
+    "width": 0.2
+  },
+  {
+    "op": "via",
+    "id": "67d4bee7-fd0b-41dd-91d2-4ff4a5ca38ce",
+    "at": [
+      124,
+      114.89
+    ],
+    "tent": true
+  },
+  {
+    "op": "track",
+    "start": [
+      123.1,
+      114.89
+    ],
+    "end": [
+      124,
+      114.89
+    ],
+    "layer": "B.Cu",
+    "net": "/UV_IN",
+    "width": 0.2
+  },
+  {
+    "op": "track",
+    "start": [
+      123.1,
+      114.89
+    ],
+    "end": [
+      124,
+      114.89
+    ],
+    "layer": "In1.Cu",
+    "net": "/UV_IN",
+    "width": 0.2
+  },
+  {
+    "op": "via",
+    "id": "69b2d922-8355-46c6-b27c-0c871d2e7712",
+    "at": [
+      127.5,
+      119.41
+    ],
+    "tent": true
+  },
+  {
+    "op": "track",
+    "start": [
+      126.6,
+      119.41
+    ],
+    "end": [
+      127.5,
+      119.41
+    ],
+    "layer": "B.Cu",
+    "net": "/OV_IN",
+    "width": 0.2
+  },
+  {
+    "op": "track",
+    "start": [
+      126.6,
+      119.41
+    ],
+    "end": [
+      127.5,
+      119.41
+    ],
+    "layer": "In2.Cu",
+    "net": "/OV_IN",
+    "width": 0.2
+  },
+  {
+    "op": "via",
+    "id": "b7e74f7e-d17c-4aae-b0bc-7d623a4cd96c",
+    "at": [
+      127.5,
+      114.89
+    ],
+    "tent": true
+  },
+  {
+    "op": "track",
+    "start": [
+      126.6,
+      114.89
+    ],
+    "end": [
+      127.5,
+      114.89
+    ],
+    "layer": "B.Cu",
+    "net": "/OV_IN",
+    "width": 0.2
+  },
+  {
+    "op": "track",
+    "start": [
+      126.6,
+      114.89
+    ],
+    "end": [
+      127.5,
+      114.89
+    ],
+    "layer": "In2.Cu",
+    "net": "/OV_IN",
+    "width": 0.2
+  },
+  {
+    "op": "via",
+    "id": "2441409e-41e9-4236-9071-cb9c7f7919b5",
+    "at": [
+      110.955,
+      85.72
+    ],
+    "tent": true
+  },
+  {
+    "op": "track",
+    "start": [
+      109.455,
+      85.72
+    ],
+    "end": [
+      110.955,
+      85.72
+    ],
+    "layer": "B.Cu",
+    "net": "/PRE_CENTRE",
+    "width": 0.65
+  },
+  {
+    "op": "track",
+    "start": [
+      109.455,
+      85.72
+    ],
+    "end": [
+      110.955,
+      85.72
+    ],
+    "layer": "In1.Cu",
+    "net": "/PRE_CENTRE",
+    "width": 0.65
+  },
+  {
+    "op": "via",
+    "id": "a12d32af-d5a8-4df5-bf9f-9b1181424136",
+    "at": [
+      87.055,
+      87.2
+    ],
+    "tent": true
+  },
+  {
+    "op": "track",
+    "start": [
+      87.055,
+      85.72
+    ],
+    "end": [
+      87.055,
+      87.2
+    ],
+    "layer": "B.Cu",
+    "net": "/PRE_LEFT",
+    "width": 0.65
+  },
+  {
+    "op": "track",
+    "start": [
+      87.055,
+      85.72
+    ],
+    "end": [
+      87.055,
+      87.2
+    ],
+    "layer": "In1.Cu",
+    "net": "/PRE_LEFT",
+    "width": 0.65
+  },
+  {
+    "op": "via",
+    "id": "396869dc-2128-47cb-b801-4c908a180258",
+    "at": [
+      120.55,
+      88
+    ],
+    "tent": true
+  },
+  {
+    "op": "track",
+    "start": [
+      120.55,
+      88.7
+    ],
+    "end": [
+      120.55,
+      88
+    ],
+    "layer": "F.Cu",
+    "net": "/GND",
+    "width": 0.8
+  },
+  {
+    "op": "via",
+    "id": "c2415e1c-8835-4d62-845d-f135b75d8ca0",
+    "at": [
+      121.45,
+      88
+    ],
+    "tent": true
+  },
+  {
+    "op": "track",
+    "start": [
+      121.45,
+      88.7
+    ],
+    "end": [
+      121.45,
+      88
+    ],
+    "layer": "F.Cu",
+    "net": "/GND",
+    "width": 0.8
+  },
+  {
+    "op": "via",
+    "id": "7ab3d7f1-afd4-46b0-83aa-64d46520ea90",
+    "at": [
+      121.45,
+      91
+    ],
+    "tent": true
+  },
+  {
+    "op": "track",
+    "start": [
+      121.45,
+      89.6
+    ],
+    "end": [
+      121.45,
+      91
+    ],
+    "layer": "F.Cu",
+    "net": "/GND",
+    "width": 0.8
+  },
+  {
+    "op": "via",
+    "id": "b12ae02b-3fe1-4278-a1a4-8d4ecbd38876",
+    "at": [
+      120.55,
+      91
+    ],
+    "tent": true
+  },
+  {
+    "op": "track",
+    "start": [
+      120.55,
+      89.6
+    ],
+    "end": [
+      120.55,
+      91
+    ],
+    "layer": "F.Cu",
+    "net": "/GND",
+    "width": 0.8
+  },
+  {
+    "op": "via",
+    "id": "cabf711f-65e9-4c9f-a0af-de49eb14d32c",
+    "at": [
+      104.45,
+      87.8
+    ],
+    "tent": true
+  },
+  {
+    "op": "track",
+    "start": [
+      105.45,
+      87.8
+    ],
+    "end": [
+      104.45,
+      87.8
+    ],
+    "layer": "B.Cu",
+    "net": "/GND",
+    "width": 0.4
+  }
+]

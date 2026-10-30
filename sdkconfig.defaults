@@ -2633,3 +2633,9 @@ CONFIG_LWIP_TCP_WND_DEFAULT=65535
 CONFIG_LWIP_TCP_SND_BUF_DEFAULT=65535
 CONFIG_LWIP_SO_RCVBUF=y
 CONFIG_LWIP_SO_RCVBUF_DEFAULT=131072
+
+# Default target for a normal checkout. Dedicated master/slave builds append
+# sdkconfig.defaults.master or sdkconfig.defaults.slave after this file.
+CONFIG_GAUGE_FIRMWARE_MASTER=y
+# CONFIG_GAUGE_FIRMWARE_SLAVE is not set
+# CONFIG_GAUGE_BOARD_LCD185 is not set

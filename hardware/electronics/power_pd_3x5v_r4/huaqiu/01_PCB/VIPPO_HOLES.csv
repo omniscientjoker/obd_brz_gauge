@@ -1,0 +1,2 @@
+# No VIPPO required for R4: SMD pad/via intersections = 0.
+Via_ID,Gerber_X_mm,Gerber_Y_mm,CPL_X_mm,CPL_Y_mm,Drill_mm,Net,Pads_to_review

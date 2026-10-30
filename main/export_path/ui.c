@@ -25,7 +25,11 @@
 #include "app_obd_dsp/boot_block_player.h"
 #include "app_obd_dsp/boot_media_mount.h"
 #include "app_obd_dsp/ota_wifi_server.h"
+#if CONFIG_GAUGE_FIRMWARE_SLAVE
+#include "slave/gauge_uart_rx.h"
+#endif
 #include "esp_system.h"
+#include "ui_usb_storage.h"
 #include "esp_random.h"
 #include "esp_log.h"
 #include "esp_idf_version.h"
@@ -204,7 +208,7 @@ lv_obj_t * ui_NeedleSourceLabel;
 void ui_ScreenPageNeedleConfig_screen_init(void);
 lv_obj_t * ui_ScreenPageNeedleConfig;
 
-// SCREEN: ui_ScreenPageMultiGauge (triple-gauge settings: master/slave + master selection)
+// SCREEN: ui_ScreenPageMultiGauge (independent left/right UART dashboards)
 void ui_ScreenPageMultiGauge_screen_init(void);
 lv_obj_t * ui_ScreenPageMultiGauge;
 lv_obj_t * ui_LabelMultiValue[3];
@@ -645,9 +649,17 @@ void my_timerMain(lv_timer_t * timer)
     /* ---- Sweep trigger ----
        Master: triggered the instant the ELM327 BLE connects and advances the animation itself;
        Slave: never self-triggers, driven by the master's broadcast sweep_step (espnow recv → app_event queue). */
-    bool is_slave = (user_cfg->device_role == ESPNOW_ROLE_SLAVE);
+#if CONFIG_GAUGE_FIRMWARE_SLAVE
+    const bool is_slave = true;
+#else
+    const bool is_slave = false;
+#endif
     // "connected" signal: slave=master data being received, master=ELM327 BLE connected (shared by status display and the master's sweep trigger)
+#if CONFIG_GAUGE_FIRMWARE_SLAVE
+    bool ble_now = gauge_slave_link_is_connected();
+#else
     bool ble_now = is_slave ? espnow_link_slave_has_data() : elm327_ble_is_connected();
+#endif
     ui_ext_sweep_trigger(ble_now, is_slave);
     /* ---- Showroom mode: master drives slots, slaves follow (moved to ui_ext.c) ---- */
     ui_ext_showroom_tick(is_slave);
@@ -811,11 +823,6 @@ void my_timerMain(lv_timer_t * timer)
             ui_label_set_text_dirty(ui_LabelMultiValue[2], text);
         } else {
             ui_label_set_text_dirty(ui_LabelMultiValue[2], "--.-");
-        }
-        if (ui_LabelMultiRole) {
-            const char *role = (user_cfg->device_role == ESPNOW_ROLE_SLAVE) ? "从机" :
-                               (user_cfg->device_role == ESPNOW_ROLE_STANDALONE) ? "独立" : "主机";
-            ui_label_set_text_fmt_dirty(ui_LabelMultiRole, "%s多联表", role);
         }
     }
 
@@ -1049,8 +1056,7 @@ void my_timerMain(lv_timer_t * timer)
         static char s_last_easteregg_info[192];
         char info_text[192];
         char voltage_text[16];
-        const char *mode_str = is_slave ? "从机"
-                             : (user_cfg->device_role == ESPNOW_ROLE_MASTER) ? "主机" : "独立";
+        const char *mode_str = is_slave ? "从机" : "主机";
         const char *conn_name;
 
         if (is_slave) {
@@ -1115,19 +1121,21 @@ void my_timerMain(lv_timer_t * timer)
     /* The bottom info bar (TRIP/ODO/MAX/AVG/TIME) belonged to the removed Main page and was removed with it.
        Mileage statistics are still accumulated by a background task and can be shown on other pages or re-attached later. */
 
-    /* ===== Video boot mode (INTRO == 2: VIDEO, the boot_block flashed via the phone app) ===== */
-    // Moved to ui_ext.c; returns true while the Logo/video is still showing, so my_timerMain returns early.
+#if !CONFIG_GAUGE_FIRMWARE_SLAVE
+    /* The slave has no boot-media/intro service. It starts on a waiting screen
+       and switches dashboards only after a UART CONFIG frame arrives. */
     if (ui_ext_boot_video_tick()) return;
-
-    /* ===== Boot flow / Showroom Intro playback (moved to ui_ext.c) ===== */
     ui_ext_intro_tick(is_slave);
+#endif
 
     /* ---- RPM over-limit flash warning (migrated to ui_ext.c) ---- */
     ui_ext_rpm_flash_tick(usRpm, IN_SWEEP);
 
+#if !CONFIG_GAUGE_FIRMWARE_SLAVE
     if (!ui_ext_showroom_is_active()) {
         ui_ext_no_signal_update(ble_now);   // showroom mode is a fake-data demo, no NO SIGNAL hint
     }
+#endif
 
     /* ---- Adaptive refresh rate: data pages run fast, static pages stay slow ----
        Only this UI timer's period changes (pure redraw pacing); no OBD/RS485/ESP-NOW query or broadcast is affected. */
@@ -1257,6 +1265,7 @@ void ui_init(void)
     ui_nav_register_page(UI_NAV_PAGE_CHART, &ui_ScreenPageOilPressure, ui_ScreenPageOilPressure_screen_init);
     ui_nav_register_page(UI_NAV_PAGE_SKY_GAUGE, &ui_ScreenPageEasterEgg, ui_ScreenPageEasterEgg_screen_init);
     ui_nav_register_page(UI_NAV_PAGE_BLE_SCAN, &ui_ScreenPageBLEScan, ui_ScreenPageBLEScan_screen_init);
+    ui_nav_register_page(UI_NAV_PAGE_USB_SETTINGS, &ui_ScreenPageUSBSettings, ui_usb_settings_screen_init);
     ui_nav_register_page(UI_NAV_PAGE_SETTINGS, &ui_ScreenPageSettings, ui_ScreenPageSettings_screen_init);
     ui_nav_register_page(UI_NAV_PAGE_ALERT_MEDIA, &ui_ScreenPageAlertMedia, ui_ScreenPageAlertMedia_screen_init);
     ui_nav_register_page(UI_NAV_PAGE_MULTI_GAUGE, &ui_ScreenPageMultiGauge, ui_ScreenPageMultiGauge_screen_init);

@@ -1,0 +1,223 @@
+{
+  "units": "mm",
+  "stage": "enclosure mechanical interface; verify physical assembly",
+  "material": "rigid FR-4",
+  "localOrigin": "mounting-hole midpoint; X=KiCad x-100, Y=100-KiCad y",
+  "componentSide": "faces the gauge modules; confirm board flip in PCB CAD",
+  "standoffHeight": 2.5,
+  "standoffDiameter": 6.4,
+  "standoffRootDiameter": 7,
+  "insert": {
+    "thread": "M2",
+    "length": 3,
+    "outsideDiameter": 3,
+    "pilotDiameter": 2.7,
+    "blindDepth": 3.3
+  },
+  "screw": "M2×4 pan/cylinder head; verify head height and engagement on the sample",
+  "name": "power_board",
+  "centre": [
+    0,
+    -10.5
+  ],
+  "width": 82,
+  "height": 55.8,
+  "thickness": 1.2,
+  "outlineXY": [
+    [
+      -41,
+      28
+    ],
+    [
+      41,
+      28
+    ],
+    [
+      41,
+      -27.5
+    ],
+    [
+      6,
+      -27.5
+    ],
+    [
+      6,
+      -27.8
+    ],
+    [
+      -6,
+      -27.8
+    ],
+    [
+      -6,
+      -27.5
+    ],
+    [
+      -41,
+      -27.5
+    ]
+  ],
+  "mountingXY": [
+    [
+      -37,
+      0
+    ],
+    [
+      37,
+      0
+    ]
+  ],
+  "componentHeightMax": 7.2,
+  "undersideSolderHeightMax": 2,
+  "electricalDesign": "power_pd_3x5v_r3/power_pd_3x5v_r3.xh.kicad_pcb",
+  "currentPcbMechanicalInterface": "power_pd_3x5v_r3/mechanical_interface.json",
+  "pcbRevision": "R3-USB-FLUSH-20261026",
+  "pcbSourceSha256": "9d332c00e763aa93b3a76596c559d684d2cc782b26be1c9eb7428c3ae2f2f119",
+  "mountingInterfaceMatches": true,
+  "physicalFit": "numerical envelope validation supplied separately; physical sample fit pending",
+  "wirelessReservation": false,
+  "magneticMountingRecessRetained": true,
+  "ventilation": {
+    "slotWidth": 3,
+    "slotHeight": 8,
+    "cornerRadius": 1,
+    "throughFloor": true,
+    "centresXY": [
+      [
+        -72,
+        -14
+      ],
+      [
+        -72,
+        0
+      ],
+      [
+        -72,
+        14
+      ],
+      [
+        -60,
+        -14
+      ],
+      [
+        -60,
+        0
+      ],
+      [
+        -60,
+        14
+      ],
+      [
+        60,
+        -14
+      ],
+      [
+        60,
+        0
+      ],
+      [
+        60,
+        14
+      ],
+      [
+        72,
+        -14
+      ],
+      [
+        72,
+        0
+      ],
+      [
+        72,
+        14
+      ]
+    ]
+  },
+  "interfaces": [
+    {
+      "name": "J1_USB_PD_IN",
+      "matingFaceY": -41.2,
+      "shellHole": {
+        "width": 9.74,
+        "height": 3.96
+      },
+      "visibleAperture": {
+        "width": 9.74,
+        "height": 3.96
+      },
+      "exteriorWallFaceY": -41,
+      "socketExposure": 0.2,
+      "wall": {
+        "thickness": 2.4,
+        "continuous": true,
+        "recess": false,
+        "thinMask": false
+      },
+      "mouth": {
+        "width": 8.94,
+        "height": 3.16,
+        "axisAbovePcb": 1.87,
+        "printingClearancePerSide": 0.4
+      },
+      "axisZFromOuterFloor": 8.57,
+      "axisZFromInnerFloor": 5.57,
+      "plugMax": {
+        "width": 12,
+        "extension": 8,
+        "height": 8
+      },
+      "role": "complete 12x8 mm plug housing stays outside continuous wall; retain CC/DP/DM"
+    },
+    {
+      "name": "J2_J3_J4_XH",
+      "housingFaceY": 21.1,
+      "matedWireLimitY": 37,
+      "pinout": {
+        "1": "+5V",
+        "2": "GND"
+      },
+      "role": "wires must turn toward front before reaching upper wall"
+    }
+  ],
+  "connectorStatus": "final PCB Fab bounds checked; purchased mating plugs and cable bends still require trial fit",
+  "holes": [
+    {
+      "xy": [
+        -37,
+        0
+      ],
+      "diameter": 2.4,
+      "type": "NPTH",
+      "copperAndComponentKeepoutDiameter": 7
+    },
+    {
+      "xy": [
+        37,
+        0
+      ],
+      "diameter": 2.4,
+      "type": "NPTH",
+      "copperAndComponentKeepoutDiameter": 7
+    }
+  ],
+  "enclosureHoleCentres": [
+    [
+      -37,
+      -10.5
+    ],
+    [
+      37,
+      -10.5
+    ]
+  ],
+  "componentPlaneZ": 36.3,
+  "gaugeClearance": 11.5,
+  "shellThickness": 43,
+  "thicknessLimits": {
+    "bareModuleStackOnly": 33.5,
+    "centralGaugeCable": 42.3,
+    "inputCollar": "removed; continuous original side wall only",
+    "scope": "declared plug/cable envelopes; battery, speaker and physical bend radius still require trial fit"
+  },
+  "minimumShellThickness": 43
+}

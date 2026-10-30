@@ -1,0 +1,12 @@
+项目：三联仪表三路5V电源板，交付R3-HUAQIU-20261026-R1，电气R3-ERC-20261026。
+PCB：4层FR-4，建议Tg≥150°C，82×55.8mm，成品厚1.2mm，内外层目标35µm/1oz，沉金，绿油双面白字。
+层序：F.Cu / In1.Cu / In2.Cu / B.Cu，不交换内层。
+盘中孔：必须树脂塞孔、填平、盖铜（VIPPO）；27个候选孔见VIPPO_HOLES.csv，工厂CAM核准处理范围，普通阻焊盖油不等同。
+钻孔：PTH和NPTH文件分开；两个Ø2.4mm安装孔不镀铜，中心距74mm。按Edge.Cuts保留12mm宽、突出0.3mm的USB中央凸舌。
+装配：每板双面SMT82件（Top31/Bottom51），另有4件THT后焊，总86件、31种制造商MPN。BOM是单板用量，订单板数、损耗及采购余量另计。
+BOM导入：SMT用BOM_HUAQIU_SMT.xlsx或对应CSV二选一；THT另用BOM_HUAQIU_THT.csv。如改用总BOM，不能与拆分BOM重复计量。
+后焊：双面回流后安装J1/J2/J3/J4。J1=GCT USB4085-GF-A，全通孔16接点及4个SH固定脚全部焊接；J2/J3/J4=JST S2B-XH-A(LF)(SN)，pin1=+5V，pin2=GND。
+贴装坐标：mm，Top/Bottom均为顶视，Bottom不重复镜像。CPL封装原点及角度须按元件库核对取料偏移和零度；以PIN1_POLARITY.csv和双面装配PDF校对首件。
+工艺：双面钢网优先0.10mm，由工厂核准EP分窗、开口和工艺边/Mark/拼板，不改变单板外形及孔位。回流次数和曲线按实际聚合物电容、电感等物料要求安排。
+采购：按完整厂家/MPN，不自动替换IC后缀、精密电阻、电容耐压/介质/ESR或电感。无库存料及采购余量先确认。H1/H2、TP*不采购。
+首板：固定15V PD输入，三路约5V，每路1.5A设计负载；按FIRST_ARTICLE_TEST.md约定带载、纹波、保护及温升测试，记录实际结果。

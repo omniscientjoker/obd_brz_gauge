@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "esp_log.h"
+#include "esp_attr.h"
 
 #include "app_media/sd_media_manager.h"
 #include "app_media/wav_player.h"
@@ -27,8 +28,8 @@ static lv_obj_t *s_mode_buttons[NVS_MEDIA_ALERT_VIDEO + 1];
 static lv_timer_t *s_refresh_timer;
 static uint8_t s_selected_alert;
 static uint8_t s_selected_mode;
-static char s_picker_names[SD_MEDIA_RESOURCE_MAX][SD_MEDIA_RESOURCE_NAME_MAX];
-static sd_media_resource_snapshot_t s_picker_snapshot;
+static EXT_RAM_BSS_ATTR char s_picker_names[SD_MEDIA_RESOURCE_MAX][SD_MEDIA_RESOURCE_NAME_MAX];
+static EXT_RAM_BSS_ATTR sd_media_resource_snapshot_t s_picker_snapshot;
 static bool s_picker_snapshot_valid;
 
 static void cancel_pending_video_preview(void)

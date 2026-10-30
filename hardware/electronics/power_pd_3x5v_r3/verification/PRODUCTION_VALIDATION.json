@@ -1,0 +1,19 @@
+{
+  "pass": true,
+  "delivery_revision": "R3-PRODUCTION-20261026-R1",
+  "pcb_sha256": "9d332c00e763aa93b3a76596c559d684d2cc782b26be1c9eb7428c3ae2f2f119",
+  "schematic_sha256": "ca78c2b90ba080f9680c24393c050b5afb792eeffc8d2028bc5dd2d343dc73bf",
+  "project_rules_sha256": "85b7ffaac239888a3bf0e0b3a593c5697aa573e162d90aa065780c98b2dd5fe4",
+  "SMT": 82,
+  "Top": 31,
+  "Bottom": 51,
+  "THT": 4,
+  "MPN": 31,
+  "gerber_files": 14,
+  "copper_layers": 4,
+  "VIPPO_candidates": 27,
+  "drc_violations": 0,
+  "unconnected": 0,
+  "erc_violations": 0,
+  "archive_sha256": "ae32bb75fef01ceb7a1fd2431faddbe7cbcf36e12b6bd8e174fa5c7547d353d6"
+}

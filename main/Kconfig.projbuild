@@ -1,4 +1,27 @@
 menu "OBD DSP Configuration"
+    choice GAUGE_FIRMWARE_TARGET
+        prompt "Gauge firmware target"
+        default GAUGE_FIRMWARE_MASTER
+        help
+            Select the application image built for this checkout. Master keeps
+            the existing OBD/UI/media services; slave only receives the UART
+            gauge link and renders dashboards.
+
+        config GAUGE_FIRMWARE_MASTER
+            bool "Master (OBD + dual UART transmitter)"
+
+        config GAUGE_FIRMWARE_SLAVE
+            bool "Slave (single UART receiver)"
+    endchoice
+
+    config GAUGE_BOARD_LCD185
+        bool "Slave board: ESP32-S3-LCD-1.85"
+        default n
+        help
+            Select the Waveshare ESP32-S3-LCD-1.85 board used by the slave
+            image. Its LCD reset is driven by TCA9554 EXIO2 and it has no
+            CST816 touch controller.
+
     # Waveshare ESP32-S3-Touch-LCD-1.85
     # LCD: ST77916 (360x360 QSPI)
     # Touch: CST816 (I2C)

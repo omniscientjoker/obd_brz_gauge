@@ -12,6 +12,7 @@
 #include "freertos/task.h"
 #include "driver/sdmmc_host.h"
 #include "esp_heap_caps.h"
+#include "esp_attr.h"
 #include "esp_log.h"
 #include "esp_vfs_fat.h"
 #include "sdmmc_cmd.h"
@@ -31,7 +32,8 @@ static sdmmc_card_t *s_card;
 static volatile bool s_ready;
 static volatile bool s_started;
 static volatile sd_media_state_t s_state = SD_MEDIA_STATE_NO_CARD;
-static sd_media_resource_snapshot_t s_resources = {
+/* File-name tables are CPU-only; leave scarce DMA/internal RAM to drivers. */
+static EXT_RAM_BSS_ATTR sd_media_resource_snapshot_t s_resources = {
     .state = SD_MEDIA_STATE_NO_CARD,
 };
 
